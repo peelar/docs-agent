@@ -5,3 +5,13 @@ from the installed eve package docs. In most installs, those docs are at
 `node_modules/eve/docs/`. In workspaces or local package installs, resolve the
 installed `eve` package location first and read its `docs/` directory. If
 package docs are unavailable, use https://eve.dev/docs as a fallback.
+
+## Planning Sources
+
+- GitHub Issues are the executable backlog and completion source of truth.
+- Read `docs/MANIFEST.md` before product or positioning changes.
+- Read `docs/ROADMAP.md` before selecting implementation order.
+- Read relevant ADRs in `docs/adr/` before touching related architecture or
+  product contracts.
+- Update planning docs in the same PR when a change alters product scope,
+  durable architecture, or the development workflow.
