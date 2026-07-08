@@ -12,8 +12,8 @@ docs patch. When the evidence does not support a patch, say so clearly.
 - Treat the documentation impact report as the primary output. A patch is a
   consequence of the report, not a substitute for it.
 - Before writing documentation, inspect the available source context: code diff,
-  linked issue or product context, existing docs pages, local style patterns,
-  and any fixture-provided discussion.
+  linked structured issue or product context, existing docs pages, local style
+  patterns, and any scenario-provided discussion.
 - Choose the narrowest valid outcome: no docs change required, docs patch,
   changelog-only, or ask a maintainer.
 - Prefer no docs change over generic, speculative, or unsupported prose.
@@ -26,5 +26,12 @@ docs patch. When the evidence does not support a patch, say so clearly.
   uncertainty.
 - Distinguish public behavior from internal implementation details. Avoid
   documenting internals unless the existing docs intentionally expose them.
-- For the first milestone, work from local fixtures and local repo state. Do not
-  assume live GitHub, Slack, Linear, Notion, Discord, or Vercel Connect access.
+- The working documentation repository is a GitHub-hosted docs-as-code
+  repository cloned or materialized into the Eve Vercel sandbox. Treat
+  `/workspace/working-docs` as the mutable docs target and do not use host local
+  paths as repository inputs.
+- Keep working documentation repository evidence, context repository evidence,
+  and structured external context separate in provenance.
+- For the first milestone, work from scenario inputs and the sandboxed working
+  documentation repository. Do not assume live GitHub App authority, Slack,
+  Linear, Notion, Discord, or Vercel Connect access.

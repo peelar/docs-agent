@@ -25,23 +25,30 @@ when the right answer is no change, changelog only, or ask a maintainer.
 
 ## MVP
 
-The MVP proves the documentation judgment loop with local fixtures and a real
-working documentation repository. Given a PR-like code change, a
-Docusaurus-style docs target, and fixture issue or product context, the agent
-emits a documentation impact report. When a docs change is warranted, it
-prepares a minimal Markdown or MDX patch with provenance and check results.
+The MVP proves the documentation judgment loop with fixture scenarios and a
+real working documentation repository. Given a PR-like code change, a
+GitHub-hosted Docusaurus-style docs target, and structured issue or product
+context, the agent emits a documentation impact report. When a docs change is
+warranted, it prepares a minimal Markdown or MDX patch with provenance and
+check results.
 
-The first milestone does not need live GitHub, Slack, Linear, Notion, or
-Discord integration. Fixture scenarios should be shaped like the future live
-workflow so the agent's behavior can move to real integrations later without
-changing the product contract.
+The first milestone does not need live GitHub App, Slack, Linear, Notion, or
+Discord integration. Scenarios should be shaped like the future live workflow so
+the agent's behavior can move to provider integrations later without changing
+the product contract.
 
 ## Repository Model
 
 The central project concept is the **working documentation repository**. This is
-the docs-as-code repository a user provides during onboarding. It is the primary
-mutable target: the agent inspects it, applies local patches to it, and later
-uses GitHub App authority to create branches or draft PRs in it.
+the GitHub-hosted docs-as-code repository a user provides during onboarding. It
+is cloned or materialized into the Eve Vercel sandbox at
+`/workspace/working-docs` and is the primary mutable target: the agent inspects
+it, applies sandbox-local patches to it, exports report and diff artifacts, and
+later uses GitHub App authority to create branches or draft PRs in it.
+
+Host local paths are not supported as working documentation repository sources
+for the main workflow. Local development and production use the same
+sandbox-first contract.
 
 The first realistic working documentation repository can be a fork of Saleor
 docs. This gives the agent a real docs tree and real checks without requiring
@@ -52,6 +59,11 @@ evidence, such as the application or product code repository that the
 documentation describes. For Saleor, a future context repository could be
 `saleor/saleor`. Context repositories help the agent understand behavior, but
 they are not patch targets.
+
+**External context** is structured non-repository evidence, such as a
+communication thread, issue-tracker item, decision record, release note, or
+customer report. It preserves provenance, source shape, timestamps, authors,
+links, and relationships instead of becoming a plain text blob.
 
 ## Not MVP
 
@@ -72,14 +84,14 @@ they are not patch targets.
 - Treat the documentation impact report as the core output; patches are a
   consequence of the report, not the other way around.
 - Keep patches small enough for a human reviewer to understand quickly.
-- Cite the evidence used: code diff, fixture issue context, existing page
+- Cite the evidence used: code diff, structured issue context, existing page
   pattern, considered pages, and remaining uncertainty.
 - Distinguish the working documentation repository from read-only context
   repositories in every provenance trail and permission decision.
 - Follow Eve's installed documentation as the source of truth for runtime
   structure and channel behavior.
-- Keep style knowledge inspectable in project files, fixtures, evals, or future
-  skills rather than hiding it only in prompts.
+- Keep style knowledge inspectable in project files, scenario inputs, evals, or
+  future skills rather than hiding it only in prompts.
 - Prove the real working-documentation-repository loop before adding broad
   evals or provider integrations.
 - Build evals before expanding Slack, Linear, source-repository, or proactive
@@ -88,11 +100,11 @@ they are not patch targets.
 
 ## First Workflow
 
-A maintainer gives the agent a fixture scenario containing:
+A maintainer gives the agent a scenario containing:
 
-- a working documentation repository fixture or real checkout;
+- a working documentation repository GitHub URL, ref, and docs root;
 - a PR-like code change or injected context pack;
-- linked issue or product context;
+- linked structured issue or product context;
 - optional existing docs conventions or expected style notes.
 
 The agent inspects the scenario in an Eve sandbox, identifies affected docs
@@ -108,15 +120,15 @@ prepares a minimal docs patch and records which checks ran.
 - The agent makes minimal diffs that match local docs conventions.
 - The report names pages considered but not edited.
 - The report distinguishes evidence-backed claims from uncertainty.
-- Fixture evals cover docs-needed, no-docs-needed, changelog-only, and
+- Scenario evals cover docs-needed, no-docs-needed, changelog-only, and
   maintainer-question scenarios.
 - A Docusaurus-style build or relevant docs check can be run and reported when
-  the fixture provides one.
+  the scenario provides one.
 
 ## Open Questions
 
-- Which fixture format should represent a PR-like code change, working docs
-  repository, linked issue, and expected outcome?
+- Which scenario format should represent a PR-like code change, working docs
+  repository input, linked context, and expected outcome?
 - Should the first patch output be a git diff file, a working-tree edit inside
   the sandbox, or both?
 - What is the minimum onboarding shape for a working documentation repository:
@@ -124,12 +136,14 @@ prepares a minimal docs patch and records which checks ran.
 - How much style knowledge belongs in root instructions versus a load-on-demand
   Eve skill?
 - Which docs check should be mandatory for the first working docs repository
-  fixture: build, typecheck, link check, or a lighter smoke check?
+  scenario: build, typecheck, link check, or a lighter smoke check?
 
 ## Truth Surfaces
 
 - GitHub Issues: executable backlog and completion source of truth.
 - `docs/ROADMAP.md`: milestones, appetite, dependencies, and fallback order.
+- `docs/REPOSITORY_MODEL.md`: working docs repository, context repository,
+  external context, sandbox, and provenance contract.
 - `docs/adr/`: durable decision records, created through `$to-adr`.
 - `AGENTS.md`: agent rules and source-of-truth pointers only.
 - Installed Eve docs under `node_modules/eve/docs/`: source of truth for Eve

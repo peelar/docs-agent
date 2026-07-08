@@ -8,12 +8,14 @@ change and surrounding context, decide whether docs are affected, explain the
 impact, and only then prepare a small reviewable docs patch when the evidence
 supports it.
 
-The first runnable version is fixture-first. It will use local PR-like changes,
-local Docusaurus-style docs trees, and local context fixtures before wiring live
-GitHub, Slack, Linear, Notion, Discord, or Vercel Connect access.
+The first runnable version is scenario-first. It will use PR-like changes,
+GitHub-hosted Docusaurus-style working documentation repositories cloned or
+materialized into the Eve Vercel sandbox, and structured context fixtures before
+wiring live GitHub App, Slack, Linear, Notion, Discord, or Vercel Connect access.
 
 For the durable product contract, read `docs/MANIFEST.md`. For milestone order
-and issue dependencies, read `docs/ROADMAP.md`.
+and issue dependencies, read `docs/ROADMAP.md`. For the repository and sandbox
+contract, read `docs/REPOSITORY_MODEL.md`.
 
 ## What This Becomes
 
@@ -31,15 +33,18 @@ are useful to both humans and AI readers.
 - `agent/instructions.md`: always-on identity and standing behavior for the
   documentation maintainer agent.
 - `agent/channels/`: Eve channel entrypoints.
-- `agent/tools/`: future typed tools for inspecting fixtures, repos, diffs,
+- `agent/lib/`: import-only runtime contracts and shared helper code.
+- `agent/tools/`: future typed tools for inspecting scenarios, repos, diffs,
   docs trees, and checks.
 - `agent/skills/`: future load-on-demand procedures for docs impact analysis,
   style discovery, patch preparation, and review.
-- `agent/sandbox/`: future sandbox definition and seeded workspace files for
-  safe repo work.
-- `evals/`: future Eve evals for fixture-backed documentation decisions.
+- `agent/sandbox.ts`: Eve Vercel sandbox configuration with GitHub-only egress
+  for repository materialization.
+- `evals/`: future Eve evals for scenario-backed documentation decisions.
 - `docs/MANIFEST.md`: product stance, MVP boundaries, principles, and success
   signals.
+- `docs/REPOSITORY_MODEL.md`: working docs repository, context repository,
+  external context, sandbox, and provenance contract.
 - `docs/ROADMAP.md`: milestone order, issue dependencies, and later work.
 - `AGENTS.md`: rules for coding agents working in this repo.
 
