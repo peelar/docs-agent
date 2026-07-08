@@ -33,5 +33,6 @@ docs patch. When the evidence does not support a patch, say so clearly.
 - Keep working documentation repository evidence, context repository evidence,
   and structured external context separate in provenance.
 - For the first milestone, work from scenario inputs and the sandboxed working
-  documentation repository. Do not assume live GitHub App authority, Slack,
-  Linear, Notion, Discord, or Vercel Connect access.
+  documentation repository. Push or open draft PRs only through scoped GitHub
+  authority after explicit approval. Do not assume Slack, Linear, Notion,
+  Discord, or Vercel Connect access.

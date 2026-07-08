@@ -10,8 +10,9 @@ supports it.
 
 The first runnable version is scenario-first. It will use PR-like changes,
 GitHub-hosted Docusaurus-style working documentation repositories cloned or
-materialized into the Eve Vercel sandbox, and structured context fixtures before
-wiring live GitHub App, Slack, Linear, Notion, Discord, or Vercel Connect access.
+materialized into the Eve Vercel sandbox, structured context fixtures, and
+approved GitHub writeback before wiring Slack, Linear, Notion, Discord, or
+Vercel Connect access.
 
 For the durable product contract, read `docs/MANIFEST.md`. For milestone order
 and issue dependencies, read `docs/ROADMAP.md`. For the repository and sandbox
@@ -20,7 +21,8 @@ contract, read `docs/REPOSITORY_MODEL.md`.
 ## What This Becomes
 
 The near-term goal is a reliable Eve workflow that produces documentation impact
-reports and minimal Markdown or MDX patches with provenance and checks.
+reports, minimal Markdown or MDX patches, check results, exported diffs, and
+approved draft PRs with provenance.
 
 The longer-term direction is a documentation operations agent: connected to the
 places where product and engineering decisions happen, able to detect missing or

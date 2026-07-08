@@ -23,7 +23,7 @@ The repository input contract captures:
 
 Host local paths are not supported as repository sources for the main workflow.
 Local development and production use the same sandbox-first contract: GitHub URL
-to Eve Vercel sandbox to report and diff artifact.
+to Eve Vercel sandbox to report, diff artifact, and approved GitHub writeback.
 
 ## Sandbox Boundary
 

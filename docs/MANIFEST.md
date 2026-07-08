@@ -25,17 +25,17 @@ when the right answer is no change, changelog only, or ask a maintainer.
 
 ## MVP
 
-The MVP proves the documentation judgment loop with fixture scenarios and a
-real working documentation repository. Given a PR-like code change, a
-GitHub-hosted Docusaurus-style docs target, and structured issue or product
-context, the agent emits a documentation impact report. When a docs change is
-warranted, it prepares a minimal Markdown or MDX patch with provenance and
-check results.
+The MVP proves the sandboxed GitHub repository work loop. Given a configured
+GitHub working documentation repository, PR-like change context, and structured
+issue or product context, the agent clones or materializes the repository into
+the Eve Vercel sandbox, emits a documentation impact report, prepares a minimal
+Markdown or MDX patch when warranted, runs checks, exports a diff, and can push
+an approved branch or draft PR back to the same working repository.
 
-The first milestone does not need live GitHub App, Slack, Linear, Notion, or
-Discord integration. Scenarios should be shaped like the future live workflow so
-the agent's behavior can move to provider integrations later without changing
-the product contract.
+The first milestone does not need Slack, Linear, Notion, Discord, source
+repository, or proactive monitoring integration. GitHub authority is in scope
+only for the configured working documentation repository and only after the
+sandbox-local patch/check workflow and approval boundary are proven.
 
 ## Repository Model
 
@@ -44,7 +44,7 @@ the GitHub-hosted docs-as-code repository a user provides during onboarding. It
 is cloned or materialized into the Eve Vercel sandbox at
 `/workspace/working-docs` and is the primary mutable target: the agent inspects
 it, applies sandbox-local patches to it, exports report and diff artifacts, and
-later uses GitHub App authority to create branches or draft PRs in it.
+uses scoped GitHub authority to create approved branches or draft PRs in it.
 
 Host local paths are not supported as working documentation repository sources
 for the main workflow. Local development and production use the same
@@ -54,20 +54,17 @@ The first realistic working documentation repository can be a fork of Saleor
 docs. This gives the agent a real docs tree and real checks without requiring
 access to Saleor Slack, Linear, or source repositories.
 
-**Context repositories** are separate. They are optional, read-only sources of
-evidence, such as the application or product code repository that the
-documentation describes. For Saleor, a future context repository could be
-`saleor/saleor`. Context repositories help the agent understand behavior, but
-they are not patch targets.
-
 **External context** is structured non-repository evidence, such as a
 communication thread, issue-tracker item, decision record, release note, or
 customer report. It preserves provenance, source shape, timestamps, authors,
 links, and relationships instead of becoming a plain text blob.
 
+**Context repositories** are a later expansion. They can become optional,
+read-only evidence sources after the single working-repository loop is proven,
+but they are not part of the focused open backlog.
+
 ## Not MVP
 
-- Live GitHub pull request creation.
 - Chat SDK adapter work or multi-surface chat routing.
 - Slack, Discord, Linear, Notion, or support-thread context ingestion.
 - Continuous monitoring of repositories, releases, support channels, or
@@ -94,9 +91,9 @@ links, and relationships instead of becoming a plain text blob.
   future skills rather than hiding it only in prompts.
 - Prove the real working-documentation-repository loop before adding broad
   evals or provider integrations.
-- Build evals before expanding Slack, Linear, source-repository, or proactive
-  integrations so behavior can be regression tested as tools and channels
-  become more capable.
+- Build policy and safety evals before expanding Slack, Linear,
+  source-repository, context-repository, or proactive integrations so behavior
+  can be regression tested as tools and channels become more capable.
 
 ## First Workflow
 
@@ -110,7 +107,8 @@ A maintainer gives the agent a scenario containing:
 The agent inspects the scenario in an Eve sandbox, identifies affected docs
 surfaces in the working documentation repository, decides whether a docs change
 is needed, and emits a documentation impact report. If a change is needed, it
-prepares a minimal docs patch and records which checks ran.
+prepares a minimal docs patch, records which checks ran, exports a diff, and
+publishes approved changes back to the same GitHub repository.
 
 ## Success Signals
 
@@ -124,6 +122,10 @@ prepares a minimal docs patch and records which checks ran.
   maintainer-question scenarios.
 - A Docusaurus-style build or relevant docs check can be run and reported when
   the scenario provides one.
+- Disallowed repository actions, unsupported sources, sandbox setup failures,
+  and unapproved push attempts fail visibly.
+- Approved changes can be pushed to a draft PR in the configured working
+  repository without granting write access to any other repository.
 
 ## Open Questions
 
@@ -131,8 +133,8 @@ prepares a minimal docs patch and records which checks ran.
   repository input, linked context, and expected outcome?
 - Should the first patch output be a git diff file, a working-tree edit inside
   the sandbox, or both?
-- What is the minimum onboarding shape for a working documentation repository:
-  Git URL only, GitHub App installation, or both?
+- Which scoped GitHub write path should ship first: GitHub App installation,
+  Eve GitHub channel checkout/writeback, or an authored GitHub tool?
 - How much style knowledge belongs in root instructions versus a load-on-demand
   Eve skill?
 - Which docs check should be mandatory for the first working docs repository

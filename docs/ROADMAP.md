@@ -2,29 +2,26 @@
 
 ## Current Appetite
 
-The first proof should stay narrow enough to validate in local development with
-scenario inputs and one real working documentation repository cloned or
-materialized into the Eve Vercel sandbox. The appetite is one focused milestone:
-prove that the agent can inspect a PR-like change, reason against a docs-as-code
-repository, produce a useful documentation impact report, and prepare a minimal
-patch when warranted.
+The first proof should stay narrow enough to validate with one configured
+GitHub working documentation repository cloned or materialized into the Eve
+Vercel sandbox. The appetite is one focused milestone: prove that the agent can
+materialize the repository, enforce allowed repository actions, reason about a
+PR-like change, prepare a minimal patch when warranted, run checks, export a
+diff, and publish approved changes back to GitHub.
 
-This appetite rules out live provider integration, multi-channel routing,
-continuous monitoring, source-repository integration, and broad documentation
-platform support until the core working-documentation-repository loop is
-reliable.
+This appetite rules out multi-channel routing, continuous monitoring,
+source-repository integration, context-repository integration, and broad
+documentation platform support until the core sandboxed working-repository loop
+is reliable.
 
 ## Milestones
 
 | Milestone | Goal | Done When | Issues |
 | --- | --- | --- | --- |
 | M0 | Project setup and operating rules | README, root instructions, and planning docs establish the Eve-first docs maintainer contract. | #5 |
-| M1 | Repository model and fixture-backed judgment loop | The agent distinguishes the working documentation repository from optional context repositories, emits structured impact reports, and prepares minimal docs patches when needed. | #6, #1, #2 |
-| M2 | Real working documentation repository smoke path | The scenario workflow can be pointed at a real GitHub-hosted docs repository, such as a fork of Saleor docs, while preserving provenance, patch minimality, and checks. | #4 |
-| M3 | Eve eval coverage | The primary documentation decisions are regression-tested after the repository contract and real-docs-repo path exist. | #3 |
-| M4 | Provider-backed working docs repo workflow | The agent can use scoped GitHub App access for the working documentation repository, then prepare or open reviewable draft docs PRs with human approval. | #7 |
-| M5 | Read-only context repositories | The agent can inspect selected source or product repositories as evidence without treating them as patch targets. | #8 |
-| M6 | Proactive documentation operations | The agent can monitor selected signals for stale or missing docs and route reviewable work to maintainers. | TBD |
+| M1 | Sandboxed GitHub working-repository loop | The agent materializes one GitHub working repository in the Eve Vercel sandbox, enforces allowed repository actions, prepares and checks minimal patches, exports diffs, and can push approved changes to a draft PR. | #6, #1, #2, #4, #7 |
+| M2 | Safety and regression coverage | The sandboxed repository workflow is covered for successful paths and fail-closed behavior. | #3 |
+| M3 | Later integrations | Context repositories, source evidence, multi-channel surfaces, monitoring, and broader docs platform support are considered only after M1 and M2 are reliable. | TBD |
 
 ## M1 Slice Plan
 
@@ -34,31 +31,30 @@ reliable.
 
 1. Define repository model.
    Capture the working documentation repository as the primary mutable target
-   inside the Eve Vercel sandbox, and context repositories as optional
-   read-only evidence sources.
+   inside the Eve Vercel sandbox, plus the typed input contract and explicit
+   no-fallback behavior.
 
-2. Define scenario shape.
-   Capture a PR-like diff, working docs repository input, linked context,
-   expected impact category, and expected evidence.
+2. Materialize the GitHub working repository.
+   Parse the repository input, reject unsupported sources, clone or materialize
+   the requested ref into `/workspace/working-docs`, and record provenance.
 
-3. Define the documentation impact report contract.
-   Include impact decision, affected pages, proposed action, evidence,
-   considered-but-not-edited pages, uncertainty, patch summary, and check result.
+3. Add a policy-aware repository action runner.
+   Gate clone, read, search, patch, run-checks, and export-diff actions against
+   the repository contract and fail closed for unsupported actions or paths.
 
-4. Build sandbox-backed scenario inspection.
-   Let the agent inspect a Docusaurus-style docs tree and code change without
-   live GitHub App or external provider credentials.
+4. Patch, check, and export inside the sandbox.
+   Emit the impact report, prepare minimal Markdown or MDX patches, run checks,
+   and export a reviewable diff artifact through the action runner.
 
-5. Prepare minimal patch output.
-   When the report says docs are affected, produce a focused Markdown or MDX
-   diff following existing page conventions.
+5. Push approved changes to GitHub.
+   After explicit approval, create a branch, push the sandboxed diff, and open a
+   draft PR in the working repository with report, evidence, checks, and
+   uncertainty.
 
-6. Add a real working docs repository smoke path.
-   Point the same workflow at a real GitHub-hosted docs repository, starting
-   with a fork of Saleor docs, without live provider setup.
-
-7. Add Eve eval coverage.
-   Cover docs-needed, no-docs-needed, changelog-only, and ask-maintainer cases.
+6. Add safety and regression coverage.
+   Cover successful materialization, denied actions, unsupported sources,
+   patch/check/diff behavior, approval-required writeback, and primary report
+   decisions.
 
 ## Ordered Backlog
 
@@ -69,21 +65,17 @@ ordering cannot be read.
 | --- | --- | --- | --- |
 | 0 | #5 Establish project setup and docs-maintainer operating rules | Gives contributors and agents the stable Eve-first setup needed before the workflow implementation. | None |
 | 1 | #6 Define working docs and context repository model | Makes the central mutable docs repository and sandbox boundary explicit before workflow schemas harden. | #5 |
-| 2 | #1 Build fixture-backed docs impact report workflow | Establishes the core product judgment and report contract before integrations. | #5, #6 |
-| 3 | #2 Add minimal patch preparation for working docs repository fixtures | Turns the report into a reviewable docs change without broad rewrite behavior. | #1 |
-| 4 | #4 Add working documentation repository workflow for real docs repos | Bridges fixtures to a realistic Saleor-docs-fork style workflow while staying provider-light. | #1, #2, #6 |
-| 5 | #3 Add Eve eval scenarios for primary documentation decisions | Locks in behavior after the repo contract and first real-docs path exist. | #1, #2, #4 |
-| 6 | #7 Add GitHub App draft PR workflow for the working docs repository | Adds controlled write autonomy in the central docs repository after local patch behavior works. | #4, #6 |
-| 7 | #8 Add read-only context repository support for source evidence | Adds source-code evidence without broadening write authority beyond the working docs repo. | #4, #6 |
+| 2 | #1 Materialize a GitHub working repository in the sandbox | Proves the first real repository boundary before inspection, patching, or writeback. | #6 |
+| 3 | #2 Add a policy-aware repository action runner | Makes `allowedActions` enforceable before patches and checks can use the repository. | #1, #6 |
+| 4 | #4 Patch, check, and export diffs inside the sandbox | Turns repository access into useful docs work without granting push authority yet. | #1, #2, #6 |
+| 5 | #7 Push approved sandbox changes to a draft GitHub PR | Adds controlled writeback only after sandbox-local behavior is proven. | #1, #2, #4, #6 |
+| 6 | #3 Add safety evals for the sandboxed GitHub repository workflow | Locks in successful paths and fail-closed behavior after the full working-repository loop exists. | #1, #2, #4, #7, #6 |
 
 ## Later
 
-- GitHub App installation and scoped provider access for the working
-  documentation repository.
-- Human approval gates for opening pull requests or posting comments.
+- Read-only source/context repository access beyond the first working docs repo.
 - Eve channel setup for GitHub, Slack, Linear, Discord, or other team surfaces.
 - Vercel Connect-backed access to private team context.
-- Read-only source/context repository access beyond the first working docs repo.
 - Scheduled stale-doc detection.
 - Persistent style and information-architecture maps.
 - Multi-docs-platform support.
