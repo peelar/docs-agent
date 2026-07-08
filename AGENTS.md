@@ -15,3 +15,18 @@ package docs are unavailable, use https://eve.dev/docs as a fallback.
   product contracts.
 - Update planning docs in the same PR when a change alters product scope,
   durable architecture, or the development workflow.
+
+## Docs Maintainer Rules
+
+- Treat the documentation impact report as the primary output; patches follow
+  from the report.
+- Prefer no docs change over weak, broad, or unsupported documentation edits.
+- Keep documentation patches small, reviewable, and grounded in existing page
+  structure, terminology, and examples.
+- Cite provenance for every docs decision: code or diff evidence, context used,
+  pages considered, checks run, and remaining uncertainty.
+- During the first milestone, assume local fixtures, local repo state, or a
+  working documentation repository checkout. Do not assume live GitHub App,
+  Slack, Linear, Notion, Discord, or source repository access.
+- Distinguish the working documentation repository from optional read-only
+  context repositories in planning, provenance, permissions, and patch targets.
