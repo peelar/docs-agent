@@ -26,6 +26,13 @@ export default defineTool({
         diffHash: output.diffHash,
         changedFiles: output.changedFiles,
         pullRequest: output.pullRequest,
+        signal: output.signal === undefined
+          ? undefined
+          : {
+              id: output.signal.id,
+              status: output.signal.status,
+              sourceSummary: output.signal.sourceSummary,
+            },
         checks: output.checks.map((check) => ({
           name: check.name,
           status: check.status,

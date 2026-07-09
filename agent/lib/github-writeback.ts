@@ -21,6 +21,12 @@ import {
   type SetupState,
 } from "./setup-state.js";
 import {
+  docsSignalDetailSchema,
+  getDocsSignal,
+  updateDocsSignalLifecycle,
+  type DocsSignalDetail,
+} from "./docs-signals.js";
+import {
   formatUnknownError,
   githubApiRequest,
   parseGitHubRepositoryUrl,
@@ -60,6 +66,8 @@ export const publishWorkingRepositoryPrInputSchema = z.object({
   commitMessage: generatedTextSchema
     .optional()
     .describe("Optional commit message override. Omit it unless the user supplied one."),
+  signalId: z.string().trim().min(1).optional()
+    .describe("Originating docs signal id, when publishing a signal-backed prepared patch."),
 });
 
 export const publishWorkingRepositoryPrOutputSchema = z.object({
@@ -78,6 +86,7 @@ export const publishWorkingRepositoryPrOutputSchema = z.object({
     url: z.string().url(),
     draft: z.boolean(),
   }),
+  signal: docsSignalDetailSchema.optional(),
   approvalPolicy: z.literal("always"),
   credentialProvider: z.literal("vercel-connect-app-scoped"),
 });
@@ -184,12 +193,16 @@ export async function publishWorkingRepositoryPr(
     const commitMessage = normalizeCommitMessage(
       input.commitMessage ?? buildDefaultCommitMessage(preparedResult),
     );
+    const originatingSignal = input.signalId === undefined
+      ? undefined
+      : await readPublishableSignal(input.signalId);
     const body = buildPullRequestBody({
       result: preparedResult,
       baseBranch,
       branchName,
       diffHash,
       changedFiles: currentChangedFiles,
+      signal: originatingSignal,
     });
 
     const token = await resolveGitHubToken(setup, slug);
@@ -213,6 +226,36 @@ export async function publishWorkingRepositoryPr(
     );
     await saveRepositoryWorkflowState(state);
 
+    const updatedSignal = originatingSignal === undefined
+      ? undefined
+      : await updateDocsSignalLifecycle({
+          id: originatingSignal.id,
+          status: "draft-pr-opened",
+          reason: `Draft PR opened for prepared signal patch: ${published.pullRequest.url}`,
+          actor: "docs-agent:github-writeback",
+          links: [],
+          artifacts: [
+            {
+              kind: "draft-pr",
+              label: `Draft PR #${published.pullRequest.number}`,
+              url: published.pullRequest.url,
+              metadata: {
+                repository: repository.source.url,
+                branchName,
+                baseBranch,
+                commitSha: published.commitSha,
+                diffHash,
+              },
+            },
+          ],
+          metadata: {
+            pullRequest: published.pullRequest,
+            branchName,
+            baseBranch,
+            diffHash,
+          },
+        });
+
     return {
       published: true,
       repository: repository.source.url,
@@ -225,6 +268,7 @@ export async function publishWorkingRepositoryPr(
       changedFiles: currentChangedFiles,
       checks: preparedResult.report.checks,
       pullRequest: published.pullRequest,
+      signal: updatedSignal,
       approvalPolicy: "always",
       credentialProvider: "vercel-connect-app-scoped",
     };
@@ -725,11 +769,25 @@ export function buildPullRequestBody(input: {
   branchName: string;
   diffHash: string;
   changedFiles: string[];
+  signal?: DocsSignalDetail;
 }): string {
   const { result } = input;
   const checks = result.report.checks.map(
     (check) => `- ${check.name}: ${check.status} (${check.command})`,
   );
+  const signalSection = input.signal === undefined
+    ? []
+    : [
+        "## Originating Signal",
+        "",
+        `- Signal ID: ${input.signal.id}`,
+        `- Signal status before publish: ${input.signal.status}`,
+        `- Summary: ${input.signal.sourceSummary}`,
+        ...input.signal.sources.map((source) =>
+          `- Source: ${source.kind}${source.permalink === null ? "" : ` (${source.permalink})`}`,
+        ),
+        "",
+      ];
 
   return [
     "## Documentation Impact Report",
@@ -749,6 +807,7 @@ export function buildPullRequestBody(input: {
     "",
     ...result.report.evidence.map((item) => `- ${item}`),
     "",
+    ...signalSection,
     "## Checks",
     "",
     ...(checks.length > 0 ? checks : ["- No checks recorded."]),
@@ -767,6 +826,16 @@ export function buildPullRequestBody(input: {
     `- Publish branch: ${input.branchName}`,
     "- Published from the prepared sandbox diff after approval.",
   ].join("\n");
+}
+
+async function readPublishableSignal(signalId: string): Promise<DocsSignalDetail> {
+  const signal = await getDocsSignal({ id: signalId });
+  if (signal.status !== "patch-prepared") {
+    throw new GitHubWritebackError(
+      `Cannot publish signal ${signal.id} because its status is ${signal.status}, not patch-prepared.`,
+    );
+  }
+  return signal;
 }
 
 function buildDefaultPullRequestTitle(result: DocsMaintenanceWorkflowResult): string {

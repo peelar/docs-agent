@@ -53,8 +53,8 @@ publishing remains a separate explicit approval through
 | Signal intake | Convert provider context into a docs signal with provenance. | `capture_slack_docs_signal`, `capture_linear_docs_signal`; `create_docs_signal`, `list_docs_signals`, `get_docs_signal`, `update_docs_signal_lifecycle`; watched scans also create source evidence. | Inspect or patch docs directly. |
 | Decision and triage | Classify docs impact, missing evidence, verification need, and next action. | `planDocsImpactDecision` and the shared decision schemas. | Treat Slack or Linear context alone as proof for public docs claims. |
 | Current-docs verification | Inspect the configured working documentation repository in the sandbox. | `verify_docs_signal_current_docs` for captured signals; existing scenario workflow in `run_docs_maintenance_scenario`. | Publish or write outside `/workspace/working-docs`. |
-| Patch preparation | Prepare minimal working-docs patches, checks, and diff artifacts. | Existing repository workflow for scenarios; later signal-to-patch handoff should reuse it. | Open a PR or write to watched/source repositories. |
-| Writeback | Publish an approved draft PR to the working docs repository. | `publish_working_repository_pr`. | Run without explicit approval or target any repository except the configured working docs repo. |
+| Patch preparation | Prepare minimal working-docs patches, checks, and diff artifacts. | `prepare_docs_signal_patch`; existing repository workflow for scenarios. | Open a PR or write to watched/source repositories. |
+| Writeback | Publish an approved draft PR to the working docs repository. | `publish_working_repository_pr`, optionally with `signalId` to mark the originating signal `draft-pr-opened`. | Run without explicit approval or target any repository except the configured working docs repo. |
 
 ## Tool Mapping
 
@@ -69,6 +69,11 @@ publishing remains a separate explicit approval through
   documentation repository for one signal, read likely docs pages, search likely
   docs terms, record a `docs-verified` lifecycle event, and return evidence
   without patching or publishing.
+- `prepare_docs_signal_patch`: start from an existing `docs-verified` signal,
+  reuse the configured working docs checkout, apply a minimal replacement
+  through the policy-aware repository workflow, run checks, export a diff, save
+  publishable workflow state, and mark the signal `patch-prepared`,
+  `patch-failed`, or closed as no-patch.
 - `create_docs_signal`: create or dedupe the durable work item.
 - `list_docs_signals`: find active work by status and source kind.
 - `get_docs_signal`: read source provenance, links, artifacts, and lifecycle
@@ -94,8 +99,11 @@ publishing remains a separate explicit approval through
    terms. If setup is missing or stale, the Slack reply says verification is
    blocked by setup instead of guessing repository details.
 7. If docs already cover the behavior, the signal becomes `closed-already-covered`.
-8. If docs are stale, patch handoff prepares a diff in the working docs repo.
-9. Draft PR publishing waits for explicit approval.
+8. If docs are stale, `prepare_docs_signal_patch` prepares a diff in the
+   working docs repo and marks the signal `patch-prepared`.
+9. Draft PR publishing waits for explicit approval through
+   `publish_working_repository_pr`. Passing the originating `signalId` marks
+   the signal `draft-pr-opened` after a successful approved publish.
 
 ### Linear Issue Without Source Evidence
 

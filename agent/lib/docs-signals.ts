@@ -21,6 +21,7 @@ export const docsSignalStatusSchema = z.enum([
   "needs-source-evidence",
   "verification-skipped",
   "docs-verified",
+  "patch-failed",
   "patch-prepared",
   "draft-pr-opened",
   "closed-already-covered",
@@ -33,6 +34,7 @@ export const openDocsSignalStatuses = [
   "needs-source-evidence",
   "verification-skipped",
   "docs-verified",
+  "patch-failed",
   "patch-prepared",
   "draft-pr-opened",
 ] as const satisfies readonly DocsSignalStatus[];

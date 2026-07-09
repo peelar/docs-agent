@@ -702,7 +702,7 @@ function withResolvedDocsRoot(
   };
 }
 
-async function reuseMaterializedWorkingRepository(
+export async function reuseMaterializedWorkingRepository(
   ctx: ToolContext,
   state: WorkflowState,
   actionProvenance: RepositoryActionRecord[],

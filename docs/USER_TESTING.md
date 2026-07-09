@@ -167,4 +167,8 @@ no patch or draft PR. The Linear docs-signal check covers Agent Session issue
 capture as `issue-tracker-item` context, Linear issue dedupe, labels/project
 and status provenance, prompt/comment source text preservation, setup-gated
 required verification, completed verification state, skipped verification with
-an explicit reason, and the no Linear mutation or writeback boundary.
+an explicit reason, and the no Linear mutation or writeback boundary. The docs
+signal patch handoff check covers `patch-failed` status support, refusal before
+current-docs verification, refusal when source evidence is missing, patch and
+no-patch input contracts, optional `signalId` publish input, and PR body
+provenance for originating signals.

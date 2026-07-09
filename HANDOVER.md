@@ -155,3 +155,32 @@ ready setup should let `verify_docs_signal_current_docs` inspect current docs
 without producing a patch, a Linear issue with supplied working-docs evidence
 should record completed verification, and an internal-only Linear issue should
 skip verification with the stated reason.
+
+## #26 Connect docs-signal verification to patch and writeback handoff
+
+Decision: verified docs signals hand off to the existing configured working
+documentation repository workflow. The handoff does not add Slack, Linear,
+watched-repository, source-repository, or autonomous publish authority.
+
+Design: add `prepare_docs_signal_patch` for provider-neutral signal-to-patch
+handoff. It starts from an existing `docs-verified` signal, refuses closed or
+source-evidence-blocked signals, resets/reuses the configured working docs
+checkout, applies a minimal replacement through `replaceRepositoryText`, runs
+existing repository checks, exports the diff, saves `lastResult` for the
+existing publish path, and updates signal lifecycle to `patch-prepared`,
+`patch-failed`, or closed as no-patch. Extend `publish_working_repository_pr`
+with optional `signalId`; the tool remains approval-required and marks a
+`patch-prepared` signal as `draft-pr-opened` only after successful approved PR
+creation.
+
+User effect: a verified stale Slack, Linear, watched, scheduled, or manual
+signal can become a reviewable docs diff with source provenance preserved in
+the report and PR body. Failed checks or no-patch outcomes are recorded on the
+signal instead of being hidden. Draft PR creation still waits for explicit human
+approval.
+
+Behavior verification: run `pnpm check`. Behaviorally, unverified or
+source-evidence-blocked signals should be refused, verified signals can enter
+patch or no-patch handoff, failed checks move to `patch-failed`, successful
+patches move to `patch-prepared`, and approved publish with `signalId` records
+`draft-pr-opened` with the draft PR artifact.

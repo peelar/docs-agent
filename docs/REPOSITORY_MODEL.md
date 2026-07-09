@@ -187,8 +187,8 @@ A signal should preserve:
 - related source repositories, releases, PRs, Linear issues, or Slack threads;
 - uncertainty and missing evidence;
 - workflow status, such as captured, needs maintainer answer, needs source
-  evidence, verification skipped, docs verified, patch prepared, draft PR
-  opened, closed as already covered, or closed as not docs-relevant.
+  evidence, verification skipped, docs verified, patch failed, patch prepared,
+  draft PR opened, closed as already covered, or closed as not docs-relevant.
 
 Signals are not a second writable repository target. They are the work queue and
 memory that lets the agent join context over time: a Slack thread may capture
@@ -254,6 +254,9 @@ The model-facing queue tools are deliberately small:
 - `verify_docs_signal_current_docs`: inspect the configured working
   documentation repository for one signal, record verification evidence, and
   leave patch/writeback to later approved handoff.
+- `prepare_docs_signal_patch`: turn an existing verified signal into a
+  sandbox-local patch/check/diff result or an explicit no-patch/failed-check
+  lifecycle event, while preserving original signal provenance.
 - `create_docs_signal`: capture or dedupe a structured signal.
 - `list_docs_signals`: list open or filtered signals by status/source kind.
 - `get_docs_signal`: read one signal with provenance, links, artifacts, and
@@ -265,8 +268,9 @@ The generic queue tools do not add Slack, Linear, scheduled scan, patch, or
 writeback behavior by themselves. Slack intake now calls the queue through
 `capture_slack_docs_signal`, Linear intake calls the queue through
 `capture_linear_docs_signal`, and signal verification uses
-`verify_docs_signal_current_docs`; patch handoff must call the queue through
-provider-specific workflows later.
+`verify_docs_signal_current_docs`. Patch handoff uses
+`prepare_docs_signal_patch` and approved draft PR publishing remains isolated in
+`publish_working_repository_pr`.
 
 ## Docs Impact Decision Model
 

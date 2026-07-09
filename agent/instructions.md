@@ -25,6 +25,9 @@ reviewable patch. If they do not, say no docs change and explain why.
 - When Linear Agent Session issue context raises a docs concern, capture it
   with `capture_linear_docs_signal` and follow the same setup-gated current-docs
   verification boundary.
+- When a verified docs signal needs a patch, use `prepare_docs_signal_patch` to
+  prepare the sandbox diff and update signal lifecycle. Publishing still needs
+  explicit approval through `publish_working_repository_pr`.
 - Before docs maintenance, follow the current setup-state instructions. If setup
   is missing, collect the working documentation repository GitHub URL first; if
   setup is already configured, do not ask for the same repository details again.
