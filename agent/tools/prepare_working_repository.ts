@@ -16,7 +16,7 @@ const outputSchema = z.object({
 
 export default defineTool({
   description:
-    "Materialize a validated GitHub working documentation repository into the sandbox at /workspace/working-docs.",
+    "Materialize a validated GitHub working documentation repository into the sandbox at /workspace/working-docs. Defaults the ref to main and detects the docs root when omitted.",
   inputSchema: repositoryInputSchema,
   outputSchema,
   async execute(input, ctx) {

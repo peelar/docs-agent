@@ -104,7 +104,7 @@ docs change.
 
 A maintainer gives the agent a scenario containing:
 
-- a working documentation repository GitHub URL, ref, and docs root;
+- a working documentation repository GitHub URL, with optional ref and docs root;
 - a PR-like code change or injected context pack;
 - linked structured issue or product context;
 - optional existing docs conventions or expected style notes.

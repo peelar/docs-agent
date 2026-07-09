@@ -9,6 +9,8 @@ import {
   repositoryInputSchema,
   type ExternalContext,
   type RepositoryInput,
+  type ResolvedRepositoryInput,
+  type ResolvedWorkingDocumentationRepository,
   type WorkingDocumentationRepository,
 } from "./repository-contract.js";
 
@@ -113,12 +115,28 @@ const repositoryCacheMarkerSchema = z.object({
   status: z.literal("ready"),
 });
 
+const docsRootDetectionResultSchema = z.object({
+  docsRoot: z.string().trim().min(1),
+  reason: z.string().trim().min(1),
+  candidates: z
+    .array(
+      z.object({
+        path: z.string().trim().min(1),
+        score: z.number(),
+        reason: z.string().trim().min(1),
+      }),
+    )
+    .default([]),
+});
+
 type ScenarioKind = DocsMaintenanceWorkflowResult["scenarioKind"];
+type DocsRootDetectionResult = z.infer<typeof docsRootDetectionResultSchema>;
 
 export interface WorkflowState {
-  repositoryInput: RepositoryInput;
+  repositoryInput: ResolvedRepositoryInput;
   materialization: DocsMaintenanceWorkflowResult["materialization"];
   actionProvenance: RepositoryActionRecord[];
+  lastResult?: DocsMaintenanceWorkflowResult;
 }
 
 const repositoryWorkflowState = defineState<WorkflowState | null>(
@@ -196,6 +214,7 @@ export async function runDocsMaintenanceScenario(
       repositoryInput,
       materialization,
       actionProvenance,
+      lastResult: result,
     });
 
     return result;
@@ -254,10 +273,19 @@ export async function materializeWorkingRepository(
     await cloneWorkingRepository(ctx, repository, actionProvenance);
   }
 
-  const materialization = await resolveMaterialization(ctx, repository);
+  const resolvedRepository = await resolveWorkingRepositoryDocsRoot(
+    ctx,
+    repository,
+    actionProvenance,
+  );
+  const resolvedRepositoryInput: ResolvedRepositoryInput = {
+    ...repositoryInput,
+    workingDocumentationRepository: resolvedRepository,
+  };
+  const materialization = await resolveMaterialization(ctx, resolvedRepository);
 
   await saveRepositoryWorkflowState({
-    repositoryInput,
+    repositoryInput: resolvedRepositoryInput,
     materialization,
     actionProvenance,
   });
@@ -272,15 +300,271 @@ export async function loadRepositoryWorkflowState(): Promise<WorkflowState> {
     throw new Error("Working repository has not been materialized in this session.");
   }
 
+  const repositoryInput = parseResolvedRepositoryInput(state.repositoryInput);
+
   return {
-    repositoryInput: repositoryInputSchema.parse(state.repositoryInput),
+    repositoryInput,
     materialization: repositoryMaterializationSchema.parse(state.materialization),
     actionProvenance: z.array(repositoryActionRecordSchema).parse(state.actionProvenance),
+    lastResult:
+      state.lastResult === undefined
+        ? undefined
+        : docsMaintenanceWorkflowResultSchema.parse(state.lastResult),
   };
 }
 
 export async function saveRepositoryWorkflowState(state: WorkflowState): Promise<void> {
   repositoryWorkflowState.update(() => state);
+}
+
+function parseResolvedRepositoryInput(input: unknown): ResolvedRepositoryInput {
+  const parsed = repositoryInputSchema.parse(input);
+  const { docsRoot } = parsed.workingDocumentationRepository;
+
+  if (docsRoot === undefined) {
+    throw new Error("Working repository docs root has not been resolved in this session.");
+  }
+
+  return {
+    ...parsed,
+    workingDocumentationRepository: {
+      ...parsed.workingDocumentationRepository,
+      docsRoot,
+    },
+  };
+}
+
+async function resolveWorkingRepositoryDocsRoot(
+  ctx: ToolContext,
+  repository: WorkingDocumentationRepository,
+  actionProvenance: RepositoryActionRecord[],
+): Promise<ResolvedWorkingDocumentationRepository> {
+  if (repository.docsRoot !== undefined) {
+    return withResolvedDocsRoot(repository, repository.docsRoot);
+  }
+
+  const detection = await detectDocsRoot(ctx, repository, actionProvenance);
+  const resolvedRepository = withResolvedDocsRoot(repository, detection.docsRoot);
+
+  actionProvenance.push(
+    recordAction(resolvedRepository, "detect-docs-root", "success", {
+      target: detection.docsRoot,
+      reason: detection.reason,
+    }),
+  );
+
+  return resolvedRepository;
+}
+
+async function detectDocsRoot(
+  ctx: ToolContext,
+  repository: WorkingDocumentationRepository,
+  actionProvenance: RepositoryActionRecord[],
+): Promise<DocsRootDetectionResult> {
+  const sandbox = await ctx.getSandbox();
+  const result = await sandbox.run({
+    command: nodeStdinCommand(`
+const fs = require("node:fs");
+const path = require("node:path");
+
+const ignored = new Set([
+  ".git",
+  ".docusaurus",
+  ".next",
+  "build",
+  "coverage",
+  "dist",
+  "node_modules",
+  "out",
+]);
+const configNames = new Set([
+  "docusaurus.config.js",
+  "docusaurus.config.cjs",
+  "docusaurus.config.mjs",
+  "docusaurus.config.ts",
+]);
+
+function normalizeRel(value) {
+  const normalized = path.posix.normalize(value || ".");
+  if (normalized === "." || normalized === "") return ".";
+  return normalized.replace(/^\\.\\//, "");
+}
+
+function joinRel(root, child) {
+  return normalizeRel(root === "." ? child : path.posix.join(root, child));
+}
+
+function abs(rel) {
+  return path.join(process.cwd(), rel === "." ? "" : rel);
+}
+
+function safeEntries(rel) {
+  try {
+    return fs.readdirSync(abs(rel), { withFileTypes: true });
+  } catch {
+    return [];
+  }
+}
+
+function isDirectory(rel) {
+  try {
+    return fs.statSync(abs(rel)).isDirectory();
+  } catch {
+    return false;
+  }
+}
+
+function hasMarkdown(rel, maxDepth = 4, depth = 0) {
+  if (!isDirectory(rel) || depth > maxDepth) return false;
+
+  for (const entry of safeEntries(rel)) {
+    if (ignored.has(entry.name)) continue;
+
+    const child = joinRel(rel, entry.name);
+    if (entry.isFile() && /\\.(md|mdx)$/i.test(entry.name)) {
+      return true;
+    }
+
+    if (entry.isDirectory() && hasMarkdown(child, maxDepth, depth + 1)) {
+      return true;
+    }
+  }
+
+  return false;
+}
+
+function hasSidebar(rel) {
+  return safeEntries(rel).some(
+    (entry) => entry.isFile() && /^sidebars\\.(js|cjs|mjs|ts)$/i.test(entry.name),
+  );
+}
+
+function docusaurusConfigFiles(rel) {
+  return safeEntries(rel)
+    .filter((entry) => entry.isFile() && configNames.has(entry.name))
+    .map((entry) => joinRel(rel, entry.name));
+}
+
+function collectDirs(rel = ".", depth = 0, out = []) {
+  if (!isDirectory(rel) || depth > 2) return out;
+  out.push(rel);
+
+  for (const entry of safeEntries(rel)) {
+    if (!entry.isDirectory() || ignored.has(entry.name)) continue;
+    collectDirs(joinRel(rel, entry.name), depth + 1, out);
+  }
+
+  return out;
+}
+
+function configuredDocPaths(configFile) {
+  let text = "";
+  try {
+    text = fs.readFileSync(abs(configFile), "utf8");
+  } catch {
+    return [];
+  }
+
+  return Array.from(text.matchAll(/\\bpath\\s*:\\s*["'\`]([^"'\`]+)["'\`]/g))
+    .map((match) => match[1])
+    .filter((value) => value && !value.startsWith("/") && !value.includes(".."));
+}
+
+const candidates = new Map();
+
+function addCandidate(rel, score, reason) {
+  const normalized = normalizeRel(rel);
+  if (normalized.startsWith("/") || normalized.split("/").includes("..")) return;
+  if (!isDirectory(normalized) || !hasMarkdown(normalized)) return;
+
+  const existing = candidates.get(normalized);
+  if (existing && existing.score >= score) return;
+  candidates.set(normalized, { path: normalized, score, reason });
+}
+
+const dirs = collectDirs();
+
+for (const rel of dirs) {
+  const configs = docusaurusConfigFiles(rel);
+  if (configs.length > 0) {
+    for (const configFile of configs) {
+      for (const configuredPath of configuredDocPaths(configFile)) {
+        addCandidate(
+          joinRel(rel, configuredPath),
+          95,
+          "Docusaurus config declares a docs plugin path.",
+        );
+      }
+    }
+
+    addCandidate(joinRel(rel, "docs"), 90, "Docusaurus project contains a docs directory.");
+    addCandidate(joinRel(rel, "content/docs"), 85, "Docusaurus project contains content/docs.");
+    if (hasSidebar(rel)) {
+      addCandidate(rel, 70, "Docusaurus project has sidebars and Markdown at its root.");
+    }
+  }
+
+  if (path.posix.basename(rel) === "docs") {
+    addCandidate(rel, 80, "Directory is named docs and contains Markdown or MDX.");
+  }
+
+  if (hasSidebar(rel)) {
+    addCandidate(rel, 65, "Directory has a Docusaurus sidebar and Markdown or MDX.");
+  }
+}
+
+addCandidate("docs", 75, "Top-level docs directory contains Markdown or MDX.");
+addCandidate("content/docs", 70, "Top-level content/docs directory contains Markdown or MDX.");
+
+const sorted = Array.from(candidates.values()).sort(
+  (left, right) => right.score - left.score || left.path.length - right.path.length,
+);
+
+if (sorted.length === 0) {
+  console.error(
+    "Could not detect a docs root. Expected a Docusaurus config, sidebars file, or docs directory containing Markdown or MDX.",
+  );
+  process.exit(2);
+}
+
+const [best] = sorted;
+process.stdout.write(JSON.stringify({
+  docsRoot: best.path,
+  reason: best.reason,
+  candidates: sorted,
+}));
+`),
+    workingDirectory: repository.sandboxPath,
+    abortSignal: ctx.abortSignal,
+  });
+
+  if (result.exitCode !== 0) {
+    const reason = summarizeCommandFailure(result);
+    actionProvenance.push(
+      recordAction(repository, "detect-docs-root", "failure", { reason }),
+    );
+    throw new Error(`Failed to detect docs root: ${reason}`);
+  }
+
+  try {
+    return docsRootDetectionResultSchema.parse(JSON.parse(result.stdout));
+  } catch (error) {
+    const reason = error instanceof Error ? error.message : String(error);
+    actionProvenance.push(
+      recordAction(repository, "detect-docs-root", "failure", { reason }),
+    );
+    throw new Error(`Failed to parse detected docs root: ${reason}`);
+  }
+}
+
+function withResolvedDocsRoot(
+  repository: WorkingDocumentationRepository,
+  docsRoot: string,
+): ResolvedWorkingDocumentationRepository {
+  return {
+    ...repository,
+    docsRoot,
+  };
 }
 
 async function reuseMaterializedWorkingRepository(
@@ -406,7 +690,10 @@ async function restoreCachedWorkingRepository(
   repository: WorkingDocumentationRepository,
   actionProvenance: RepositoryActionRecord[],
 ): Promise<boolean> {
-  const marker = await readRepositoryCacheMarker(ctx, repository);
+  if (repository.docsRoot === undefined) return false;
+
+  const resolvedRepository = withResolvedDocsRoot(repository, repository.docsRoot);
+  const marker = await readRepositoryCacheMarker(ctx, resolvedRepository);
   if (marker === null) return false;
 
   const sourceMatches =
@@ -422,9 +709,9 @@ async function restoreCachedWorkingRepository(
     command: [
       "set -eu",
       `test -d ${sh(joinSandboxPath(marker.sourcePath, ".git"))}`,
-      `rm -rf ${sh(repository.sandboxPath)}`,
-      `ln -s ${sh(marker.sourcePath)} ${sh(repository.sandboxPath)}`,
-      `cd ${sh(repository.sandboxPath)}`,
+      `rm -rf ${sh(resolvedRepository.sandboxPath)}`,
+      `ln -s ${sh(marker.sourcePath)} ${sh(resolvedRepository.sandboxPath)}`,
+      `cd ${sh(resolvedRepository.sandboxPath)}`,
       "git reset --hard HEAD",
       "git clean -fd",
     ].join("\n"),
@@ -439,7 +726,9 @@ async function restoreCachedWorkingRepository(
     return false;
   }
 
-  actionProvenance.push(recordAction(repository, "reuse", "success", { target: marker.sourcePath }));
+  actionProvenance.push(
+    recordAction(resolvedRepository, "reuse", "success", { target: marker.sourcePath }),
+  );
   return true;
 }
 
@@ -501,7 +790,7 @@ async function cloneWorkingRepository(
 
 async function resolveMaterialization(
   ctx: ToolContext,
-  repository: WorkingDocumentationRepository,
+  repository: ResolvedWorkingDocumentationRepository,
 ): Promise<DocsMaintenanceWorkflowResult["materialization"]> {
   const sandbox = await ctx.getSandbox();
   const docsRootPath = joinSandboxPath(repository.sandboxPath, repository.docsRoot);
@@ -533,7 +822,7 @@ async function resolveMaterialization(
 
 export async function readRepositoryFile(
   ctx: ToolContext,
-  repository: WorkingDocumentationRepository,
+  repository: ResolvedWorkingDocumentationRepository,
   path: string,
   actionProvenance: RepositoryActionRecord[],
 ): Promise<string> {
@@ -554,7 +843,7 @@ export async function readRepositoryFile(
 
 export async function searchRepository(
   ctx: ToolContext,
-  repository: WorkingDocumentationRepository,
+  repository: ResolvedWorkingDocumentationRepository,
   query: string,
   actionProvenance: RepositoryActionRecord[],
 ): Promise<string> {
@@ -577,7 +866,7 @@ export async function searchRepository(
 
 export async function replaceRepositoryText(
   ctx: ToolContext,
-  repository: WorkingDocumentationRepository,
+  repository: ResolvedWorkingDocumentationRepository,
   path: string,
   expectedText: string,
   replacementText: string,
@@ -605,7 +894,7 @@ export async function replaceRepositoryText(
 
 export async function runRepositoryCheck(
   ctx: ToolContext,
-  repository: WorkingDocumentationRepository,
+  repository: ResolvedWorkingDocumentationRepository,
   name: RepositoryCheckName,
   actionProvenance: RepositoryActionRecord[],
 ): Promise<RepositoryCheckResult> {
@@ -712,7 +1001,7 @@ async function runRepositoryCommandCheck(
 
 export async function exportRepositoryDiff(
   ctx: ToolContext,
-  repository: WorkingDocumentationRepository,
+  repository: ResolvedWorkingDocumentationRepository,
   actionProvenance: RepositoryActionRecord[],
 ): Promise<string> {
   assertActionAllowed(repository, "export-diff");
@@ -735,7 +1024,7 @@ export async function exportRepositoryDiff(
 
 export async function listChangedFiles(
   ctx: ToolContext,
-  repository: WorkingDocumentationRepository,
+  repository: ResolvedWorkingDocumentationRepository,
   actionProvenance: RepositoryActionRecord[],
 ): Promise<string[]> {
   assertActionAllowed(repository, "export-diff");
@@ -781,7 +1070,7 @@ function detectScenarioKind(scenarioText: string, externalContext: ExternalConte
 
 async function runPrivateMetadataFilteringScenario(
   ctx: ToolContext,
-  repositoryInput: RepositoryInput,
+  repositoryInput: ResolvedRepositoryInput,
   actionProvenance: RepositoryActionRecord[],
 ): Promise<DocumentationImpactReport> {
   const repository = repositoryInput.workingDocumentationRepository;
@@ -833,7 +1122,7 @@ async function runPrivateMetadataFilteringScenario(
 
 async function runSandboxRateLimitFalseAlarmScenario(
   ctx: ToolContext,
-  repositoryInput: RepositoryInput,
+  repositoryInput: ResolvedRepositoryInput,
   actionProvenance: RepositoryActionRecord[],
 ): Promise<DocumentationImpactReport> {
   const repository = repositoryInput.workingDocumentationRepository;
@@ -951,7 +1240,7 @@ async function readInstallCacheMarker(
 
 async function readRepositoryCacheMarker(
   ctx: ToolContext,
-  repository: WorkingDocumentationRepository,
+  repository: ResolvedWorkingDocumentationRepository,
 ): Promise<z.infer<typeof repositoryCacheMarkerSchema> | null> {
   const sandbox = await ctx.getSandbox();
   const content = await sandbox.readTextFile({
@@ -1012,11 +1301,11 @@ function installCacheMarkerPath(repository: WorkingDocumentationRepository): str
   )}.json`;
 }
 
-function repositoryCacheMarkerPath(repository: WorkingDocumentationRepository): string {
+function repositoryCacheMarkerPath(repository: ResolvedWorkingDocumentationRepository): string {
   return `${repositoryCacheDirectory(repository)}/marker.json`;
 }
 
-function repositoryCacheDirectory(repository: WorkingDocumentationRepository): string {
+function repositoryCacheDirectory(repository: ResolvedWorkingDocumentationRepository): string {
   return `/workspace/.docs-maintainer-cache/repositories/${hashText(
     [
       normalizeRepositoryUrl(repository.source.url),
@@ -1032,6 +1321,10 @@ function normalizeRepositoryUrl(value: string): string {
 
 function hashText(value: string): string {
   return createHash("sha256").update(value).digest("hex");
+}
+
+function nodeStdinCommand(script: string): string {
+  return `node <<'NODE'\n${script.trim()}\nNODE`;
 }
 
 function commandForCheck(name: RepositoryCheckName): string {

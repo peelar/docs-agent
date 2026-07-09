@@ -54,8 +54,7 @@ Use the scenario's rendered prompt as the `/goal` objective. The prompt sent to
 the agent under test should include only:
 
 - the user prompt;
-- the working documentation repository URL, ref, docs root, sandbox path, and
-  allowed actions;
+- the working documentation repository URL and allowed actions;
 - the attached context.
 
 Do not include the expected outcome in the agent-under-test prompt. Use the

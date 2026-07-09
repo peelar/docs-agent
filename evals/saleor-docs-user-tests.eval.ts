@@ -37,6 +37,7 @@ export default saleorDocsUserTestScenarios.map((scenario) =>
       t.notCalledTool("repo_replace_text");
       t.notCalledTool("repo_run_checks");
       t.notCalledTool("repo_export_diff");
+      t.notCalledTool("publish_working_repository_pr");
     },
   }),
 );

@@ -17,7 +17,7 @@ const outputSchema = z.object({
 
 export default defineTool({
   description:
-    "Configure the session working documentation repository and materialize it in the sandbox.",
+    "Configure the session working documentation repository and materialize it in the sandbox. Defaults the ref to main and detects the docs root when omitted.",
   inputSchema: repositoryInputSchema,
   outputSchema,
   async execute(input, ctx) {

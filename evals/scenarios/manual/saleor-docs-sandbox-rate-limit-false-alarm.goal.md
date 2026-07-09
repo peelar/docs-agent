@@ -5,10 +5,7 @@ Produce a documentation impact report first. Prepare a patch only if the evidenc
 ## Working Documentation Repository
 
 URL: https://github.com/peelar/saleor-docs.git
-Ref: main
-Docs root: docs
-Sandbox path: /workspace/working-docs
-Allowed actions: clone, read, search, patch, run-checks, export-diff
+Allowed actions: clone, read, search, patch, run-checks, export-diff, publish-pr
 
 ## Attached Context
 

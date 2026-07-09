@@ -11,8 +11,8 @@ supports it.
 The first runnable version is scenario-first. It will use PR-like changes,
 GitHub-hosted Docusaurus-style working documentation repositories cloned or
 materialized into the Eve sandbox, structured context fixtures, and approved
-GitHub writeback before wiring Slack, Linear, Notion, Discord, or Vercel Connect
-access.
+GitHub writeback through app-scoped Vercel Connect before wiring Slack, Linear,
+Notion, Discord, or other team-context access.
 
 For the durable product contract, read `docs/MANIFEST.md`. For milestone order
 and issue dependencies, read `docs/ROADMAP.md`. For the repository and sandbox

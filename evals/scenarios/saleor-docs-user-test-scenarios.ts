@@ -15,7 +15,7 @@ const saleorDocsWorkingRepository: WorkingDocumentationRepository = {
   docsRoot: "docs",
   sandboxPath: WORKING_DOCUMENTATION_REPOSITORY_SANDBOX_PATH,
   accessMode: "sandbox-write",
-  allowedActions: ["clone", "read", "search", "patch", "run-checks", "export-diff"],
+  allowedActions: ["clone", "read", "search", "patch", "run-checks", "export-diff", "publish-pr"],
   provenanceLabel: WORKING_DOCUMENTATION_REPOSITORY_PROVENANCE_LABEL,
 };
 

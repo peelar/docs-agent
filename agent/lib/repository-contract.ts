@@ -3,6 +3,7 @@ import { z } from "zod";
 export const WORKING_DOCUMENTATION_REPOSITORY_SANDBOX_PATH = "/workspace/working-docs";
 export const WORKING_DOCUMENTATION_REPOSITORY_PROVENANCE_LABEL =
   "working-documentation-repository";
+export const DEFAULT_WORKING_DOCUMENTATION_REPOSITORY_REF = "main";
 
 export const GITHUB_SANDBOX_NETWORK_ALLOWLIST = [
   "github.com",
@@ -76,6 +77,7 @@ export const workingRepositoryActionSchema = z.enum([
   "patch",
   "run-checks",
   "export-diff",
+  "publish-pr",
 ]);
 
 export const contextRepositoryActionSchema = z.enum([
@@ -88,14 +90,21 @@ export const contextRepositoryActionSchema = z.enum([
 
 export const workingDocumentationRepositorySchema = z.object({
   source: githubRepositorySourceSchema,
-  ref: z.string().trim().min(1),
-  docsRoot: repositoryRelativePathSchema,
+  ref: z
+    .string()
+    .trim()
+    .min(1)
+    .default(DEFAULT_WORKING_DOCUMENTATION_REPOSITORY_REF)
+    .describe("Branch, tag, or commit to inspect. Defaults to main when omitted."),
+  docsRoot: repositoryRelativePathSchema
+    .optional()
+    .describe("Repository-relative docs root. Omit it to detect the docs root after cloning."),
   sandboxPath: sandboxPathSchema.default(WORKING_DOCUMENTATION_REPOSITORY_SANDBOX_PATH),
   accessMode: z.literal("sandbox-write").default("sandbox-write"),
   allowedActions: z
     .array(workingRepositoryActionSchema)
     .nonempty()
-    .default(["clone", "read", "search", "patch", "run-checks", "export-diff"]),
+    .default(["clone", "read", "search", "patch", "run-checks", "export-diff", "publish-pr"]),
   provenanceLabel: provenanceLabelSchema.default(WORKING_DOCUMENTATION_REPOSITORY_PROVENANCE_LABEL),
 });
 
@@ -178,3 +187,9 @@ export type WorkingDocumentationRepository = z.infer<typeof workingDocumentation
 export type ContextRepository = z.infer<typeof contextRepositorySchema>;
 export type ExternalContext = z.infer<typeof externalContextSchema>;
 export type RepositoryInput = z.infer<typeof repositoryInputSchema>;
+export type ResolvedWorkingDocumentationRepository = WorkingDocumentationRepository & {
+  docsRoot: string;
+};
+export type ResolvedRepositoryInput = Omit<RepositoryInput, "workingDocumentationRepository"> & {
+  workingDocumentationRepository: ResolvedWorkingDocumentationRepository;
+};
