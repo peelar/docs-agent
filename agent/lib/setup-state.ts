@@ -1,10 +1,20 @@
 import { mkdir, readFile, writeFile } from "node:fs/promises";
 import { dirname } from "node:path";
 
-import { connect } from "@vercel/connect/eve";
 import type { ToolContext } from "eve/tools";
 import { z } from "zod";
 
+import {
+  GITHUB_CONNECTOR_ENV,
+  formatUnknownError,
+  gitHubWritebackPermissions,
+  githubApiRequest,
+  parseGitHubRepositoryUrl,
+  resolveGitHubAppInstallationToken,
+  resolveGitHubConnector,
+  type ConnectTokenResponse,
+  type GitHubApiErrorResult,
+} from "./github-app-client.js";
 import {
   repositoryInputSchema,
   type RepositoryInput,
@@ -14,8 +24,8 @@ import {
 export const SETUP_STATE_VERSION = 1;
 export const SETUP_STATE_PATH =
   process.env.DOCS_MAINTAINER_SETUP_STATE_PATH ?? ".docs-maintainer/config.json";
-export const DEFAULT_GITHUB_CONNECTOR = "github/github";
-export const GITHUB_CONNECTOR_ENV = "DOCS_MAINTAINER_GITHUB_CONNECTOR";
+export { GITHUB_CONNECTOR_ENV, resolveGitHubConnector };
+export { resolveGitHubAppInstallationToken as resolveGitHubWritebackToken };
 
 const docsMaintenanceRequiredActions = [
   "clone",
@@ -104,6 +114,9 @@ export const setupStatusSchema = z.object({
 });
 
 export type SetupState = z.infer<typeof setupStateSchema>;
+export type ReadySetupState = SetupState & {
+  workingRepositoryInput: RepositoryInput;
+};
 export type SetupStatus = z.infer<typeof setupStatusSchema>;
 export type SetupIssue = z.infer<typeof setupIssueSchema>;
 export type SetupCapability = "docs-maintenance" | "github-writeback";
@@ -185,7 +198,7 @@ export async function getSetupStatus(): Promise<SetupStatus> {
 
 export async function requireSetupReady(
   capability: SetupCapability,
-): Promise<SetupState> {
+): Promise<ReadySetupState> {
   const state = await readSetupState();
   const status = evaluateSetupState(state);
   const ready =
@@ -197,15 +210,7 @@ export async function requireSetupReady(
     throw new SetupRequiredError(capability, status);
   }
 
-  return state;
-}
-
-export function resolveGitHubConnector(state?: SetupState | null): string {
-  return (
-    process.env[GITHUB_CONNECTOR_ENV]?.trim() ||
-    state?.githubWriteback.connector?.trim() ||
-    DEFAULT_GITHUB_CONNECTOR
-  );
+  return state as ReadySetupState;
 }
 
 export async function preflightGitHubWritebackSetup(
@@ -233,21 +238,16 @@ export async function preflightGitHubWritebackSetup(
   const repository = state.workingRepositoryInput.workingDocumentationRepository;
   const slug = parseGitHubRepositoryUrl(repository.source.url);
 
+  let tokenResponse: ConnectTokenResponse;
   let token: string;
   try {
-    const result = await ctx.getToken(
-      connect({ connector, principalType: "app", validate: true }),
-      {
-        authKey: "docs-maintainer-github-writeback",
-        displayName: "GitHub",
-      },
-    );
-    token = result.token;
+    tokenResponse = await resolveGitHubAppInstallationToken({ connector, slug });
+    token = tokenResponse.token;
   } catch (error) {
     return withGitHubPreflight(status, classifyConnectorError(error));
   }
 
-  const installation = await githubRequest<GitHubInstallationRepositoriesResponse>({
+  const installation = await githubApiRequest<GitHubInstallationRepositoriesResponse>({
     token,
     path: "/installation/repositories?per_page=100",
     abortSignal: ctx.abortSignal,
@@ -257,13 +257,13 @@ export async function preflightGitHubWritebackSetup(
     return withGitHubPreflight(status, classifyInstallationError(installation));
   }
 
-  const repositoryGranted = installation.body.repositories.some(
-    (entry) =>
-      entry.owner.login.toLowerCase() === slug.owner.toLowerCase() &&
-      entry.name.toLowerCase() === slug.repo.toLowerCase(),
-  );
+  const repositoryAccess = await githubApiRequest<GitHubRepositoryResponse>({
+    token,
+    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}`,
+    abortSignal: ctx.abortSignal,
+  });
 
-  if (!repositoryGranted) {
+  if (!repositoryAccess.ok && repositoryAccess.status === 404) {
     return withGitHubPreflight(status, {
       status: "repository-not-granted",
       message:
@@ -279,7 +279,20 @@ export async function preflightGitHubWritebackSetup(
     });
   }
 
-  const permissions = installation.body.permissions ?? {};
+  if (!repositoryAccess.ok) {
+    return withGitHubPreflight(status, {
+      status: "connector-unavailable",
+      message: repositoryAccess.message,
+      issue: {
+        code: "github-connector-unavailable",
+        capability: "github-writeback",
+        message: "The GitHub connector could not validate repository access.",
+        nextAction: "Retry setup validation after checking the GitHub connector runtime state.",
+      },
+    });
+  }
+
+  const permissions = gitHubWritebackPermissions(tokenResponse);
   if (permissions.contents !== "write" || permissions.pull_requests !== "write") {
     return withGitHubPreflight(status, {
       status: "insufficient-permissions",
@@ -316,7 +329,7 @@ export function buildSetupInstructions(status: SetupStatus): string {
       "The workspace setup is incomplete. Stay in setup mode before normal docs maintenance.",
       "",
       "Ask for the working documentation repository GitHub URL if the user has not provided it.",
-      "When the user provides a URL, call `configure_working_repository`. Use provided ref/docs root values, but do not require them: ref defaults to `main`, and docs root is detected after sandbox materialization.",
+      "When the user provides a URL, call `configure_working_repository`. Use provided ref/docs root values, but do not require them: ref defaults to `main`, and docs root is detected when the sandbox checkout is first materialized.",
       "Do not call docs-maintenance or publish tools until setup is ready.",
       "",
       "Current setup issues:",
@@ -545,7 +558,7 @@ function classifyConnectorError(error: unknown): {
   message: string;
   issue: SetupIssue;
 } {
-  const message = error instanceof Error ? error.message : String(error);
+  const message = formatUnknownError(error);
   const lower = message.toLowerCase();
 
   if (lower.includes("connector") && lower.includes("not found")) {
@@ -595,7 +608,7 @@ function classifyConnectorError(error: unknown): {
 }
 
 function classifyInstallationError(
-  result: GitHubErrorResult,
+  result: GitHubApiErrorResult,
 ): {
   status: SetupStatus["githubWriteback"]["preflight"]["status"];
   message: string;
@@ -650,87 +663,13 @@ function formatSetupRequiredMessage(
   return `Setup required before ${capability}: ${detail}`;
 }
 
-function parseGitHubRepositoryUrl(url: string): { owner: string; repo: string } {
-  const parsed = new URL(url);
-  const [owner, repo] = parsed.pathname
-    .replace(/^\/+/, "")
-    .replace(/\.git$/, "")
-    .split("/");
-
-  if (!owner || !repo) {
-    throw new Error(`Unsupported GitHub repository URL: ${url}`);
-  }
-
-  return { owner, repo };
-}
-
-type GitHubErrorResult = {
-  ok: false;
-  status: number;
-  message: string;
-};
-
-type GitHubResult<T> =
-  | {
-      ok: true;
-      body: T;
-    }
-  | GitHubErrorResult;
-
 type GitHubInstallationRepositoriesResponse = {
-  permissions?: {
-    contents?: "read" | "write";
-    pull_requests?: "read" | "write";
-  };
-  repositories: Array<{
-    name: string;
-    owner: {
-      login: string;
-    };
-  }>;
+  repositories: unknown[];
 };
 
-async function githubRequest<T>(input: {
-  token: string;
-  path: string;
-  abortSignal: AbortSignal;
-}): Promise<GitHubResult<T>> {
-  const response = await fetch(`https://api.github.com${input.path}`, {
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${input.token}`,
-      "X-GitHub-Api-Version": "2022-11-28",
-    },
-    signal: input.abortSignal,
-  });
-
-  const text = await response.text();
-  if (!response.ok) {
-    return {
-      ok: false,
-      status: response.status,
-      message: summarizeGitHubError(text, response.status),
-    };
-  }
-
-  return {
-    ok: true,
-    body: JSON.parse(text) as T,
-  };
-}
-
-function summarizeGitHubError(text: string, status: number): string {
-  try {
-    const parsed = JSON.parse(text) as { message?: unknown };
-    if (typeof parsed.message === "string" && parsed.message.trim() !== "") {
-      return parsed.message;
-    }
-  } catch {
-    // Fall through to the raw body below.
-  }
-
-  return text.trim() || `GitHub API returned ${status}.`;
-}
+type GitHubRepositoryResponse = {
+  full_name: string;
+};
 
 function isMissingFileError(error: unknown): boolean {
   return (

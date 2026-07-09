@@ -2,7 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 
 import {
-  loadRepositoryWorkflowState,
+  loadOrMaterializeRepositoryWorkflowState,
   saveRepositoryWorkflowState,
   searchRepository,
 } from "../lib/repository-workflow.js";
@@ -17,7 +17,7 @@ export default defineTool({
     matches: z.string(),
   }),
   async execute({ query }, ctx) {
-    const state = await loadRepositoryWorkflowState();
+    const state = await loadOrMaterializeRepositoryWorkflowState(ctx);
     const matches = await searchRepository(
       ctx,
       state.repositoryInput.workingDocumentationRepository,

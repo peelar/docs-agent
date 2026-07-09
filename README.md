@@ -34,10 +34,12 @@ are useful to both humans and AI readers.
 - `agent/agent.ts`: Eve root agent configuration.
 - `agent/instructions.md`: always-on identity and standing behavior for the
   documentation maintainer agent.
+- `agent/instructions/`: dynamic Eve instructions, including per-turn setup
+  state guidance.
 - `agent/channels/`: Eve channel entrypoints.
 - `agent/lib/`: import-only runtime contracts and shared helper code.
-- `agent/tools/`: future typed tools for inspecting scenarios, repos, diffs,
-  docs trees, and checks.
+- `agent/tools/`: typed tools for setup, repository materialization, docs
+  workflows, diffs, checks, and approved writeback.
 - `agent/skills/`: future load-on-demand procedures for docs impact analysis,
   style discovery, patch preparation, and review.
 - `agent/sandbox.ts`: Eve sandbox configuration with local `microsandbox`, Vercel
@@ -66,8 +68,7 @@ switch automatically when you enter the directory, run `fnm use` before
 
 ```sh
 pnpm install
-pnpm build
-pnpm typecheck
+pnpm check
 pnpm eval --list
 pnpm eval saleor-docs-user-tests --skip-report
 ```
@@ -101,4 +102,8 @@ Production-style start:
 pnpm start
 ```
 
-`pnpm build` runs `eve build`. `pnpm typecheck` runs `tsc`.
+`pnpm check` is the handoff gate. It runs typecheck, Eve build, and repository
+policy checks.
+
+Workspace setup is stored in `.docs-maintainer/config.json`, which is ignored by
+Git. Delete `.docs-maintainer/` to test first-run onboarding locally.

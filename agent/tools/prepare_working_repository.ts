@@ -4,10 +4,12 @@ import { z } from "zod";
 import { repositoryInputSchema } from "../lib/repository-contract.js";
 import {
   materializeWorkingRepository,
+  saveConfiguredRepositoryInput,
   type RepositoryActionRecord,
   repositoryActionRecordSchema,
   repositoryMaterializationSchema,
 } from "../lib/repository-workflow.js";
+import { saveWorkingRepositorySetup } from "../lib/setup-state.js";
 
 const outputSchema = z.object({
   materialization: repositoryMaterializationSchema,
@@ -21,7 +23,15 @@ export default defineTool({
   outputSchema,
   async execute(input, ctx) {
     const actionProvenance: RepositoryActionRecord[] = [];
+    await saveConfiguredRepositoryInput(input);
     const materialization = await materializeWorkingRepository(ctx, input, actionProvenance);
+    await saveWorkingRepositorySetup({
+      ...input,
+      workingDocumentationRepository: {
+        ...input.workingDocumentationRepository,
+        docsRoot: materialization.docsRoot,
+      },
+    });
     return { materialization, actionProvenance };
   },
 });

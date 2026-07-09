@@ -68,13 +68,22 @@ Manual prompt files:
 For a passing run, the transcript should show:
 
 - `configure_working_repository` called before docs maintenance starts;
-- repository work happening inside `/workspace/working-docs`;
+- repository work happening inside `/workspace/working-docs` during the
+  maintenance workflow;
 - an impact report before any patch;
 - evidence citations back to attached context and inspected docs pages;
 - either a minimal diff for the correct scenario or an explicit no-change
   decision for the false alarm;
 - check results or a visible check failure;
 - no writeback without explicit approval.
+
+To test first-run setup, delete `.docs-maintainer/`, start `pnpm dev`, and ask
+for one of the docs-maintenance scenarios. The agent should ask for the working
+documentation repository GitHub URL before normal work. After
+`configure_working_repository` succeeds, the next session should reuse the
+persisted repository setup instead of asking for the same URL again. The
+configure step should validate and persist setup quickly; sandbox materializing
+can happen later when the docs workflow needs the checkout.
 
 ## Eve Evals
 

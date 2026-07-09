@@ -2,7 +2,7 @@ import { defineTool } from "eve/tools";
 import { z } from "zod";
 
 import {
-  loadRepositoryWorkflowState,
+  loadOrMaterializeRepositoryWorkflowState,
   repositoryCheckNameSchema,
   repositoryCheckResultSchema,
   runRepositoryCheck,
@@ -19,7 +19,7 @@ export default defineTool({
     checks: z.array(repositoryCheckResultSchema),
   }),
   async execute({ checks }, ctx) {
-    const state = await loadRepositoryWorkflowState();
+    const state = await loadOrMaterializeRepositoryWorkflowState(ctx);
     const results = [];
     for (const check of checks) {
       results.push(

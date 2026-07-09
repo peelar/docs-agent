@@ -46,6 +46,10 @@ is the primary mutable target: the agent inspects it, applies sandbox-local
 patches to it, exports report and diff artifacts, and uses scoped GitHub
 authority to create approved branches or draft PRs in it.
 
+Workspace setup is explicit and reusable. The agent checks versioned setup state
+on every turn, asks for missing working-repository details before docs work, and
+checks GitHub writeback setup before any approved draft PR publish attempt.
+
 Host local paths are not supported as working documentation repository sources
 for the main workflow. Local development and production use the same
 sandbox-first contract.
@@ -131,6 +135,8 @@ publishes approved changes back to the same GitHub repository.
   and unapproved push attempts fail visibly.
 - Approved changes can be pushed to a draft PR in the configured working
   repository without granting write access to any other repository.
+- Missing or stale workspace setup is caught before docs work or writeback
+  instead of failing late inside repository tools.
 
 ## Open Questions
 

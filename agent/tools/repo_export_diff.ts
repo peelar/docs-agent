@@ -4,7 +4,7 @@ import { z } from "zod";
 import {
   exportRepositoryDiff,
   listChangedFiles,
-  loadRepositoryWorkflowState,
+  loadOrMaterializeRepositoryWorkflowState,
   saveRepositoryWorkflowState,
 } from "../lib/repository-workflow.js";
 
@@ -18,7 +18,7 @@ export default defineTool({
     noDiff: z.boolean(),
   }),
   async execute(_, ctx) {
-    const state = await loadRepositoryWorkflowState();
+    const state = await loadOrMaterializeRepositoryWorkflowState(ctx);
     const changedFiles = await listChangedFiles(
       ctx,
       state.repositoryInput.workingDocumentationRepository,

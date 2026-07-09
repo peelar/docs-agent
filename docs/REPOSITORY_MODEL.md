@@ -25,10 +25,20 @@ The repository input contract captures:
   Approved GitHub writeback adds `publish-pr`.
 - `provenanceLabel`: `working-documentation-repository`.
 
-The active working repository configuration is session-scoped. Calling
-`configure_working_repository` validates the repository input, materializes the
-checkout in the sandbox, resolves the docs root, and records that state for later
-repository workflow tools in the same session.
+The active working repository configuration is persisted as versioned setup
+state in `.docs-maintainer/config.json`. Calling `configure_working_repository`
+validates the repository input through the configured app-scoped GitHub connector
+and saves only the reusable repository setup. It also records the full
+per-session repository input in Eve state so the next workflow call can use
+attached context without re-asking for setup. It does not materialize the sandbox
+checkout unless explicitly requested. One-off scenario context is not persisted
+as workspace setup.
+
+At the start of each turn, dynamic Eve instructions read setup state and guide
+the model into setup mode when required fields are missing or stale. When setup
+already exists, `prepare_configured_working_repository` and the docs workflow
+can materialize the persisted repository without asking the user for the same
+GitHub URL again.
 
 Host local paths are not supported as repository sources for the main workflow.
 Local development and production use the same sandbox-first contract: GitHub URL
@@ -53,6 +63,18 @@ longer matches the workflow result, the base branch moved, the publish branch
 already exists, or the working tree contains staged, untracked, deleted, renamed,
 copied, binary, or unsupported-mode changes.
 
+GitHub repository validation and approved writeback use the same app-scoped
+connector path. The workspace must have a configured working documentation
+repository, the `publish-pr` repository action, and an app-scoped GitHub
+connector. Before publishing, the runtime preflights the connector and GitHub App
+installation for the configured repository. The Connect token request targets the
+repository's GitHub App installation instead of asking for a generic app token.
+Failures are reported as setup problems such as missing connector, connector
+unavailable to this runtime, app not installed, repository not granted, or
+insufficient GitHub permissions. If Eve needs an authorization challenge to
+resolve the connector, that challenge is surfaced by the normal Eve/Vercel
+Connect flow instead of being replaced by a fake URL.
+
 ## Sandbox Boundary
 
 `agent/sandbox.ts` uses `microsandbox()` by default for local development and
@@ -66,11 +88,12 @@ so sandboxed docs checks can run. Provider and arbitrary internet egress remain
 out of scope until a later workflow explicitly requires them.
 
 Materialization may reuse an existing sandbox checkout when the remote matches
-the requested working repository. It may also restore a matching template-scoped
-repository cache when one was seeded by the sandbox bootstrap. Reuse still
+the requested working repository. It may also restore a matching sandbox-local
+repository cache after a prior materialization wrote a ready marker. Reuse still
 resets tracked changes and cleans untracked non-ignored files before analysis.
 If neither cache is available, or the checkout belongs to another repository,
-the workflow clones a fresh copy.
+the workflow clones a fresh copy and promotes the resolved checkout into the
+repository cache for future sessions.
 
 Dependency installation uses a sandbox-local cache marker outside the working
 repository. A cached install is valid only when `node_modules` exists, the

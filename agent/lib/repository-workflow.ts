@@ -6,6 +6,14 @@ import type { ToolContext } from "eve/tools";
 import { z } from "zod";
 
 import {
+  formatUnknownError,
+  githubApiRequest,
+  parseGitHubRepositoryUrl,
+  resolveGitHubAppInstallationToken,
+  resolveGitHubConnector,
+  type GitHubRepositorySlug,
+} from "./github-app-client.js";
+import {
   repositoryInputSchema,
   type ExternalContext,
   type RepositoryInput,
@@ -13,6 +21,7 @@ import {
   type ResolvedWorkingDocumentationRepository,
   type WorkingDocumentationRepository,
 } from "./repository-contract.js";
+import { readSetupState, requireSetupReady, saveWorkingRepositorySetup } from "./setup-state.js";
 
 export const repositoryCheckNameSchema = z.enum([
   "install",
@@ -143,6 +152,10 @@ const repositoryWorkflowState = defineState<WorkflowState | null>(
   "docs-maintainer.repository-workflow-state",
   () => null,
 );
+const configuredRepositoryInputState = defineState<RepositoryInput | null>(
+  "docs-maintainer.configured-repository-input",
+  () => null,
+);
 
 class RepositoryPolicyError extends Error {
   constructor(message: string) {
@@ -155,7 +168,7 @@ export async function runDocsMaintenanceScenario(
   input: RunDocsMaintenanceScenarioInput,
   ctx: ToolContext,
 ): Promise<DocsMaintenanceWorkflowResult> {
-  const state = await loadRepositoryWorkflowState();
+  const state = await loadOrMaterializeRepositoryWorkflowState(ctx);
   const repositoryInput = state.repositoryInput;
   const repository = repositoryInput.workingDocumentationRepository;
   const sandbox = await ctx.getSandbox();
@@ -268,7 +281,7 @@ export async function materializeWorkingRepository(
   if (checkout === "matching") {
     await refreshWorkingRepositoryCheckout(ctx, repository, actionProvenance);
   } else if (await restoreCachedWorkingRepository(ctx, repository, actionProvenance)) {
-    // The restored checkout is reset before it is exposed as the working repo.
+    await refreshWorkingRepositoryCheckout(ctx, repository, actionProvenance);
   } else {
     await cloneWorkingRepository(ctx, repository, actionProvenance);
   }
@@ -283,6 +296,7 @@ export async function materializeWorkingRepository(
     workingDocumentationRepository: resolvedRepository,
   };
   const materialization = await resolveMaterialization(ctx, resolvedRepository);
+  await cacheResolvedWorkingRepository(ctx, resolvedRepository, materialization, actionProvenance);
 
   await saveRepositoryWorkflowState({
     repositoryInput: resolvedRepositoryInput,
@@ -291,6 +305,60 @@ export async function materializeWorkingRepository(
   });
 
   return materialization;
+}
+
+export async function saveConfiguredRepositoryInput(input: RepositoryInput): Promise<void> {
+  const parsed = repositoryInputSchema.parse(input);
+  configuredRepositoryInputState.update(() => parsed);
+}
+
+export async function validateWorkingRepositorySetup(
+  repositoryInput: RepositoryInput,
+  abortSignal?: AbortSignal,
+): Promise<RepositoryActionRecord[]> {
+  const parsed = repositoryInputSchema.parse(repositoryInput);
+  const repository = parsed.workingDocumentationRepository;
+  assertActionAllowed(repository, "clone");
+  assertSandboxPath(repository.sandboxPath);
+
+  const slug = parseGitHubRepositoryUrl(repository.source.url);
+  const token = await resolveRepositoryValidationToken(slug);
+  await assertGitHubRepositoryExists(token, slug, abortSignal);
+  await assertGitHubRefExists(token, slug, repository.ref, abortSignal);
+  if (repository.docsRoot !== undefined) {
+    await assertGitHubDirectoryExists(
+      token,
+      slug,
+      repository.ref,
+      repository.docsRoot,
+      abortSignal,
+    );
+  }
+
+  return [
+    recordAction(repository, "validate", "success", {
+      target: `${repository.source.url}#${repository.ref}`,
+    }),
+  ];
+}
+
+async function resolveRepositoryValidationToken(slug: GitHubRepositorySlug): Promise<string> {
+  const setup = await readSetupState().catch(() => null);
+  const connector = resolveGitHubConnector(setup);
+  if (connector === "") {
+    throw new Error(
+      "Could not validate GitHub repository with app-scoped credentials: no GitHub connector is configured.",
+    );
+  }
+
+  try {
+    const tokenResponse = await resolveGitHubAppInstallationToken({ connector, slug });
+    return tokenResponse.token;
+  } catch (error) {
+    throw new Error(
+      `Could not validate GitHub repository with app-scoped credentials from connector ${connector}: ${formatUnknownError(error)}`,
+    );
+  }
 }
 
 export async function loadRepositoryWorkflowState(): Promise<WorkflowState> {
@@ -313,6 +381,35 @@ export async function loadRepositoryWorkflowState(): Promise<WorkflowState> {
   };
 }
 
+export async function loadOrMaterializeRepositoryWorkflowState(
+  ctx: ToolContext,
+): Promise<WorkflowState> {
+  try {
+    return await loadRepositoryWorkflowState();
+  } catch {
+    const setup = await requireSetupReady("docs-maintenance");
+    const configuredInput = configuredRepositoryInputState.get();
+    const repositoryInput = materializationInputForSetup(
+      configuredInput,
+      setup.workingRepositoryInput,
+    );
+    const materialization = await materializeWorkingRepository(ctx, repositoryInput, []);
+    if (
+      setup.workingRepositoryInput.workingDocumentationRepository.docsRoot !==
+      materialization.docsRoot
+    ) {
+      await saveWorkingRepositorySetup({
+        ...setup.workingRepositoryInput,
+        workingDocumentationRepository: {
+          ...setup.workingRepositoryInput.workingDocumentationRepository,
+          docsRoot: materialization.docsRoot,
+        },
+      });
+    }
+    return loadRepositoryWorkflowState();
+  }
+}
+
 export async function saveRepositoryWorkflowState(state: WorkflowState): Promise<void> {
   repositoryWorkflowState.update(() => state);
 }
@@ -332,6 +429,48 @@ function parseResolvedRepositoryInput(input: unknown): ResolvedRepositoryInput {
       docsRoot,
     },
   };
+}
+
+function materializationInputForSetup(
+  configuredInput: RepositoryInput | null,
+  setupInput: RepositoryInput,
+): RepositoryInput {
+  if (
+    configuredInput === null ||
+    !sameWorkingRepositoryTarget(
+      configuredInput.workingDocumentationRepository,
+      setupInput.workingDocumentationRepository,
+    )
+  ) {
+    return setupInput;
+  }
+
+  const setupDocsRoot = setupInput.workingDocumentationRepository.docsRoot;
+  if (
+    configuredInput.workingDocumentationRepository.docsRoot !== undefined ||
+    setupDocsRoot === undefined
+  ) {
+    return configuredInput;
+  }
+
+  return {
+    ...configuredInput,
+    workingDocumentationRepository: {
+      ...configuredInput.workingDocumentationRepository,
+      docsRoot: setupDocsRoot,
+    },
+  };
+}
+
+function sameWorkingRepositoryTarget(
+  left: WorkingDocumentationRepository,
+  right: WorkingDocumentationRepository,
+): boolean {
+  return (
+    normalizeRepositoryUrl(left.source.url) === normalizeRepositoryUrl(right.source.url) &&
+    left.ref === right.ref &&
+    left.sandboxPath === right.sandboxPath
+  );
 }
 
 async function resolveWorkingRepositoryDocsRoot(
@@ -820,6 +959,83 @@ async function resolveMaterialization(
   };
 }
 
+async function cacheResolvedWorkingRepository(
+  ctx: ToolContext,
+  repository: ResolvedWorkingDocumentationRepository,
+  materialization: DocsMaintenanceWorkflowResult["materialization"],
+  actionProvenance: RepositoryActionRecord[],
+): Promise<void> {
+  if (materialization.resolvedCommit === undefined) {
+    actionProvenance.push(
+      recordAction(repository, "cache", "failure", {
+        reason: "Resolved commit was unavailable; repository cache was not marked ready.",
+      }),
+    );
+    return;
+  }
+
+  const sandbox = await ctx.getSandbox();
+  const cacheDirectory = repositoryCacheDirectory(repository);
+  const cacheParent = repositoryCacheParentDirectory();
+  const cachePromote = await sandbox.run({
+    command: [
+      "set -eu",
+      `work_dir=${sh(repository.sandboxPath)}`,
+      `cache_dir=${sh(cacheDirectory)}`,
+      `cache_parent=${sh(cacheParent)}`,
+      'if [ -L "$work_dir" ]; then exit 0; fi',
+      'tmp_dir="${cache_dir}.tmp"',
+      'rm -rf "$tmp_dir"',
+      'mkdir -p "$cache_parent"',
+      'mv "$work_dir" "$tmp_dir"',
+      'rm -rf "$cache_dir"',
+      'if mv "$tmp_dir" "$cache_dir" && ln -s "$cache_dir" "$work_dir"; then',
+      "  exit 0",
+      "fi",
+      'rm -f "$work_dir"',
+      'if [ -d "$cache_dir" ]; then',
+      '  mv "$cache_dir" "$work_dir"',
+      'elif [ -d "$tmp_dir" ]; then',
+      '  mv "$tmp_dir" "$work_dir"',
+      "fi",
+      "exit 1",
+    ].join("\n"),
+    abortSignal: ctx.abortSignal,
+  });
+
+  if (cachePromote.exitCode !== 0) {
+    actionProvenance.push(
+      recordAction(repository, "cache", "failure", {
+        target: cacheDirectory,
+        reason: summarizeCommandFailure(cachePromote),
+      }),
+    );
+    return;
+  }
+
+  await sandbox.writeTextFile({
+    path: repositoryCacheMarkerPath(repository),
+    content: `${JSON.stringify(
+      {
+        version: 1,
+        repositoryUrl: repository.source.url,
+        requestedRef: repository.ref,
+        docsRoot: repository.docsRoot,
+        sourcePath: cacheDirectory,
+        resolvedCommit: materialization.resolvedCommit,
+        status: "ready",
+      },
+      null,
+      2,
+    )}\n`,
+    abortSignal: ctx.abortSignal,
+  });
+
+  actionProvenance.push(
+    recordAction(repository, "cache", "success", { target: cacheDirectory }),
+  );
+}
+
 export async function readRepositoryFile(
   ctx: ToolContext,
   repository: ResolvedWorkingDocumentationRepository,
@@ -1305,8 +1521,12 @@ function repositoryCacheMarkerPath(repository: ResolvedWorkingDocumentationRepos
   return `${repositoryCacheDirectory(repository)}/marker.json`;
 }
 
+function repositoryCacheParentDirectory(): string {
+  return "/workspace/.docs-maintainer-cache/repositories";
+}
+
 function repositoryCacheDirectory(repository: ResolvedWorkingDocumentationRepository): string {
-  return `/workspace/.docs-maintainer-cache/repositories/${hashText(
+  return `${repositoryCacheParentDirectory()}/${hashText(
     [
       normalizeRepositoryUrl(repository.source.url),
       repository.ref,
@@ -1317,6 +1537,104 @@ function repositoryCacheDirectory(repository: ResolvedWorkingDocumentationReposi
 
 function normalizeRepositoryUrl(value: string): string {
   return value.trim().replace(/\.git$/, "").replace(/\/$/, "").toLowerCase();
+}
+
+async function assertGitHubRepositoryExists(
+  token: string,
+  slug: GitHubRepositorySlug,
+  abortSignal?: AbortSignal,
+): Promise<void> {
+  const result = await githubApiRequest<unknown>({
+    token,
+    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}`,
+    abortSignal,
+  });
+
+  if (result.ok) return;
+  if (result.status === 404) {
+    throw new Error(
+      `GitHub repository was not found or is not granted to the GitHub App installation: ${slug.owner}/${slug.repo}.`,
+    );
+  }
+
+  throw new Error(`Could not validate GitHub repository: ${result.message}`);
+}
+
+async function assertGitHubRefExists(
+  token: string,
+  slug: GitHubRepositorySlug,
+  ref: string,
+  abortSignal?: AbortSignal,
+): Promise<void> {
+  const branch = await githubApiRequest<unknown>({
+    token,
+    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}/branches/${encodeURIComponent(ref)}`,
+    abortSignal,
+  });
+  if (branch.ok) return;
+  if (branch.status !== 404) {
+    throw new Error(`Could not validate GitHub branch ${ref}: ${branch.message}`);
+  }
+
+  const tag = await githubApiRequest<unknown>({
+    token,
+    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}/git/ref/tags/${encodeURIComponent(ref)}`,
+    abortSignal,
+  });
+  if (tag.ok) return;
+  if (tag.status !== 404) {
+    throw new Error(`Could not validate GitHub tag ${ref}: ${tag.message}`);
+  }
+
+  const commit = await githubApiRequest<unknown>({
+    token,
+    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}/commits/${encodeURIComponent(ref)}`,
+    abortSignal,
+  });
+  if (commit.ok) return;
+  if (commit.status === 404) {
+    throw new Error(`GitHub ref was not found: ${slug.owner}/${slug.repo}#${ref}.`);
+  }
+
+  throw new Error(`Could not validate GitHub ref ${ref}: ${commit.message}`);
+}
+
+async function assertGitHubDirectoryExists(
+  token: string,
+  slug: GitHubRepositorySlug,
+  ref: string,
+  docsRoot: string,
+  abortSignal?: AbortSignal,
+): Promise<void> {
+  const path =
+    docsRoot === "."
+      ? ""
+      : `/${docsRoot.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
+  const result = await githubApiRequest<unknown>({
+    token,
+    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}/contents${path}?ref=${encodeURIComponent(ref)}`,
+    abortSignal,
+  });
+
+  if (result.ok) {
+    if (Array.isArray(result.body) || isGitHubDirectoryContent(result.body)) return;
+    throw new Error(`Configured docs root is not a directory: ${docsRoot}.`);
+  }
+
+  if (result.status === 404) {
+    throw new Error(`Configured docs root was not found at ${ref}: ${docsRoot}.`);
+  }
+
+  throw new Error(`Could not validate docs root ${docsRoot}: ${result.message}`);
+}
+
+function isGitHubDirectoryContent(value: unknown): value is { type: "dir" } {
+  return (
+    typeof value === "object" &&
+    value !== null &&
+    "type" in value &&
+    (value as { type?: unknown }).type === "dir"
+  );
 }
 
 function hashText(value: string): string {

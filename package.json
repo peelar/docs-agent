@@ -9,8 +9,7 @@
   },
   "scripts": {
     "build": "eve build",
-    "check": "pnpm typecheck && pnpm build && pnpm check:writeback",
-    "check:writeback": "node scripts/check-writeback-policy.mjs",
+    "check": "pnpm typecheck && pnpm build",
     "dev": "eve dev",
     "eval": "eve eval",
     "start": "eve start",

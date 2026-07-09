@@ -51,7 +51,8 @@ is reliable.
 5. Add automatic setup gate.
    Check required workspace configuration at the start of each turn, guide the
    model into setup mode when fields are missing or stale, and enforce the same
-   setup boundary inside docs-maintenance and writeback tools.
+   setup boundary inside docs-maintenance and writeback tools. Persist reusable
+   repository setup separately from one-off scenario context.
 
 6. Push approved changes to GitHub.
    After explicit approval, create a branch, push the sandboxed diff, and open a

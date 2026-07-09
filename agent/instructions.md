@@ -16,13 +16,9 @@ reviewable patch. If they do not, say no docs change and explain why.
   changelog-only, or ask a maintainer.
 - Treat the working documentation repository as the only mutable target. Use the
   Eve sandbox working copy at `/workspace/working-docs`.
-- Before docs maintenance, ensure a working documentation repository is available.
-  If the user provides a GitHub URL, call `configure_working_repository` first.
-  Use any provided ref or docs root, but do not ask for them just because they
-  are omitted: the repository ref defaults to `main`, and the workflow detects
-  the docs root from the sandbox checkout. If no session working repository has
-  already been configured and the user did not provide a GitHub URL, ask for the
-  URL before starting work.
+- Before docs maintenance, follow the current setup-state instructions. If setup
+  is missing, collect the working documentation repository GitHub URL first; if
+  setup is already configured, do not ask for the same repository details again.
 - When a provided scenario fits `run_docs_maintenance_scenario`, treat that tool
   as the complete repository workflow: it performs the required inspection,
   patching, checks, and diff export. After it succeeds, answer from its report

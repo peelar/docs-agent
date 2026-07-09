@@ -1,6 +1,5 @@
 import { createHash } from "node:crypto";
 
-import { connect } from "@vercel/connect/eve";
 import type { ToolContext } from "eve/tools";
 import { z } from "zod";
 
@@ -14,10 +13,19 @@ import {
   type DocsMaintenanceWorkflowResult,
   type RepositoryActionRecord,
 } from "./repository-workflow.js";
-
-const DEFAULT_GITHUB_CONNECTOR = "github/github";
-const GITHUB_CONNECTOR_ENV = "DOCS_MAINTAINER_GITHUB_CONNECTOR";
-const GITHUB_API_VERSION = "2022-11-28";
+import {
+  preflightGitHubWritebackSetup,
+  requireSetupReady,
+  resolveGitHubConnector,
+  resolveGitHubWritebackToken,
+  type SetupState,
+} from "./setup-state.js";
+import {
+  formatUnknownError,
+  githubApiRequest,
+  parseGitHubRepositoryUrl,
+  type GitHubRepositorySlug,
+} from "./github-app-client.js";
 
 const branchNameSchema = z
   .string()
@@ -37,6 +45,8 @@ const branchNameSchema = z
     "Use a conservative Git branch name.",
   );
 
+const generatedTextSchema = z.string().trim().min(1).max(2_000);
+
 export const publishWorkingRepositoryPrInputSchema = z.object({
   baseBranch: branchNameSchema
     .optional()
@@ -44,8 +54,12 @@ export const publishWorkingRepositoryPrInputSchema = z.object({
   branchName: branchNameSchema
     .optional()
     .describe("Optional branch name to create. Defaults to a deterministic docs-maintainer branch."),
-  title: z.string().trim().min(1).max(180).optional(),
-  commitMessage: z.string().trim().min(1).max(240).optional(),
+  title: generatedTextSchema
+    .optional()
+    .describe("Optional PR title override. Omit it unless the user supplied one."),
+  commitMessage: generatedTextSchema
+    .optional()
+    .describe("Optional commit message override. Omit it unless the user supplied one."),
 });
 
 export const publishWorkingRepositoryPrOutputSchema = z.object({
@@ -75,11 +89,6 @@ export type PublishWorkingRepositoryPrOutput = z.infer<
   typeof publishWorkingRepositoryPrOutputSchema
 >;
 
-interface GitHubRepositorySlug {
-  owner: string;
-  repo: string;
-}
-
 interface GitHubRefResponse {
   ref: string;
   object: {
@@ -88,12 +97,10 @@ interface GitHubRefResponse {
   };
 }
 
-interface GitHubCommitResponse {
+interface GitHubGitCommitResponse {
   sha: string;
-  commit: {
-    tree: {
-      sha: string;
-    };
+  tree: {
+    sha: string;
   };
 }
 
@@ -124,6 +131,14 @@ export async function publishWorkingRepositoryPr(
   input: PublishWorkingRepositoryPrInput,
   ctx: ToolContext,
 ): Promise<PublishWorkingRepositoryPrOutput> {
+  const setup = await requireSetupReady("github-writeback");
+  const setupStatus = await preflightGitHubWritebackSetup(ctx, setup);
+  if (!setupStatus.githubWritebackReady) {
+    throw new GitHubWritebackError(
+      `GitHub writeback setup is not ready: ${setupStatus.githubWriteback.preflight.message}`,
+    );
+  }
+
   const state = await loadRepositoryWorkflowState();
   const repository = state.repositoryInput.workingDocumentationRepository;
 
@@ -160,9 +175,15 @@ export async function publishWorkingRepositoryPr(
     }
 
     const diffHash = hashText(currentDiff);
-    const branchName = input.branchName ?? buildDefaultBranchName(baseBranch, baseSha, diffHash);
-    const title = input.title ?? buildDefaultPullRequestTitle(preparedResult);
-    const commitMessage = input.commitMessage ?? buildDefaultCommitMessage(preparedResult);
+    const branchName = normalizeBranchName(
+      input.branchName ?? buildDefaultBranchName(baseBranch, baseSha, diffHash),
+    );
+    const title = normalizePullRequestTitle(
+      input.title ?? buildDefaultPullRequestTitle(preparedResult),
+    );
+    const commitMessage = normalizeCommitMessage(
+      input.commitMessage ?? buildDefaultCommitMessage(preparedResult),
+    );
     const body = buildPullRequestBody({
       result: preparedResult,
       baseBranch,
@@ -171,7 +192,7 @@ export async function publishWorkingRepositoryPr(
       changedFiles: currentChangedFiles,
     });
 
-    const token = await resolveGitHubToken(ctx);
+    const token = await resolveGitHubToken(setup, slug);
     const published = await createGitHubDraftPullRequest({
       token,
       slug,
@@ -423,21 +444,18 @@ async function readGitFileMode(
   );
 }
 
-async function resolveGitHubToken(ctx: ToolContext): Promise<string> {
-  const connector = process.env[GITHUB_CONNECTOR_ENV]?.trim() || DEFAULT_GITHUB_CONNECTOR;
+async function resolveGitHubToken(
+  setup: SetupState,
+  slug: GitHubRepositorySlug,
+): Promise<string> {
+  const connector = resolveGitHubConnector(setup);
   try {
-    const result = await ctx.getToken(
-      connect({ connector, principalType: "app", validate: true }),
-      {
-        authKey: "docs-maintainer-github-writeback",
-        displayName: "GitHub",
-      },
-    );
+    const result = await resolveGitHubWritebackToken({ connector, slug });
 
     return result.token;
   } catch (error) {
     throw new GitHubWritebackError(
-      `Could not resolve app-scoped GitHub credentials from Vercel Connect connector ${connector}: ${error instanceof Error ? error.message : String(error)}`,
+      `Could not resolve app-scoped GitHub credentials from Vercel Connect connector ${connector}: ${formatUnknownError(error)}`,
     );
   }
 }
@@ -477,24 +495,13 @@ async function createGitHubDraftPullRequest(input: {
     );
   }
 
-  const existingBranch = await githubRequest<GitHubRefResponse | null>({
-    token,
-    method: "GET",
-    path: `/repos/${encodePathPart(slug.owner)}/${encodePathPart(slug.repo)}/git/ref/heads/${encodeGitRefPath(input.branchName)}`,
-    abortSignal,
-    notFound: null,
-  });
-
-  if (existingBranch !== null) {
-    throw new GitHubWritebackError(`Branch already exists on GitHub: ${input.branchName}.`);
-  }
-
-  const baseCommit = await githubRequest<GitHubCommitResponse>({
+  const baseCommit = await githubRequest<GitHubGitCommitResponse>({
     token,
     method: "GET",
     path: `/repos/${encodePathPart(slug.owner)}/${encodePathPart(slug.repo)}/git/commits/${encodePathPart(input.baseSha)}`,
     abortSignal,
   });
+  const baseTreeSha = getGitCommitTreeSha(baseCommit, "base");
 
   const tree = await githubRequest<GitHubTreeResponse>({
     token,
@@ -502,7 +509,7 @@ async function createGitHubDraftPullRequest(input: {
     path: `/repos/${encodePathPart(slug.owner)}/${encodePathPart(slug.repo)}/git/trees`,
     abortSignal,
     body: {
-      base_tree: baseCommit.commit.tree.sha,
+      base_tree: baseTreeSha,
       tree: input.changedFiles.map((file) => ({
         path: file.path,
         mode: file.mode,
@@ -512,7 +519,63 @@ async function createGitHubDraftPullRequest(input: {
     },
   });
 
-  const commit = await githubRequest<GitHubCommitResponse>({
+  const existingBranch = await githubRequest<GitHubRefResponse | null>({
+    token,
+    method: "GET",
+    path: `/repos/${encodePathPart(slug.owner)}/${encodePathPart(slug.repo)}/git/ref/heads/${encodeGitRefPath(input.branchName)}`,
+    abortSignal,
+    notFound: null,
+  });
+
+  if (existingBranch !== null) {
+    const existingCommit = await githubRequest<GitHubGitCommitResponse>({
+      token,
+      method: "GET",
+      path: `/repos/${encodePathPart(slug.owner)}/${encodePathPart(slug.repo)}/git/commits/${encodePathPart(existingBranch.object.sha)}`,
+      abortSignal,
+    });
+    const existingTreeSha = getGitCommitTreeSha(existingCommit, "existing branch");
+
+    if (existingTreeSha !== tree.sha) {
+      throw new GitHubWritebackError(
+        `Branch already exists on GitHub with different content: ${input.branchName}.`,
+      );
+    }
+
+    const existingPullRequest = await findExistingPullRequest({
+      token,
+      slug,
+      baseBranch: input.baseBranch,
+      branchName: input.branchName,
+      abortSignal,
+    });
+
+    if (existingPullRequest !== null) {
+      return {
+        treeSha: existingTreeSha,
+        commitSha: existingBranch.object.sha,
+        pullRequest: normalizePullResponse(existingPullRequest),
+      };
+    }
+
+    const pullRequest = await createPullRequest({
+      token,
+      slug,
+      baseBranch: input.baseBranch,
+      branchName: input.branchName,
+      title: input.title,
+      body: input.body,
+      abortSignal,
+    });
+
+    return {
+      treeSha: existingTreeSha,
+      commitSha: existingBranch.object.sha,
+      pullRequest: normalizePullResponse(pullRequest),
+    };
+  }
+
+  const commit = await githubRequest<GitHubGitCommitResponse>({
     token,
     method: "POST",
     path: `/repos/${encodePathPart(slug.owner)}/${encodePathPart(slug.repo)}/git/commits`,
@@ -535,11 +598,67 @@ async function createGitHubDraftPullRequest(input: {
     },
   });
 
-  const pullRequest = await githubRequest<GitHubPullResponse>({
+  const pullRequest = await createPullRequest({
     token,
-    method: "POST",
-    path: `/repos/${encodePathPart(slug.owner)}/${encodePathPart(slug.repo)}/pulls`,
+    slug,
+    baseBranch: input.baseBranch,
+    branchName: input.branchName,
+    title: input.title,
+    body: input.body,
     abortSignal,
+  });
+
+  return {
+    treeSha: tree.sha,
+    commitSha: commit.sha,
+    pullRequest: normalizePullResponse(pullRequest),
+  };
+}
+
+function getGitCommitTreeSha(commit: GitHubGitCommitResponse, description: string): string {
+  if (typeof commit.tree?.sha !== "string" || commit.tree.sha.trim() === "") {
+    throw new GitHubWritebackError(
+      `GitHub ${description} commit response did not include a tree SHA.`,
+    );
+  }
+
+  return commit.tree.sha;
+}
+
+async function findExistingPullRequest(input: {
+  token: string;
+  slug: GitHubRepositorySlug;
+  baseBranch: string;
+  branchName: string;
+  abortSignal: AbortSignal;
+}): Promise<GitHubPullResponse | null> {
+  const pulls = await githubRequest<GitHubPullResponse[]>({
+    token: input.token,
+    method: "GET",
+    path:
+      `/repos/${encodePathPart(input.slug.owner)}/${encodePathPart(input.slug.repo)}/pulls` +
+      `?state=open&head=${encodeURIComponent(`${input.slug.owner}:${input.branchName}`)}` +
+      `&base=${encodeURIComponent(input.baseBranch)}&per_page=10`,
+    abortSignal: input.abortSignal,
+  });
+
+  return pulls[0] ?? null;
+}
+
+async function createPullRequest(input: {
+  token: string;
+  slug: GitHubRepositorySlug;
+  baseBranch: string;
+  branchName: string;
+  title: string;
+  body: string;
+  abortSignal: AbortSignal;
+}): Promise<GitHubPullResponse> {
+  return githubRequest<GitHubPullResponse>({
+    token: input.token,
+    method: "POST",
+    path: `/repos/${encodePathPart(input.slug.owner)}/${encodePathPart(input.slug.repo)}/pulls`,
+    abortSignal: input.abortSignal,
     body: {
       title: input.title,
       body: input.body,
@@ -548,15 +667,15 @@ async function createGitHubDraftPullRequest(input: {
       draft: true,
     },
   });
+}
 
+function normalizePullResponse(
+  pullRequest: GitHubPullResponse,
+): PublishWorkingRepositoryPrOutput["pullRequest"] {
   return {
-    treeSha: tree.sha,
-    commitSha: commit.sha,
-    pullRequest: {
-      number: pullRequest.number,
-      url: pullRequest.html_url,
-      draft: pullRequest.draft ?? true,
-    },
+    number: pullRequest.number,
+    url: pullRequest.html_url,
+    draft: pullRequest.draft ?? true,
   };
 }
 
@@ -568,59 +687,25 @@ async function githubRequest<T>(input: {
   body?: unknown;
   notFound?: null;
 }): Promise<T> {
-  const response = await fetch(`https://api.github.com${input.path}`, {
+  const result = await githubApiRequest<T>({
+    token: input.token,
     method: input.method,
-    headers: {
-      Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${input.token}`,
-      "Content-Type": "application/json",
-      "X-GitHub-Api-Version": GITHUB_API_VERSION,
-    },
-    body: input.body === undefined ? undefined : JSON.stringify(input.body),
-    signal: input.abortSignal,
+    path: input.path,
+    abortSignal: input.abortSignal,
+    body: input.body,
   });
 
-  const text = await response.text();
-  if (response.status === 404 && input.notFound === null) {
+  if (!result.ok && result.status === 404 && input.notFound === null) {
     return null as T;
   }
 
-  if (!response.ok) {
+  if (!result.ok) {
     throw new GitHubWritebackError(
-      `GitHub ${input.method} ${input.path} failed with ${response.status}: ${summarizeGitHubError(text)}`,
+      `GitHub ${input.method} ${input.path} failed with ${result.status}: ${truncateOneLine(result.message, 1_000)}`,
     );
   }
 
-  if (text.trim() === "") return undefined as T;
-
-  try {
-    return JSON.parse(text) as T;
-  } catch {
-    throw new GitHubWritebackError(
-      `GitHub ${input.method} ${input.path} returned invalid JSON.`,
-    );
-  }
-}
-
-export function parseGitHubRepositoryUrl(url: string): GitHubRepositorySlug {
-  const parsed = new URL(url);
-  const parts = parsed.pathname
-    .replace(/^\/+/, "")
-    .replace(/\.git$/, "")
-    .split("/");
-  const [owner, repo] = parts;
-
-  if (
-    parsed.protocol !== "https:" ||
-    parsed.hostname !== "github.com" ||
-    parts.length !== 2 ||
-    !owner ||
-    !repo
-  ) {
-    throw new GitHubWritebackError(`Unsupported GitHub repository URL: ${url}`);
-  }
-
-  return { owner, repo };
+  return result.body;
 }
 
 export function buildDefaultBranchName(
@@ -685,15 +770,23 @@ export function buildPullRequestBody(input: {
 }
 
 function buildDefaultPullRequestTitle(result: DocsMaintenanceWorkflowResult): string {
-  return truncateOneLine(`Docs update: ${result.report.patchSummary}`, 180);
+  return normalizePullRequestTitle(`Docs update: ${result.report.patchSummary}`);
 }
 
 function buildDefaultCommitMessage(result: DocsMaintenanceWorkflowResult): string {
-  return truncateOneLine(`docs: ${result.report.patchSummary}`, 240);
+  return normalizeCommitMessage(`docs: ${result.report.patchSummary}`);
 }
 
 function normalizeBranchName(branch: string): string {
   return branchNameSchema.parse(branch.replace(/^refs\/heads\//, ""));
+}
+
+function normalizePullRequestTitle(title: string): string {
+  return truncateOneLine(title, 180);
+}
+
+function normalizeCommitMessage(message: string): string {
+  return truncateOneLine(message, 240);
 }
 
 function assertRepositoryRelativePath(path: string): void {
@@ -770,19 +863,6 @@ function summarizeCommandFailure(result: { exitCode: number; stdout: string; std
   const stderr = result.stderr.trim();
   const stdout = result.stdout.trim();
   return truncateOneLine(stderr || stdout || `Command exited with ${result.exitCode}.`, 1_000);
-}
-
-function summarizeGitHubError(text: string): string {
-  try {
-    const parsed = JSON.parse(text) as { message?: unknown };
-    if (typeof parsed.message === "string" && parsed.message.trim() !== "") {
-      return truncateOneLine(parsed.message, 1_000);
-    }
-  } catch {
-    // Fall back to the raw body below.
-  }
-
-  return truncateOneLine(text.trim() || "No response body.", 1_000);
 }
 
 function sh(value: string): string {
