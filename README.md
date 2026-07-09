@@ -8,17 +8,21 @@ change and surrounding context, decide whether docs are affected, explain the
 impact, and only then prepare a small reviewable docs patch when the evidence
 supports it.
 
-The first runnable version is fixture-first. It will use local PR-like changes,
-local Docusaurus-style docs trees, and local context fixtures before wiring live
-GitHub, Slack, Linear, Notion, Discord, or Vercel Connect access.
+The first runnable version is scenario-first. It will use PR-like changes,
+GitHub-hosted Docusaurus-style working documentation repositories cloned or
+materialized into the Eve sandbox, structured context fixtures, and approved
+GitHub writeback before wiring Slack, Linear, Notion, Discord, or Vercel Connect
+access.
 
 For the durable product contract, read `docs/MANIFEST.md`. For milestone order
-and issue dependencies, read `docs/ROADMAP.md`.
+and issue dependencies, read `docs/ROADMAP.md`. For the repository and sandbox
+contract, read `docs/REPOSITORY_MODEL.md`.
 
 ## What This Becomes
 
 The near-term goal is a reliable Eve workflow that produces documentation impact
-reports and minimal Markdown or MDX patches with provenance and checks.
+reports, minimal Markdown or MDX patches, check results, exported diffs, and
+approved draft PRs with provenance.
 
 The longer-term direction is a documentation operations agent: connected to the
 places where product and engineering decisions happen, able to detect missing or
@@ -31,15 +35,21 @@ are useful to both humans and AI readers.
 - `agent/instructions.md`: always-on identity and standing behavior for the
   documentation maintainer agent.
 - `agent/channels/`: Eve channel entrypoints.
-- `agent/tools/`: future typed tools for inspecting fixtures, repos, diffs,
+- `agent/lib/`: import-only runtime contracts and shared helper code.
+- `agent/tools/`: future typed tools for inspecting scenarios, repos, diffs,
   docs trees, and checks.
 - `agent/skills/`: future load-on-demand procedures for docs impact analysis,
   style discovery, patch preparation, and review.
-- `agent/sandbox/`: future sandbox definition and seeded workspace files for
-  safe repo work.
-- `evals/`: future Eve evals for fixture-backed documentation decisions.
+- `agent/sandbox.ts`: Eve sandbox configuration with local `microsandbox`, Vercel
+  Sandbox opt-in, and egress for GitHub repository materialization plus locked
+  package installation.
+- `evals/`: Eve evals and typed scenario fixtures for scenario-backed
+  documentation decisions.
 - `docs/MANIFEST.md`: product stance, MVP boundaries, principles, and success
   signals.
+- `docs/REPOSITORY_MODEL.md`: working docs repository, context repository,
+  external context, sandbox, and provenance contract.
+- `docs/USER_TESTING.md`: manual user-test scenarios and acceptance criteria.
 - `docs/ROADMAP.md`: milestone order, issue dependencies, and later work.
 - `AGENTS.md`: rules for coding agents working in this repo.
 
@@ -49,20 +59,40 @@ docs under `node_modules/eve/docs/` are the source of truth for those slots.
 
 ## Run Locally
 
-Use Node 24. The repository pins the expected version in `.node-version`. If
-your shell does not switch automatically, run `fnm use` first or prefix commands
-with `fnm exec --using 24.18.0`.
+Use Node 24.18.0. The repository pins the local version in `.node-version`, and
+`package.json` engines tell Vercel which runtime to use. If your shell does not
+switch automatically when you enter the directory, run `fnm use` before
+`pnpm install` or `pnpm dev`.
 
 ```sh
 pnpm install
 pnpm build
 pnpm typecheck
+pnpm eval --list
+pnpm eval saleor-docs-user-tests --skip-report
+```
+
+By default the agent uses the Vercel AI Gateway model configured in
+`EVE_GATEWAY_MODEL`, or `zai/glm-5.2` when unset. To try another Gateway model,
+set `EVE_GATEWAY_MODEL` to any model id available in the Vercel AI Gateway
+catalog:
+
+```sh
+EVE_GATEWAY_MODEL=anthropic/claude-sonnet-5 \
+pnpm eval saleor-docs-user-tests --skip-report --verbose
 ```
 
 Development server:
 
 ```sh
 pnpm dev
+```
+
+Local development uses `microsandbox()` by default. To test with hosted Vercel
+Sandbox locally, run:
+
+```sh
+EVE_SANDBOX_BACKEND=vercel pnpm dev
 ```
 
 Production-style start:
