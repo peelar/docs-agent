@@ -152,4 +152,6 @@ import, corrupt setup state, and missing deployed database configuration. The
 docs-signal queue check covers signal capture, provider/permalink dedupe,
 open-signal listing, lifecycle updates, provenance preservation, artifact
 storage, missing deployed database configuration, and stale signal status
-handling.
+handling. The docs-impact decision check covers skipped verification, required
+current-docs verification, source-evidence blocking, already-covered decisions,
+and compatibility mapping from legacy repository-scenario decisions.

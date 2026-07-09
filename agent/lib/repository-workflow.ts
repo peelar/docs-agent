@@ -5,6 +5,7 @@ import type { SandboxCommandResult } from "eve/sandbox";
 import type { ToolContext } from "eve/tools";
 import { z } from "zod";
 
+import { legacyImpactDecisionSchema } from "./docs-impact-decision.js";
 import {
   formatUnknownError,
   githubApiRequest,
@@ -31,12 +32,7 @@ export const repositoryCheckNameSchema = z.enum([
   "status",
 ]);
 
-export const impactDecisionSchema = z.enum([
-  "docs-patch",
-  "no-docs-change",
-  "changelog-only",
-  "ask-maintainer",
-]);
+export const impactDecisionSchema = legacyImpactDecisionSchema;
 
 export const repositoryActionRecordSchema = z.object({
   action: z.string(),

@@ -254,6 +254,49 @@ These tools do not add Slack, Linear, scheduled scan, patch, or writeback
 behavior by themselves. Channel intake and patch handoff must call the queue
 through provider-specific workflows later.
 
+## Docs Impact Decision Model
+
+Docs Agent uses a shared decision contract for signal triage, watched-release
+findings, scenario workflows, and future Slack/Linear intake. The shared
+decision record carries:
+
+- decision;
+- reason;
+- evidence;
+- missing evidence;
+- current-docs verification state;
+- recommended next action;
+- uncertainty.
+
+The shared decision values are:
+
+- `not-docs-relevant`: no plausible public documentation impact.
+- `needs-maintainer-answer`: the signal is ambiguous and needs a human answer.
+- `needs-source-evidence`: intent exists, but source or release evidence is
+  missing.
+- `needs-docs-verification`: source-backed signal should inspect current docs.
+- `verification-skipped`: current-docs inspection was not needed, with a
+  concrete reason.
+- `already-covered`: current docs were verified and already cover the signal.
+- `likely-stale`: current docs were verified and appear stale or incomplete.
+- `docs-patch-recommended`: a patch should be prepared through the working docs
+  repository flow.
+- `changelog-only`: the right output is release-note or changelog-shaped rather
+  than a docs page patch.
+
+Substantive product, API, release, or behavior signals default toward
+`needs-docs-verification` when source or release evidence exists. Slack, Linear,
+or other discussion context alone should produce `needs-source-evidence` when it
+would otherwise become an unsupported public docs claim. Trivial, internal-only,
+or noisy signals can skip repository inspection only through
+`verification-skipped` with an explicit reason.
+
+The older repository-scenario decisions remain as compatibility output for the
+current evals and writeback path: `docs-patch` maps to
+`docs-patch-recommended`, `no-docs-change` maps to `already-covered`,
+`changelog-only` stays `changelog-only`, and `ask-maintainer` maps to
+`needs-maintainer-answer`.
+
 Persistence failures must fail visibly. If the database is missing, unavailable,
 corrupt, or behind the expected schema, the app should refuse signal capture,
 queue processing, verification handoff, and status mutation instead of dropping

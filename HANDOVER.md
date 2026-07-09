@@ -57,3 +57,23 @@ Behavior verification: run `pnpm check`. Behaviorally, creating the same Slack
 thread or Linear permalink twice should return one signal, open-signal lists
 should hide closed signals, lifecycle updates should append events, and missing
 or stale storage should fail visibly.
+
+## #22 Generalize the docs-impact decision model across signals and evidence
+
+Decision: use one shared docs-impact decision record for signal triage and
+future Slack/Linear flows, while keeping old scenario outputs compatible.
+
+Design: add a shared schema with decision, reason, evidence, missing evidence,
+current-docs verification state, recommended next action, and uncertainty. Add a
+small deterministic planner for the core policy cases and map old
+`docs-patch`/`no-docs-change`/`ask-maintainer` values into the new vocabulary.
+
+User effect: Slack, Linear, watched releases, and scenario runs can make the
+same kind of docs-impact decision. Internal-only signals skip verification with
+a reason; substantive source-backed signals ask to verify current docs; Slack or
+Linear context alone asks for source evidence before public docs claims.
+
+Behavior verification: run `pnpm check`. Behaviorally, an internal-only signal
+should not open the docs sandbox, a substantive source-backed signal should ask
+to verify current docs, and a discussion-only public claim should request source
+or release evidence first.
