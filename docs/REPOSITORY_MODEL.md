@@ -233,6 +233,27 @@ The minimum query model should support provider dedupe, claim or release
 dedupe, status-based work queue lookup, scheduled follow-up lookup, and audit or
 run lookup by signal id.
 
+The first queue implementation stores this state in dedicated Drizzle tables:
+`docs_signals`, `docs_signal_sources`, `docs_signal_links`,
+`docs_signal_artifacts`, and `docs_signal_events`. Runtime code owns workspace
+scoping and currently uses the default workspace id; model-facing tools do not
+accept a workspace or tenant id. Source rows keep raw provenance such as source
+text, provider ids, authors, and permalinks separate from model-generated signal
+summaries and extracted claims.
+
+The model-facing queue tools are deliberately small:
+
+- `create_docs_signal`: capture or dedupe a structured signal.
+- `list_docs_signals`: list open or filtered signals by status/source kind.
+- `get_docs_signal`: read one signal with provenance, links, artifacts, and
+  lifecycle events.
+- `update_docs_signal_lifecycle`: update status with a reason and optional
+  workflow links or artifacts.
+
+These tools do not add Slack, Linear, scheduled scan, patch, or writeback
+behavior by themselves. Channel intake and patch handoff must call the queue
+through provider-specific workflows later.
+
 Persistence failures must fail visibly. If the database is missing, unavailable,
 corrupt, or behind the expected schema, the app should refuse signal capture,
 queue processing, verification handoff, and status mutation instead of dropping

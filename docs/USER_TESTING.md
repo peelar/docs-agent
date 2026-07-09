@@ -138,3 +138,18 @@ List the scenarios with:
 ```sh
 pnpm eval --list
 ```
+
+## Deterministic Runtime Checks
+
+`pnpm check` also runs deterministic storage checks:
+
+```sh
+pnpm test
+```
+
+The setup-state check covers database-backed setup persistence, legacy JSON
+import, corrupt setup state, and missing deployed database configuration. The
+docs-signal queue check covers signal capture, provider/permalink dedupe,
+open-signal listing, lifecycle updates, provenance preservation, artifact
+storage, missing deployed database configuration, and stale signal status
+handling.

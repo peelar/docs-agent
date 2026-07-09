@@ -38,3 +38,22 @@ Behavior verification: run `pnpm check`. Behaviorally, first-run setup should
 still ask for the working documentation repository, configured setup should be
 remembered across turns, legacy JSON setup should import once, and deployed
 runtime without `DOCS_AGENT_DATABASE_URL` should fail visibly.
+
+## #21 Add a docs signal work queue
+
+Decision: docs signals are provider-neutral workflow records in the app
+database. They are not setup config, Slack state, Linear state, or docs patches.
+
+Design: add `docs_signals`, source, link, artifact, and event tables. Raw source
+text and provider ids live in source rows; model summaries and extracted claims
+live on the signal. The runtime owns workspace scoping and exposes small tools
+to create, list, read, and lifecycle-update signals.
+
+User effect: Slack, Linear, watched releases, and future scheduled scans can all
+create the same kind of durable docs work item before channel-specific behavior
+exists.
+
+Behavior verification: run `pnpm check`. Behaviorally, creating the same Slack
+thread or Linear permalink twice should return one signal, open-signal lists
+should hide closed signals, lifecycle updates should append events, and missing
+or stale storage should fail visibly.

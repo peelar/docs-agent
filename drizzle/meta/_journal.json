@@ -8,6 +8,13 @@
       "when": 1783631990960,
       "tag": "0000_illegal_the_twelve",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1783632640235,
+      "tag": "0001_exotic_ikaris",
+      "breakpoints": true
     }
   ]
 }
