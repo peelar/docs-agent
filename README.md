@@ -1,7 +1,7 @@
 # Docs Maintainer Agent
 
-An Eve-based agent for keeping docs-as-code repositories aligned with software
-changes.
+An Eve-based documentation agent for keeping Git-backed documentation
+repositories aligned with software changes.
 
 The agent is meant to behave like a documentation maintainer: inspect the code
 change and surrounding context, decide whether docs are affected, explain the
@@ -40,8 +40,9 @@ are useful to both humans and AI readers.
 - `agent/lib/`: import-only runtime contracts and shared helper code.
 - `agent/tools/`: typed tools for setup, repository materialization, docs
   workflows, diffs, checks, and approved writeback.
-- `agent/skills/`: future load-on-demand procedures for docs impact analysis,
-  style discovery, patch preparation, and review.
+- `agent/skills/`: load-on-demand procedures such as the watched repository
+  scan workflow, plus future docs impact, style discovery, patch preparation,
+  and review procedures.
 - `agent/sandbox.ts`: Eve sandbox configuration with local `microsandbox`, Vercel
   Sandbox opt-in, and egress for GitHub repository materialization plus locked
   package installation.

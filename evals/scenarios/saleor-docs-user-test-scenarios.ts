@@ -29,6 +29,7 @@ export const saleorDocsUserTestScenarios = [
       "It looks like Saleor now supports filtering by private metadata. Please check whether the docs need to be updated.",
     repositoryInput: {
       workingDocumentationRepository: saleorDocsWorkingRepository,
+      watchedRepositories: [],
       contextRepositories: [],
       externalContext: [
         {
@@ -124,6 +125,7 @@ export const saleorDocsUserTestScenarios = [
       "I saw a note that Saleor Cloud sandbox API limits changed from 120 to 180 requests per minute. Can you check whether docs need updating?",
     repositoryInput: {
       workingDocumentationRepository: saleorDocsWorkingRepository,
+      watchedRepositories: [],
       contextRepositories: [],
       externalContext: [
         {

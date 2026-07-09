@@ -3,9 +3,10 @@
 ## Product Stance
 
 This project is an open-source documentation maintainer agent for software teams
-that manage docs as code. Its first job is not to broadly generate prose. Its
-job is to inspect engineering context, decide whether documentation is affected,
-and make the smallest reviewable docs change when the evidence supports it.
+that keep product documentation in Git. Its first job is not to broadly generate
+prose. Its job is to inspect engineering context, decide whether documentation
+is affected, and make the smallest reviewable docs change when the evidence
+supports it.
 
 The agent is built around Eve as the durable runtime. Eve's filesystem-first
 project model is the organizing contract for instructions, tools, skills,
@@ -26,21 +27,23 @@ when the right answer is no change, changelog only, or ask a maintainer.
 ## MVP
 
 The MVP proves the sandboxed GitHub repository work loop. Given a configured
-GitHub working documentation repository, PR-like change context, and structured
-issue or product context, the agent clones or materializes the repository into
-the Eve sandbox, emits a documentation impact report, prepares a minimal
-Markdown or MDX patch when warranted, runs checks, exports a diff, and can push
-an approved branch or draft PR back to the same working repository.
+GitHub working documentation repository, PR-like change context, structured
+issue or product context, and optional read-only watched repositories, the agent
+clones or materializes repositories into the Eve sandbox, emits a documentation
+impact report, prepares a minimal Markdown or MDX patch when warranted, runs
+checks, exports a diff, and can push an approved branch or draft PR back to the
+same working repository.
 
-The first milestone does not need Slack, Linear, Notion, Discord, source
-repository, or proactive monitoring integration. GitHub authority is in scope
-only for the configured working documentation repository and only after the
-sandbox-local patch/check workflow and approval boundary are proven.
+The first milestone does not need Slack, Linear, Notion, Discord, broad source
+repository integration, or proactive monitoring integration. GitHub write
+authority is in scope only for the configured working documentation repository
+and only after the sandbox-local patch/check workflow and approval boundary are
+proven. Watched repositories are read-only evidence sources.
 
 ## Repository Model
 
 The central project concept is the **working documentation repository**. This is
-the GitHub-hosted docs-as-code repository a user provides during onboarding. It
+the GitHub-hosted documentation repository a user provides during onboarding. It
 is cloned or materialized into the Eve sandbox at `/workspace/working-docs` and
 is the primary mutable target: the agent inspects it, applies sandbox-local
 patches to it, exports report and diff artifacts, and uses scoped GitHub
@@ -63,9 +66,16 @@ communication thread, issue-tracker item, decision record, release note, or
 customer report. It preserves provenance, source shape, timestamps, authors,
 links, and relationships instead of becoming a plain text blob.
 
-**Context repositories** are a later expansion. They can become optional,
-read-only evidence sources after the single working-repository loop is proven,
-but they are not part of the focused open backlog.
+**Watched repositories** are optional, read-only GitHub repositories configured
+alongside the working documentation repository. They are source evidence, not
+docs targets. The first supported scan uses GitHub release signals for
+discovery, verifies candidate terms in a sandboxed read-only checkout, compares
+them against the working documentation repository, and reports a docs-impact
+judgment without writing.
+
+**Context repositories** as a broader abstraction remain a later expansion.
+Watched repositories are the narrow source-evidence path for the current
+backlog.
 
 The first user-test fixtures target `https://github.com/peelar/saleor-docs.git`
 and live in `evals/scenarios/saleor-docs-user-test-scenarios.ts`. They cover one
@@ -78,7 +88,8 @@ docs change.
 - Slack, Discord, Linear, Notion, or support-thread context ingestion.
 - Continuous monitoring of repositories, releases, support channels, or
   community discussions.
-- Source or context repository integration.
+- Broad source or context repository integration beyond configured read-only
+  watched repository release scans.
 - Broad docs platform support beyond Docusaurus-style Markdown and MDX.
 - Large rewrites, new documentation sections, or autonomous publishing.
 - `llms.txt`, structured documentation bundles, MCP docs endpoints, or other
@@ -94,6 +105,8 @@ docs change.
   pattern, considered pages, and remaining uncertainty.
 - Distinguish the working documentation repository from read-only context
   repositories in every provenance trail and permission decision.
+- Distinguish GitHub release signals, watched-repository source evidence, and
+  working-documentation-repository docs evidence in scan reports.
 - Follow Eve's installed documentation as the source of truth for runtime
   structure and channel behavior.
 - Keep style knowledge inspectable in project files, scenario inputs, evals, or
@@ -137,6 +150,9 @@ publishes approved changes back to the same GitHub repository.
   repository without granting write access to any other repository.
 - Missing or stale workspace setup is caught before docs work or writeback
   instead of failing late inside repository tools.
+- Configured watched repositories can be scanned for release signals, verified
+  in read-only sandbox checkouts, and compared with the working docs repository
+  without granting them patch or writeback authority.
 
 ## Open Questions
 
@@ -156,8 +172,8 @@ publishes approved changes back to the same GitHub repository.
 
 - GitHub Issues: executable backlog and completion source of truth.
 - `docs/ROADMAP.md`: milestones, appetite, dependencies, and fallback order.
-- `docs/REPOSITORY_MODEL.md`: working docs repository, context repository,
-  external context, sandbox, and provenance contract.
+- `docs/REPOSITORY_MODEL.md`: working docs repository, watched repository,
+  context repository, external context, sandbox, and provenance contract.
 - `docs/USER_TESTING.md`: manual user-test scenarios, expected outcomes, and
   eval readiness notes.
 - `evals/scenarios/`: typed user-test fixture data used by manual tests and

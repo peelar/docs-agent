@@ -18,6 +18,7 @@ const outputSchema = z.object({
   ref: z.string(),
   docsRoot: z.string().optional(),
   sandboxPath: z.string(),
+  watchedRepositories: z.number(),
   materialized: z.boolean(),
   materialization: repositoryMaterializationSchema.optional(),
   actionProvenance: z.array(repositoryActionRecordSchema),
@@ -52,6 +53,7 @@ export default defineTool({
         ref: repository.ref,
         docsRoot: repository.docsRoot,
         sandboxPath: repository.sandboxPath,
+        watchedRepositories: repositoryInput.watchedRepositories.length,
         materialized: false,
         actionProvenance,
       };
@@ -76,6 +78,7 @@ export default defineTool({
       ref: materialization.requestedRef,
       docsRoot: materialization.docsRoot,
       sandboxPath: materialization.sandboxPath,
+      watchedRepositories: repositoryInput.watchedRepositories.length,
       materialized: true,
       materialization,
       actionProvenance,
@@ -91,6 +94,7 @@ export default defineTool({
         resolvedCommit: output.materialization?.resolvedCommit,
         docsRoot: output.docsRoot,
         sandboxPath: output.sandboxPath,
+        watchedRepositories: output.watchedRepositories,
         materialized: output.materialized,
       },
     };

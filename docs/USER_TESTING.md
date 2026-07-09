@@ -90,8 +90,16 @@ can happen later when the docs workflow needs the checkout.
 `evals/saleor-docs-user-tests.eval.ts` registers both scenarios with hard
 assertions for the live agent behavior and repository workflow.
 
+`evals/watched-repositories.eval.ts` registers the first watched-repository
+scan scenario. It configures `peelar/saleor-docs` as the working documentation
+repository and `saleor/saleor` as a read-only watched repository, then asserts
+the agent loads the `watched-repository-scan` skill, uses
+`scan_watched_repositories`, and does not call patch or writeback tools for
+watched evidence.
+
 ```sh
 pnpm eval saleor-docs-user-tests --skip-report --verbose
+pnpm eval watched-repositories --skip-report --verbose
 ```
 
 That command validates:
@@ -99,11 +107,13 @@ That command validates:
 - configure the working repository before running docs maintenance;
 - clone, refresh, or reuse the GitHub working repository;
 - the model chooses the authored repository workflow tool;
+- the model loads the watched-repository scan skill for watched source scans;
 - enforce repository allowed actions;
 - inspect and patch files inside the sandbox;
 - run bounded checks inside the sandbox;
 - export diffs;
 - keep raw Eve sandbox/file tools disabled for the workflow.
+- keep watched repository scans read-only and report-only.
 
 The live eval runs git diff checks, but it intentionally does not install
 dependencies or run the full Docusaurus production build because those checks

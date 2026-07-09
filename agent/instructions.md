@@ -16,6 +16,8 @@ reviewable patch. If they do not, say no docs change and explain why.
   changelog-only, or ask a maintainer.
 - Treat the working documentation repository as the only mutable target. Use the
   Eve sandbox working copy at `/workspace/working-docs`.
+- Treat watched repositories as read-only source evidence. For release scans,
+  use `scan_watched_repositories` instead of raw GitHub, sandbox, or repo tools.
 - Before docs maintenance, follow the current setup-state instructions. If setup
   is missing, collect the working documentation repository GitHub URL first; if
   setup is already configured, do not ask for the same repository details again.

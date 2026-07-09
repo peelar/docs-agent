@@ -4,6 +4,7 @@ export const WORKING_DOCUMENTATION_REPOSITORY_SANDBOX_PATH = "/workspace/working
 export const WORKING_DOCUMENTATION_REPOSITORY_PROVENANCE_LABEL =
   "working-documentation-repository";
 export const DEFAULT_WORKING_DOCUMENTATION_REPOSITORY_REF = "main";
+export const WATCHED_REPOSITORY_SANDBOX_PATH_PREFIX = "/workspace/watched";
 
 export const GITHUB_SANDBOX_NETWORK_ALLOWLIST = [
   "github.com",
@@ -65,6 +66,21 @@ const provenanceLabelSchema = z
   .min(1)
   .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, "Use a lowercase dash-separated label.");
 
+const watchedRepositoryProvenanceLabelSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(
+    /^watched-repository:[a-z0-9_.-]+\/[a-z0-9_.-]+$/,
+    "Use a watched-repository:<owner>/<repo> label.",
+  );
+
+const repositoryIdSchema = z
+  .string()
+  .trim()
+  .min(1)
+  .regex(/^[a-z0-9][a-z0-9-]*[a-z0-9]$/, "Use a lowercase dash-separated id.");
+
 export const githubRepositorySourceSchema = z.object({
   type: z.literal("github-url"),
   url: githubRepositoryUrlSchema,
@@ -87,6 +103,16 @@ export const contextRepositoryActionSchema = z.enum([
   "inspect-diff",
   "run-readonly-checks",
 ]);
+
+export const watchedRepositoryActionSchema = z.enum([
+  "clone",
+  "read",
+  "search",
+  "inspect-diff",
+  "run-readonly-checks",
+]);
+
+export const watchedRepositorySignalSchema = z.enum(["releases", "pull-requests", "issues"]);
 
 export const workingDocumentationRepositorySchema = z.object({
   source: githubRepositorySourceSchema,
@@ -119,6 +145,32 @@ export const contextRepositorySchema = z.object({
     .nonempty()
     .default(["clone", "read", "search", "inspect-diff"]),
   provenanceLabel: provenanceLabelSchema,
+});
+
+export const watchedRepositorySchema = z.object({
+  id: repositoryIdSchema,
+  name: z.string().trim().min(1),
+  description: z.string().trim().min(1),
+  importance: z.enum(["critical", "high", "medium", "low"]).default("medium"),
+  source: githubRepositorySourceSchema,
+  defaultRef: z
+    .string()
+    .trim()
+    .min(1)
+    .default(DEFAULT_WORKING_DOCUMENTATION_REPOSITORY_REF)
+    .describe("Default branch, tag, or commit to inspect when a signal has no exact ref."),
+  sandboxPath: sandboxPathSchema.refine(
+    (path) => path.startsWith(`${WATCHED_REPOSITORY_SANDBOX_PATH_PREFIX}/`),
+    `Use an absolute path under ${WATCHED_REPOSITORY_SANDBOX_PATH_PREFIX}.`,
+  ),
+  accessMode: z.literal("sandbox-read").default("sandbox-read"),
+  allowedActions: z
+    .array(watchedRepositoryActionSchema)
+    .nonempty()
+    .default(["clone", "read", "search", "inspect-diff", "run-readonly-checks"]),
+  pathFilters: z.array(repositoryRelativePathSchema).default([]),
+  signals: z.array(watchedRepositorySignalSchema).nonempty().default(["releases"]),
+  provenanceLabel: watchedRepositoryProvenanceLabelSchema,
 });
 
 const externalContextBaseSchema = z.object({
@@ -178,6 +230,7 @@ export const externalContextSchema = z.discriminatedUnion("kind", [
 
 export const repositoryInputSchema = z.object({
   workingDocumentationRepository: workingDocumentationRepositorySchema,
+  watchedRepositories: z.array(watchedRepositorySchema).default([]),
   contextRepositories: z.array(contextRepositorySchema).default([]),
   externalContext: z.array(externalContextSchema).default([]),
 });
@@ -185,6 +238,7 @@ export const repositoryInputSchema = z.object({
 export type GitHubRepositorySource = z.infer<typeof githubRepositorySourceSchema>;
 export type WorkingDocumentationRepository = z.infer<typeof workingDocumentationRepositorySchema>;
 export type ContextRepository = z.infer<typeof contextRepositorySchema>;
+export type WatchedRepository = z.infer<typeof watchedRepositorySchema>;
 export type ExternalContext = z.infer<typeof externalContextSchema>;
 export type RepositoryInput = z.infer<typeof repositoryInputSchema>;
 export type ResolvedWorkingDocumentationRepository = WorkingDocumentationRepository & {

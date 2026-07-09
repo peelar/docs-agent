@@ -1,12 +1,13 @@
 # Repository Model
 
-The agent works from one required **working documentation repository** and zero
-or more evidence sources. The working documentation repository is the only
-mutable target. Everything else is evidence for the documentation impact report.
+The agent works from one required **working documentation repository**, optional
+read-only **watched repositories**, and zero or more external evidence sources.
+The working documentation repository is the only mutable target. Everything
+else is evidence for the documentation impact report.
 
 ## Working Documentation Repository
 
-The working documentation repository is a GitHub-hosted docs-as-code repository
+The working documentation repository is a GitHub-hosted documentation repository
 provided by URL. A ref and docs root may be provided, but they are not required:
 the ref defaults to `main`, and the docs root is detected after the repository
 is cloned or materialized into the Eve sandbox at `/workspace/working-docs`.
@@ -110,14 +111,40 @@ repository, fake diff, or false-success report.
 
 ## Context Repositories
 
-Context repositories are optional future evidence sources. They are
-GitHub-hosted repositories cloned or materialized into the sandbox with
-`sandbox-read` access. They can support search, read, diff inspection, and
-explicitly safe read-only checks, but they cannot receive patches, branches,
-commits, draft PRs, or other write actions.
+Context repositories are the broad future abstraction for additional repository
+evidence. The current implementation uses the narrower watched repository
+contract below.
 
-Context repository provenance must be labeled separately from working
-documentation repository provenance.
+## Watched Repositories
+
+Watched repositories are optional GitHub-hosted source repositories configured
+alongside the working documentation repository. They are cloned or materialized
+into the sandbox with `sandbox-read` access. They can support clone, read,
+search, diff inspection, and explicitly safe read-only checks, but they cannot
+receive patches, branches, commits, draft PRs, write credentials, or other write
+actions.
+
+Watched repository provenance must be labeled separately from working
+documentation repository provenance. The configured provenance label uses
+`watched-repository:<owner>/<repo>`.
+
+The first watched-repository workflow is prompt-triggered release scanning:
+
+1. Load the configured working documentation repository and watched repository
+   list from setup state.
+2. Use app-scoped GitHub release signals for discovery. Missing, unavailable,
+   or ungranted GitHub App credentials are setup/auth failures; the workflow
+   must not silently downgrade to unauthenticated public API access.
+3. Resolve each release candidate to its tag/ref.
+4. Materialize the watched repository into its configured read-only sandbox
+   path, such as `/workspace/watched/saleor-core`.
+5. Search watched source files through read-only policy checks to verify
+   candidate terms.
+6. Search the working documentation repository for matching docs evidence.
+7. Emit a documentation impact report with separate GitHub signal,
+   watched-repository, and working-documentation-repository evidence.
+8. Do not write to watched repositories. Any later docs patch or draft PR must
+   target only the working documentation repository.
 
 ## External Context
 
@@ -146,6 +173,25 @@ first-class assumptions in the repository model.
       url: "https://github.com/org/docs-repo.git",
     },
   },
+  watchedRepositories: [
+    {
+      id: "product-core",
+      name: "Product Core",
+      description: "Primary product and API repository documented by this docs site.",
+      importance: "critical",
+      source: {
+        type: "github-url",
+        url: "https://github.com/org/product-core.git",
+      },
+      defaultRef: "main",
+      sandboxPath: "/workspace/watched/product-core",
+      accessMode: "sandbox-read",
+      allowedActions: ["clone", "read", "search", "inspect-diff", "run-readonly-checks"],
+      pathFilters: ["src/**", "CHANGELOG.md"],
+      signals: ["releases"],
+      provenanceLabel: "watched-repository:org/product-core",
+    },
+  ],
   contextRepositories: [],
   externalContext: [],
 }

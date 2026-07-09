@@ -55,7 +55,7 @@ export async function resolveGitHubAppInstallationToken(input: {
 }
 
 export async function githubApiRequest<T>(input: {
-  token: string;
+  token?: string;
   method?: "GET" | "POST";
   path: string;
   abortSignal?: AbortSignal;
@@ -65,10 +65,10 @@ export async function githubApiRequest<T>(input: {
     method: input.method ?? "GET",
     headers: {
       Accept: "application/vnd.github+json",
-      Authorization: `Bearer ${input.token}`,
       "Content-Type": "application/json",
       "User-Agent": "docs-maintainer-agent",
       "X-GitHub-Api-Version": GITHUB_API_VERSION,
+      ...(input.token === undefined ? {} : { Authorization: `Bearer ${input.token}` }),
     },
     body: input.body === undefined ? undefined : JSON.stringify(input.body),
     signal: input.abortSignal,

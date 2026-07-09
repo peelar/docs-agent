@@ -7,13 +7,16 @@ GitHub working documentation repository cloned or materialized into the Eve
 Vercel sandbox. The appetite is one focused milestone: prove that the agent can
 materialize the repository, enforce allowed repository actions, reason about a
 PR-like change, prepare a minimal patch when warranted, run checks, export a
-diff, automatically collect required workspace setup, and publish approved
-changes back to GitHub.
+diff, automatically collect required workspace setup, publish approved changes
+back to GitHub, and scan configured watched repositories for read-only release
+signals.
 
 This appetite rules out multi-channel routing, continuous monitoring,
-source-repository integration, context-repository integration, and broad
-documentation platform support until the core sandboxed working-repository loop
-is reliable.
+broad source-repository integration, broad context-repository integration, and
+broad documentation platform support until the core sandboxed workflow is
+reliable. The watched-repository slice is intentionally narrow: prompt-triggered
+release scans, read-only source verification, docs comparison, and report-only
+judgment.
 
 ## Milestones
 
@@ -21,14 +24,14 @@ is reliable.
 | --- | --- | --- | --- |
 | M0 | Project setup and operating rules | README, root instructions, and planning docs establish the Eve-first docs maintainer contract. | #5 |
 | M1 | Sandboxed GitHub working-repository loop | The agent materializes one GitHub working repository in the Eve Vercel sandbox, enforces allowed repository actions, prepares and checks minimal patches, exports diffs, can push approved changes to a draft PR, and detects missing setup automatically before normal work. | #6, #1, #2, #4, #7, #11 |
-| M2 | Safety and regression coverage | The sandboxed repository workflow is covered for successful paths and fail-closed behavior. | #3 |
+| M2 | Safety and read-only source evidence | The sandboxed repository workflow is covered for successful paths and fail-closed behavior, and configured watched repositories can be scanned as read-only evidence sources. | #3, #8 |
 | M3 | Later integrations | Context repositories, source evidence, multi-channel surfaces, monitoring, and broader docs platform support are considered only after M1 and M2 are reliable. | TBD |
 
 ## M1 Slice Plan
 
 0. Establish project setup and operating rules.
-   Capture the README, root instructions, validation commands, and docs-as-code
-   rules needed before implementing the scenario-backed workflow.
+   Capture the README, root instructions, validation commands, and documentation
+   repository rules needed before implementing the scenario-backed workflow.
 
 1. Define repository model.
    Capture the working documentation repository as the primary mutable target
@@ -64,6 +67,12 @@ is reliable.
    patch/check/diff behavior, approval-required writeback, and primary report
    decisions.
 
+8. Add watched repository release scans.
+   Persist configured watched repositories as read-only source evidence, inspect
+   recent release signals, verify candidates in sandboxed read-only checkouts,
+   compare them with the working docs repository, and emit a report without
+   writing to watched repositories.
+
 ## Ordered Backlog
 
 Use this table as the agreed fallback order when GitHub Projects or custom issue
@@ -79,10 +88,11 @@ ordering cannot be read.
 | 5 | #11 Add automatic setup gate for required workspace configuration | Makes setup drift visible and collectible on every turn before docs work or writeback run in any channel. | #1, #2, #4, #6, #7 |
 | 6 | #7 Push approved sandbox changes to a draft GitHub PR | Adds controlled writeback after sandbox-local behavior is proven. | #1, #2, #4, #6 |
 | 7 | #3 Add safety evals for the sandboxed GitHub repository workflow | Locks in successful paths and fail-closed behavior after the full working-repository loop exists. | #1, #2, #4, #7, #11, #6 |
+| 8 | #8 Add watched repository support for read-only source evidence | Adds narrow release-signal source evidence without granting write authority outside the working docs repository. | #7, #11 |
 
 ## Later
 
-- Read-only source/context repository access beyond the first working docs repo.
+- Broader source/context repository access beyond watched release scans.
 - Eve channel setup for GitHub, Slack, Linear, Discord, or other team surfaces.
 - Vercel Connect-backed access to private team context.
 - Scheduled stale-doc detection.

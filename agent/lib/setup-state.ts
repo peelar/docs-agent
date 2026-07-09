@@ -18,6 +18,7 @@ import {
 import {
   repositoryInputSchema,
   type RepositoryInput,
+  type WatchedRepository,
   type WorkingDocumentationRepository,
 } from "./repository-contract.js";
 
@@ -40,6 +41,12 @@ const githubWritebackRequiredActions = [
   ...docsMaintenanceRequiredActions,
   "publish-pr",
 ] as const satisfies readonly WorkingDocumentationRepository["allowedActions"][number][];
+
+const watchedRepositoryRequiredActions = [
+  "clone",
+  "read",
+  "search",
+] as const satisfies readonly WatchedRepository["allowedActions"][number][];
 
 const githubWritebackSetupSchema = z
   .object({
@@ -87,6 +94,16 @@ export const setupStatusSchema = z.object({
       sandboxPath: z.string(),
     })
     .optional(),
+  watchedRepositories: z.array(
+    z.object({
+      id: z.string(),
+      name: z.string(),
+      repositoryUrl: z.string(),
+      defaultRef: z.string(),
+      sandboxPath: z.string(),
+      signals: z.array(z.string()),
+    }),
+  ),
   githubWriteback: z.object({
     connectorConfigured: z.boolean(),
     connector: z.string().optional(),
@@ -157,6 +174,7 @@ export function repositoryInputForSetup(input: RepositoryInput): RepositoryInput
 
   return {
     workingDocumentationRepository: parsed.workingDocumentationRepository,
+    watchedRepositories: parsed.watchedRepositories,
     contextRepositories: [],
     externalContext: [],
   };
@@ -354,6 +372,17 @@ export function buildSetupInstructions(status: SetupStatus): string {
     "For normal docs maintenance, use the configured repository instead of asking for the same setup again.",
   );
 
+  if (status.watchedRepositories.length > 0) {
+    lines.push(
+      `Configured watched repositories for read-only source evidence: ${status.watchedRepositories
+        .map((watchedRepository) => `${watchedRepository.name} (${watchedRepository.repositoryUrl})`)
+        .join(", ")}.`,
+    );
+    lines.push(
+      "For watched repository scans, use the configured watched repositories as read-only evidence sources and keep writeback limited to the working documentation repository.",
+    );
+  }
+
   if (!status.githubWritebackReady) {
     lines.push(
       "If the user requests GitHub draft PR writeback, finish GitHub writeback setup first by calling `get_setup_status` with `checkGitHubWriteback: true` or `configure_github_writeback`.",
@@ -379,6 +408,7 @@ function evaluateSetupState(state: SetupState | null): SetupStatus {
           message: "GitHub writeback preflight has not been run.",
         },
       },
+      watchedRepositories: [],
       issues: [
         {
           code: "setup-state-missing",
@@ -446,6 +476,24 @@ function evaluateSetupState(state: SetupState | null): SetupStatus {
     }
   }
 
+  const watchedRepositories = repositoryInputResult?.success
+    ? repositoryInputResult.data.watchedRepositories
+    : [];
+
+  for (const watchedRepository of watchedRepositories) {
+    for (const action of watchedRepositoryRequiredActions) {
+      if (!watchedRepository.allowedActions.includes(action)) {
+        issues.push({
+          code: "working-repository-action-missing",
+          capability: "docs-maintenance",
+          message: `Watched repository ${watchedRepository.id} is missing required read-only action: ${action}.`,
+          nextAction:
+            "Re-run configure_working_repository with a complete watched repository config.",
+        });
+      }
+    }
+  }
+
   const connector = resolveGitHubConnector(state);
   if (connector.trim() === "") {
     issues.push({
@@ -478,6 +526,14 @@ function evaluateSetupState(state: SetupState | null): SetupStatus {
             docsRoot: repository.docsRoot,
             sandboxPath: repository.sandboxPath,
           },
+    watchedRepositories: watchedRepositories.map((watchedRepository) => ({
+      id: watchedRepository.id,
+      name: watchedRepository.name,
+      repositoryUrl: watchedRepository.source.url,
+      defaultRef: watchedRepository.defaultRef,
+      sandboxPath: watchedRepository.sandboxPath,
+      signals: watchedRepository.signals,
+    })),
     githubWriteback: {
       connectorConfigured: connector.trim() !== "",
       connector,
@@ -506,6 +562,7 @@ function buildInvalidSetupStatus(message: string): SetupStatus {
         message: "GitHub writeback preflight has not been run.",
       },
     },
+    watchedRepositories: [],
     issues: [
       {
         code: "setup-state-invalid",
