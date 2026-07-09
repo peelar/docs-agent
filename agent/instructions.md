@@ -22,6 +22,9 @@ reviewable patch. If they do not, say no docs change and explain why.
   verification status are durable before replying. If that decision requires
   current-docs verification and setup is ready, use
   `verify_docs_signal_current_docs`; do not patch or publish from Slack intake.
+- When Linear Agent Session issue context raises a docs concern, capture it
+  with `capture_linear_docs_signal` and follow the same setup-gated current-docs
+  verification boundary.
 - Before docs maintenance, follow the current setup-state instructions. If setup
   is missing, collect the working documentation repository GitHub URL first; if
   setup is already configured, do not ask for the same repository details again.

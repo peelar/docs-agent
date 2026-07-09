@@ -50,7 +50,7 @@ publishing remains a separate explicit approval through
 
 | Boundary | Owns | Current implementation | Must not do |
 | --- | --- | --- | --- |
-| Signal intake | Convert provider context into a docs signal with provenance. | `capture_slack_docs_signal`; `create_docs_signal`, `list_docs_signals`, `get_docs_signal`, `update_docs_signal_lifecycle`; watched scans also create source evidence. | Inspect or patch docs directly. |
+| Signal intake | Convert provider context into a docs signal with provenance. | `capture_slack_docs_signal`, `capture_linear_docs_signal`; `create_docs_signal`, `list_docs_signals`, `get_docs_signal`, `update_docs_signal_lifecycle`; watched scans also create source evidence. | Inspect or patch docs directly. |
 | Decision and triage | Classify docs impact, missing evidence, verification need, and next action. | `planDocsImpactDecision` and the shared decision schemas. | Treat Slack or Linear context alone as proof for public docs claims. |
 | Current-docs verification | Inspect the configured working documentation repository in the sandbox. | `verify_docs_signal_current_docs` for captured signals; existing scenario workflow in `run_docs_maintenance_scenario`. | Publish or write outside `/workspace/working-docs`. |
 | Patch preparation | Prepare minimal working-docs patches, checks, and diff artifacts. | Existing repository workflow for scenarios; later signal-to-patch handoff should reuse it. | Open a PR or write to watched/source repositories. |
@@ -61,6 +61,10 @@ publishing remains a separate explicit approval through
 - `capture_slack_docs_signal`: convert an explicit Slack mention or DM thread
   into `communication-thread` external context, create or dedupe a Slack docs
   signal, run shared decision/triage, and return in-thread reply guidance.
+- `capture_linear_docs_signal`: convert a delegated or prompted Linear Agent
+  Session issue into `issue-tracker-item` external context, create or dedupe a
+  Linear docs signal, run shared decision/triage, and return Agent Activity
+  reply guidance.
 - `verify_docs_signal_current_docs`: materialize the configured working
   documentation repository for one signal, read likely docs pages, search likely
   docs terms, record a `docs-verified` lifecycle event, and return evidence
@@ -96,7 +100,9 @@ publishing remains a separate explicit approval through
 ### Linear Issue Without Source Evidence
 
 1. A Linear Agent Session asks Docs Agent to check an issue.
-2. The Linear issue is captured as a `linear-issue` signal source.
+2. `capture_linear_docs_signal` maps the issue and Agent Session context into
+   `issue-tracker-item` external context and captures a `linear-issue` signal
+   source.
 3. The issue describes intended behavior but links no source, release, or
    maintainer-confirmed implementation evidence.
 4. Decision/triage returns `needs-source-evidence`.

@@ -126,3 +126,32 @@ ready setup should let `verify_docs_signal_current_docs` inspect current docs
 without producing a patch, a thread with supplied working-docs evidence should
 record completed verification, and an internal-only thread should skip
 verification with the stated reason.
+
+## #25 Add Linear docs-signal intake with on-demand docs verification
+
+Decision: Linear support starts with Eve Linear Agent Sessions for delegated or
+prompted issue context. Linear issues become structured `issue-tracker-item`
+external context and durable docs signals; Linear is not crawled broadly and the
+agent does not edit issues, statuses, or projects in this slice.
+
+Design: add an Eve Linear channel at `/eve/v1/linear` using Eve's default
+Linear Agent Session credential environment. Add `capture_linear_docs_signal`
+to preserve organization, Agent Session, activity, comment, issue, identifier,
+title, URL, labels, project, status, authors, timestamps, captured-at time, and
+raw prompt/comment text in signal provenance while returning structured
+summaries and decision state to the model. Linear intake uses the same shared
+decision model, setup gate, and `verify_docs_signal_current_docs` handoff as
+Slack.
+
+User effect: delegating or prompting Docs Agent in Linear can create or dedupe a
+work queue item and produce an Agent Activity response with captured summary,
+evidence, decision, verification status, uncertainty, and next action. It still
+does not prepare a patch, mutate Linear issue fields, publish, or open a draft
+PR without a later approved handoff.
+
+Behavior verification: run `pnpm check`. Behaviorally, a source-backed Linear
+issue should capture provenance and request setup-gated docs verification, a
+ready setup should let `verify_docs_signal_current_docs` inspect current docs
+without producing a patch, a Linear issue with supplied working-docs evidence
+should record completed verification, and an internal-only Linear issue should
+skip verification with the stated reason.

@@ -247,6 +247,10 @@ The model-facing queue tools are deliberately small:
   `communication-thread` external context, capture or dedupe the signal, run
   shared decision/triage, and return Slack reply guidance without exposing raw
   source text in model output.
+- `capture_linear_docs_signal`: map a Linear Agent Session issue into
+  `issue-tracker-item` external context, capture or dedupe the signal, run
+  shared decision/triage, and return Linear Agent Activity reply guidance
+  without exposing raw source text in model output.
 - `verify_docs_signal_current_docs`: inspect the configured working
   documentation repository for one signal, record verification evidence, and
   leave patch/writeback to later approved handoff.
@@ -259,9 +263,10 @@ The model-facing queue tools are deliberately small:
 
 The generic queue tools do not add Slack, Linear, scheduled scan, patch, or
 writeback behavior by themselves. Slack intake now calls the queue through
-`capture_slack_docs_signal`, and signal verification uses
-`verify_docs_signal_current_docs`; Linear intake and patch handoff must call the
-queue through provider-specific workflows later.
+`capture_slack_docs_signal`, Linear intake calls the queue through
+`capture_linear_docs_signal`, and signal verification uses
+`verify_docs_signal_current_docs`; patch handoff must call the queue through
+provider-specific workflows later.
 
 ## Docs Impact Decision Model
 

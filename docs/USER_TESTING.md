@@ -163,4 +163,8 @@ and the no patch/writeback boundary. Typecheck and Eve build cover the
 `verify_docs_signal_current_docs` tool surface; live verification behavior should
 show materialization of the configured working documentation repository, reads
 or searches against likely docs targets, a `docs-verified` lifecycle event, and
-no patch or draft PR.
+no patch or draft PR. The Linear docs-signal check covers Agent Session issue
+capture as `issue-tracker-item` context, Linear issue dedupe, labels/project
+and status provenance, prompt/comment source text preservation, setup-gated
+required verification, completed verification state, skipped verification with
+an explicit reason, and the no Linear mutation or writeback boundary.

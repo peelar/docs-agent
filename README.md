@@ -15,8 +15,8 @@ When a patch is warranted, it prepares the smallest reviewable Markdown or MDX
 diff, runs checks, and waits for approval before opening a draft PR.
 
 The current slice proves the GitHub docs-repository loop, watched-release
-intake, and explicit Slack thread intake. Linear and broader signal handoff work
-are tracked in `docs/ROADMAP.md` and GitHub issues.
+intake, explicit Slack thread intake, and Linear Agent Session issue intake.
+Broader signal handoff work is tracked in `docs/ROADMAP.md` and GitHub issues.
 
 ## Run Locally
 
@@ -40,3 +40,9 @@ default `slack/docs-agent` connector and attach its trigger to `/eve/v1/slack`.
 The channel handles explicit app mentions and DMs, fetches thread context since
 the last agent reply, and records Slack threads as docs signals instead of
 reading channels ambiently.
+
+Linear intake uses Eve's Linear Agent Session channel at `/eve/v1/linear`.
+Configure Linear Agent Session webhooks and provide `LINEAR_AGENT_ACCESS_TOKEN`
+plus `LINEAR_WEBHOOK_SECRET` in the runtime environment. The channel handles
+delegated or prompted Agent Sessions and records Linear issues as docs signals;
+it does not crawl or edit Linear issues.
