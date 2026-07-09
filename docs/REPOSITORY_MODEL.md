@@ -132,12 +132,16 @@ The first watched-repository workflow is prompt-triggered release scanning:
 
 1. Load the configured working documentation repository and watched repository
    list from setup state.
-2. Use app-scoped GitHub release signals for discovery. Missing, unavailable,
-   or ungranted GitHub App credentials are setup/auth failures; the workflow
-   must not silently downgrade to unauthenticated public API access.
+2. Use GitHub release signals for discovery. Prefer app-scoped GitHub access
+   when the watched repository is granted to the configured connector. If app
+   access is unavailable or ungranted, explicitly use public GitHub API access
+   for public watched repositories and record that access mode in provenance.
+   If neither path can read the repository, fail visibly.
 3. Resolve each release candidate to its tag/ref.
 4. Materialize the watched repository into its configured read-only sandbox
-   path, such as `/workspace/watched/saleor-core`.
+   path, such as `/workspace/watched/saleor-core`. Use brokered GitHub App
+   credentials for granted repositories; use unauthenticated clone for public
+   repositories.
 5. Search watched source files through read-only policy checks to verify
    candidate terms.
 6. Search the working documentation repository for matching docs evidence.

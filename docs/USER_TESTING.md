@@ -95,7 +95,9 @@ scan scenario. It configures `peelar/saleor-docs` as the working documentation
 repository and `saleor/saleor` as a read-only watched repository, then asserts
 the agent loads the `watched-repository-scan` skill, uses
 `scan_watched_repositories`, and does not call patch or writeback tools for
-watched evidence.
+watched evidence. The scan may use either GitHub App access when the watched
+repository is granted to the connector, or public GitHub access when the watched
+repository is public and not granted.
 
 ```sh
 pnpm eval saleor-docs-user-tests --skip-report --verbose
@@ -114,6 +116,8 @@ That command validates:
 - export diffs;
 - keep raw Eve sandbox/file tools disabled for the workflow.
 - keep watched repository scans read-only and report-only.
+- support watched repository release scans with either GitHub App access or
+  explicit public GitHub access.
 
 The live eval runs git diff checks, but it intentionally does not install
 dependencies or run the full Docusaurus production build because those checks

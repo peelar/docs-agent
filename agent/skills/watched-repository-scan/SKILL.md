@@ -30,6 +30,7 @@ signals or documentation gaps. The executable workflow is the
 Start with a documentation impact report. Separate:
 
 - GitHub release signal provenance.
+- Whether the release signal used GitHub App access or public GitHub access.
 - Watched-repository source evidence.
 - Working-documentation-repository docs evidence.
 - Remaining uncertainty.

@@ -16,6 +16,7 @@ import {
   type RepositoryActionRecord,
 } from "./repository-workflow.js";
 import {
+  WORKING_REPOSITORY_SANDBOX_NETWORK_ALLOWLIST,
   type WatchedRepository,
   type WorkingDocumentationRepository,
 } from "./repository-contract.js";
@@ -33,6 +34,7 @@ const watchedRepositoryMaterializationSchema = z.object({
 const watchedReleaseSignalSchema = z.object({
   repositoryId: z.string(),
   repositoryUrl: z.string(),
+  releaseAccess: z.enum(["github-app", "public-github"]),
   releaseId: z.number(),
   name: z.string(),
   tagName: z.string(),
@@ -103,6 +105,17 @@ type GitHubRelease = {
   published_at: string | null;
 };
 
+type GitHubReleaseAccess = {
+  mode: "github-app" | "public-github";
+  token?: string;
+  reason?: string;
+};
+
+type GitHubReleaseLookup = {
+  access: GitHubReleaseAccess;
+  releases: WatchedReleaseSignal[];
+};
+
 export async function scanWatchedRepositories(
   input: ScanWatchedRepositoriesInput,
   ctx: ToolContext,
@@ -148,7 +161,7 @@ export async function scanWatchedRepositories(
       continue;
     }
 
-    const releases = await fetchRecentReleases(
+    const releaseLookup = await fetchRecentReleases(
       watchedRepository,
       parsedInput.maxReleasesPerRepository,
       ctx,
@@ -159,15 +172,16 @@ export async function scanWatchedRepositories(
       id: watchedRepository.id,
       name: watchedRepository.name,
       repositoryUrl: watchedRepository.source.url,
-      releasesConsidered: releases.length,
+      releasesConsidered: releaseLookup.releases.length,
     });
 
-    for (const signal of releases) {
+    for (const signal of releaseLookup.releases) {
       const materialization = await materializeWatchedRepository(
         ctx,
         watchedRepository,
         signal.tagName || watchedRepository.defaultRef,
         actionProvenance,
+        releaseLookup.access,
       );
       const searchTerms = extractSearchTerms(signal);
       const sourceEvidence = await collectWatchedSourceEvidence(
@@ -213,16 +227,16 @@ async function fetchRecentReleases(
   ctx: ToolContext,
   actionProvenance: RepositoryActionRecord[],
   githubConnector: string,
-): Promise<WatchedReleaseSignal[]> {
+): Promise<GitHubReleaseLookup> {
   const slug = parseGitHubRepositoryUrl(repository.source.url);
-  const token = await resolveRequiredGitHubToken({
+  const access = await resolveGitHubReleaseAccess({
     repository,
     slug,
     connector: githubConnector,
     actionProvenance,
   });
   const result = await githubApiRequest<GitHubRelease[]>({
-    token,
+    token: access.token,
     path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(
       slug.repo,
     )}/releases?per_page=${limit}`,
@@ -230,7 +244,10 @@ async function fetchRecentReleases(
   });
 
   if (!result.ok) {
-    const reason = `GitHub release signal lookup failed: ${result.message}`;
+    const reason =
+      access.mode === "public-github"
+        ? `GitHub release signal lookup failed through public GitHub API access: ${result.message}`
+        : `GitHub release signal lookup failed through GitHub App access: ${result.message}`;
     actionProvenance.push(
       recordWatchedAction(repository, "scan-releases", "failure", { reason }),
     );
@@ -240,15 +257,20 @@ async function fetchRecentReleases(
   actionProvenance.push(
     recordWatchedAction(repository, "scan-releases", "success", {
       target: `${slug.owner}/${slug.repo}`,
+      reason:
+        access.mode === "public-github"
+          ? access.reason ?? "Used public GitHub API access for release signals."
+          : "Used GitHub App access for release signals.",
     }),
   );
 
-  return result.body
+  const releases = result.body
     .filter((release) => !release.draft)
     .slice(0, limit)
     .map((release) => ({
       repositoryId: repository.id,
       repositoryUrl: repository.source.url,
+      releaseAccess: access.mode,
       releaseId: release.id,
       name: release.name?.trim() || release.tag_name,
       tagName: release.tag_name,
@@ -257,24 +279,29 @@ async function fetchRecentReleases(
       prerelease: release.prerelease,
       bodySummary: summarizeReleaseBody(release.body ?? ""),
     }));
+
+  return { access, releases };
 }
 
-async function resolveRequiredGitHubToken(input: {
+async function resolveGitHubReleaseAccess(input: {
   repository: WatchedRepository;
   slug: ReturnType<typeof parseGitHubRepositoryUrl>;
   connector: string;
   actionProvenance: RepositoryActionRecord[];
-}): Promise<string> {
+}): Promise<GitHubReleaseAccess> {
   const connector = input.connector.trim();
   const target = `${input.slug.owner}/${input.slug.repo}`;
 
   if (connector === "") {
     const reason =
-      "GitHub release signal lookup requires an app-scoped GitHub connector, but none is configured.";
+      "No GitHub connector is configured; using public GitHub API access for watched release signals.";
     input.actionProvenance.push(
-      recordWatchedAction(input.repository, "resolve-github-token", "failure", { reason }),
+      recordWatchedAction(input.repository, "select-github-access", "success", {
+        target,
+        reason,
+      }),
     );
-    throw new Error(reason);
+    return { mode: "public-github", reason };
   }
 
   try {
@@ -287,17 +314,17 @@ async function resolveRequiredGitHubToken(input: {
         target: connector,
       }),
     );
-    return tokenResponse.token;
+    return { mode: "github-app", token: tokenResponse.token };
   } catch (error) {
     const reason =
-      `GitHub release signal lookup requires app-scoped credentials from Vercel Connect connector ${connector} for ${target}: ${formatUnknownError(error)}`;
+      `GitHub App access from Vercel Connect connector ${connector} is not available for ${target}; using public GitHub API access for watched release signals. ${formatGitHubAccessError(error)}`;
     input.actionProvenance.push(
-      recordWatchedAction(input.repository, "resolve-github-token", "failure", {
-        target: connector,
+      recordWatchedAction(input.repository, "select-github-access", "success", {
+        target,
         reason,
       }),
     );
-    throw new Error(reason);
+    return { mode: "public-github", reason };
   }
 }
 
@@ -306,11 +333,24 @@ async function materializeWatchedRepository(
   repository: WatchedRepository,
   ref: string,
   actionProvenance: RepositoryActionRecord[],
+  access: GitHubReleaseAccess,
 ): Promise<WatchedRepositoryMaterialization> {
   assertWatchedActionAllowed(repository, "clone");
   assertWatchedSandboxPath(repository.sandboxPath);
 
   const sandbox = await ctx.getSandbox();
+  if (access.mode === "github-app" && access.token !== undefined) {
+    await brokerGitHubTokenForSandbox(ctx, access.token);
+    actionProvenance.push(
+      recordWatchedAction(repository, "broker-github-token", "success", {
+        target: "github.com",
+        reason: "Using GitHub App access for watched repository materialization.",
+      }),
+    );
+  } else {
+    await usePublicGitHubForSandbox(ctx);
+  }
+
   await sandbox.removePath({
     path: repository.sandboxPath,
     recursive: true,
@@ -381,6 +421,30 @@ async function materializeWatchedRepository(
     sandboxPath: repository.sandboxPath,
     status: "materialized",
   };
+}
+
+async function brokerGitHubTokenForSandbox(ctx: ToolContext, token: string): Promise<void> {
+  const sandbox = await ctx.getSandbox();
+  const authorization = `Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
+  await sandbox.setNetworkPolicy({
+    allow: {
+      "github.com": [{ transform: [{ headers: { authorization } }] }],
+      "*": [],
+    },
+    subnets: {
+      deny: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16"],
+    },
+  });
+}
+
+async function usePublicGitHubForSandbox(ctx: ToolContext): Promise<void> {
+  const sandbox = await ctx.getSandbox();
+  await sandbox.setNetworkPolicy({
+    allow: [...WORKING_REPOSITORY_SANDBOX_NETWORK_ALLOWLIST],
+    subnets: {
+      deny: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16"],
+    },
+  });
 }
 
 async function collectWatchedSourceEvidence(
@@ -571,6 +635,20 @@ function extractPathsFromSearchEvidence(evidence: string[]): string[] {
 
 function summarizeReleaseBody(body: string): string {
   return truncate(body.replace(/\s+/g, " ").trim(), 1_000);
+}
+
+function formatGitHubAccessError(error: unknown): string {
+  const base = formatUnknownError(error);
+  if (!isRecord(error)) return base;
+
+  const vendor = error.vendor;
+  if (!isRecord(vendor) || typeof vendor.message !== "string") return base;
+
+  return `${base} Vendor message: ${vendor.message}`;
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
 }
 
 function assertWatchedActionAllowed(

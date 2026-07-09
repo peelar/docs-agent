@@ -27,6 +27,7 @@ export default defineTool({
             tagName: finding.signal.tagName,
             url: finding.signal.url,
             publishedAt: finding.signal.publishedAt,
+            releaseAccess: finding.signal.releaseAccess,
           },
           searchTerms: finding.searchTerms,
           sourceEvidence: finding.sourceEvidence.slice(0, 2),
