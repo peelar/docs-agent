@@ -2,8 +2,9 @@
 
 The agent works from one required **working documentation repository**, optional
 read-only **watched repositories**, and zero or more external evidence sources.
-The working documentation repository is the only mutable target. Everything
-else is evidence for the documentation impact report.
+The working documentation repository is the only mutable target. Everything else
+is evidence for the documentation impact report or for a durable docs signal that
+may later trigger verification and patch work.
 
 ## Working Documentation Repository
 
@@ -166,6 +167,37 @@ Supported provider-neutral shapes are:
 
 Provider-specific systems can map into these shapes later without becoming
 first-class assumptions in the repository model.
+
+## Docs Signals And Workflow State
+
+A docs signal is a provider-neutral work item created from external context,
+watched-repository evidence, or a future scheduled scan. It represents a
+potential documentation-maintenance concern, not necessarily a patch request.
+
+A signal should preserve:
+
+- source kind, such as Slack thread, Linear issue, watched release, or scheduled
+  scan result;
+- provider identifiers and permalinks;
+- authors, timestamps, and capture time;
+- extracted claims or behavior changes;
+- likely affected docs concepts, pages, or product surfaces when known;
+- related source repositories, releases, PRs, Linear issues, or Slack threads;
+- uncertainty and missing evidence;
+- workflow status, such as captured, needs maintainer answer, needs source
+  evidence, verification skipped, docs verified, patch prepared, draft PR
+  opened, closed as already covered, or closed as not docs-relevant.
+
+Signals are not a second writable repository target. They are the work queue and
+memory that lets the agent join context over time: a Slack thread may capture
+intent, a Linear issue may clarify scope, a watched release may provide source
+evidence, and the working documentation repository verification may decide
+whether the current docs are already covered or stale.
+
+The persistence mechanism for signals and workflow state is intentionally not
+chosen in this model. `.docs-maintainer/config.json` remains setup state for the
+configured workspace, but signal persistence needs a separate design decision
+before implementation.
 
 ## Example Input
 

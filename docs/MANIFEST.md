@@ -8,6 +8,14 @@ prose. Its job is to inspect engineering context, decide whether documentation
 is affected, and make the smallest reviewable docs change when the evidence
 supports it.
 
+The agent should behave like a documentation maintainer who is present where
+work happens. Product decisions, release intent, support signals, and behavior
+clarifications often appear in Slack and Linear before they become a pull
+request or release artifact. The agent captures those signals with provenance,
+decides what kind of docs-maintainer work they imply, and verifies the current
+documentation state when the signal is substantive enough to justify repository
+inspection.
+
 The agent is built around Eve as the durable runtime. Eve's filesystem-first
 project model is the organizing contract for instructions, tools, skills,
 subagents, channels, connections, schedules, sandbox behavior, and evals.
@@ -26,19 +34,20 @@ when the right answer is no change, changelog only, or ask a maintainer.
 
 ## MVP
 
-The MVP proves the sandboxed GitHub repository work loop. Given a configured
-GitHub working documentation repository, PR-like change context, structured
-issue or product context, and optional read-only watched repositories, the agent
-clones or materializes repositories into the Eve sandbox, emits a documentation
-impact report, prepares a minimal Markdown or MDX patch when warranted, runs
-checks, exports a diff, and can push an approved branch or draft PR back to the
-same working repository.
+The current foundation proves the sandboxed GitHub repository work loop. Given a
+configured GitHub working documentation repository, PR-like change context,
+structured issue or product context, and optional read-only watched repositories,
+the agent clones or materializes repositories into the Eve sandbox, emits a
+documentation impact report, prepares a minimal Markdown or MDX patch when
+warranted, runs checks, exports a diff, and can push an approved branch or draft
+PR back to the same working repository.
 
-The first milestone does not need Slack, Linear, Notion, Discord, broad source
-repository integration, or proactive monitoring integration. GitHub write
-authority is in scope only for the configured working documentation repository
-and only after the sandbox-local patch/check workflow and approval boundary are
-proven. Watched repositories are read-only evidence sources.
+The next product expansion brings Slack and Linear into scope as explicit
+docs-signal intake surfaces. This does not make the agent a broad chat bot or a
+ticketing assistant. Slack threads and Linear issues become structured external
+context for docs-maintainer work; the configured working documentation
+repository remains the only mutable target, and writeback remains approval
+gated.
 
 ## Repository Model
 
@@ -66,6 +75,14 @@ communication thread, issue-tracker item, decision record, release note, or
 customer report. It preserves provenance, source shape, timestamps, authors,
 links, and relationships instead of becoming a plain text blob.
 
+**Docs signals** are durable units of docs-maintainer work produced from
+external context, watched-repository evidence, or future scheduled scans. A
+signal records the claim or change being discussed, source provenance, suspected
+docs surfaces, uncertainty, related repository or release references, and current
+workflow status. Signals let the agent join context that arrives over time
+instead of treating each Slack mention, Linear issue, release, or repository scan
+as an isolated prompt.
+
 **Watched repositories** are optional, read-only GitHub repositories configured
 alongside the working documentation repository. They are source evidence, not
 docs targets. The first supported scan uses GitHub release signals for
@@ -85,9 +102,11 @@ docs change.
 ## Not MVP
 
 - Chat SDK adapter work or multi-surface chat routing.
-- Slack, Discord, Linear, Notion, or support-thread context ingestion.
-- Continuous monitoring of repositories, releases, support channels, or
-  community discussions.
+- Ambient ingestion of all Slack, Linear, Discord, Notion, support, or community
+  traffic. The next Slack and Linear scope is explicit mention, delegation, or
+  configured scan only.
+- Continuous monitoring of arbitrary repositories, releases, support channels,
+  or community discussions.
 - Broad source or context repository integration beyond configured read-only
   watched repository release scans.
 - Broad docs platform support beyond Docusaurus-style Markdown and MDX.
@@ -107,6 +126,10 @@ docs change.
   repositories in every provenance trail and permission decision.
 - Distinguish GitHub release signals, watched-repository source evidence, and
   working-documentation-repository docs evidence in scan reports.
+- Treat Slack and Linear context as provenance-bearing docs signals, not as
+  loose prompt text.
+- Verify the current docs state for substantive docs signals unless the agent
+  can clearly explain why repository inspection is unnecessary or premature.
 - Follow Eve's installed documentation as the source of truth for runtime
   structure and channel behavior.
 - Keep style knowledge inspectable in project files, scenario inputs, evals, or
@@ -117,7 +140,7 @@ docs change.
   source-repository, context-repository, or proactive integrations so behavior
   can be regression tested as tools and channels become more capable.
 
-## First Workflow
+## Repository Workflow
 
 A maintainer gives the agent a scenario containing:
 
@@ -131,6 +154,28 @@ surfaces in the working documentation repository, decides whether a docs change
 is needed, and emits a documentation impact report. If a change is needed, it
 prepares a minimal docs patch, records which checks ran, exports a diff, and
 publishes approved changes back to the same GitHub repository.
+
+## Signal Workflow
+
+A maintainer, engineer, product manager, or support teammate brings the agent
+into the place where work is being discussed:
+
+- by mentioning it in a Slack thread;
+- by delegating or mentioning it in a Linear issue or Agent Session;
+- by asking it to scan configured release or source signals.
+
+The agent captures structured external context, records provenance, identifies
+the likely docs-maintainer task, and decides whether current docs verification is
+needed. For substantive product, API, release, or behavior signals, the normal
+path is to materialize the configured working documentation repository, inspect
+relevant docs, and return a documentation impact report. The agent may skip
+sandboxed repository inspection only when it gives a concrete reason, such as
+internal-only discussion, duplicate noise, insufficient information to identify a
+docs concern, or an explicit need to wait for source or release evidence.
+
+If a docs patch is warranted, patch preparation and draft PR publishing continue
+through the same sandboxed working-repository workflow and approval-gated
+writeback boundary.
 
 ## Success Signals
 
@@ -153,6 +198,14 @@ publishes approved changes back to the same GitHub repository.
 - Configured watched repositories can be scanned for release signals, verified
   in read-only sandbox checkouts, and compared with the working docs repository
   without granting them patch or writeback authority.
+- Slack threads and Linear issues can become structured docs signals with stable
+  provenance and workflow status.
+- Substantive Slack or Linear docs signals trigger current-docs verification
+  against the configured working documentation repository, while trivial or
+  premature signals are skipped with an explicit reason.
+- Signals from Slack, Linear, watched repositories, and release context can be
+  joined so the agent does not lose context between discovery, verification,
+  patch preparation, and final writeback.
 
 ## Open Questions
 
@@ -167,6 +220,12 @@ publishes approved changes back to the same GitHub repository.
   Eve skill?
 - Which docs check should be mandatory for the first working docs repository
   scenario: build, typecheck, link check, or a lighter smoke check?
+- What persistence layer should store docs signals, workflow status, and
+  cross-channel provenance once `.docs-maintainer/config.json` is no longer
+  enough?
+- What is the smallest stable runtime envelope for a docs signal consumed by
+  Slack intake, Linear intake, watched-repository scans, scheduled scans, and
+  eval scenarios?
 
 ## Truth Surfaces
 

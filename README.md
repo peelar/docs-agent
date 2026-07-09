@@ -8,11 +8,16 @@ change and surrounding context, decide whether docs are affected, explain the
 impact, and only then prepare a small reviewable docs patch when the evidence
 supports it.
 
-The first runnable version is scenario-first. It will use PR-like changes,
+The first runnable foundation is scenario-first. It uses PR-like changes,
 GitHub-hosted Docusaurus-style working documentation repositories cloned or
-materialized into the Eve sandbox, structured context fixtures, and approved
-GitHub writeback through app-scoped Vercel Connect before wiring Slack, Linear,
-Notion, Discord, or other team-context access.
+materialized into the Eve sandbox, structured context fixtures, watched source
+signals, and approved GitHub writeback through app-scoped Vercel Connect.
+
+The next product step is explicit Slack and Linear docs-signal intake. The agent
+should be present where product and engineering context moves, capture that
+context with provenance, decide whether current docs verification is warranted,
+and use the configured working documentation repository as the only mutable docs
+target.
 
 For the durable product contract, read `docs/MANIFEST.md`. For milestone order
 and issue dependencies, read `docs/ROADMAP.md`. For the repository and sandbox
@@ -25,9 +30,10 @@ reports, minimal Markdown or MDX patches, check results, exported diffs, and
 approved draft PRs with provenance.
 
 The longer-term direction is a documentation operations agent: connected to the
-places where product and engineering decisions happen, able to detect missing or
-stale docs, propose reviewable changes, and eventually help publish docs that
-are useful to both humans and AI readers.
+places where product and engineering decisions happen, able to join Slack,
+Linear, release, source, and docs evidence over time, detect missing or stale
+docs, propose reviewable changes, and eventually help publish docs that are
+useful to both humans and AI readers.
 
 ## Project Map
 
