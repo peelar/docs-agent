@@ -118,8 +118,8 @@ unless a later issue explicitly chooses it.
 - Local development stays cheap and inspectable through a SQLite file.
 - Deployed Slack and Linear intake get a realistic persistence path without
   introducing a large data platform.
-- `.docs-agent/config.json` remains setup state only until a later migration
-  moves workspace setup into the same database boundary.
+- Workspace setup moves into the same app-owned database boundary, while
+  remaining a separate record from per-signal workflow state.
 - The next implementation issue must add the store interface, Drizzle schema,
   migrations, setup checks, and focused tests before channel intake writes
   signals.

@@ -1,9 +1,15 @@
-import { mkdir, readFile, writeFile } from "node:fs/promises";
-import { dirname } from "node:path";
+import { readFile } from "node:fs/promises";
 
+import { eq } from "drizzle-orm";
 import type { ToolContext } from "eve/tools";
 import { z } from "zod";
 
+import {
+  docsAgentDatabaseLocation,
+  withDocsAgentDatabase,
+  type DocsAgentDatabase,
+} from "./db/client.js";
+import { workspaceSetup } from "./db/schema.js";
 import {
   GITHUB_CONNECTOR_ENV,
   formatUnknownError,
@@ -23,8 +29,10 @@ import {
 } from "./repository-contract.js";
 
 export const SETUP_STATE_VERSION = 1;
-export const SETUP_STATE_PATH =
+export const DEFAULT_WORKSPACE_ID = "default";
+export const LEGACY_SETUP_STATE_PATH =
   process.env.DOCS_AGENT_SETUP_STATE_PATH ?? ".docs-agent/config.json";
+export const SETUP_STATE_PATH = LEGACY_SETUP_STATE_PATH;
 export { GITHUB_CONNECTOR_ENV, resolveGitHubConnector };
 export { resolveGitHubAppInstallationToken as resolveGitHubWritebackToken };
 
@@ -149,24 +157,89 @@ export class SetupRequiredError extends Error {
 }
 
 export async function readSetupState(): Promise<SetupState | null> {
+  return withDocsAgentDatabase(async (db) => {
+    const rows = await db
+      .select()
+      .from(workspaceSetup)
+      .where(eq(workspaceSetup.id, DEFAULT_WORKSPACE_ID))
+      .limit(1);
+
+    const row = rows[0];
+    if (row !== undefined) return parseSetupStateRow(row);
+
+    return importLegacySetupStateIfPresent(db);
+  });
+}
+
+export async function saveSetupState(state: SetupState): Promise<SetupState> {
+  const parsed = setupStateSchema.parse(state);
+  await writeSetupStateRow(parsed);
+  return parsed;
+}
+
+async function importLegacySetupStateIfPresent(
+  db: DocsAgentDatabase,
+): Promise<SetupState | null> {
+  const legacy = await readLegacySetupState();
+  if (legacy === null) return null;
+
+  await upsertSetupStateRow(db, legacy);
+  return legacy;
+}
+
+async function readLegacySetupState(): Promise<SetupState | null> {
   try {
-    const content = await readFile(SETUP_STATE_PATH, "utf8");
+    const content = await readFile(LEGACY_SETUP_STATE_PATH, "utf8");
     return setupStateSchema.parse(JSON.parse(content));
   } catch (error) {
     if (isMissingFileError(error)) return null;
     throw new Error(
-      `Setup state at ${SETUP_STATE_PATH} is invalid: ${
+      `Legacy setup state at ${LEGACY_SETUP_STATE_PATH} is invalid and cannot be imported: ${
         error instanceof Error ? error.message : String(error)
       }`,
     );
   }
 }
 
-export async function saveSetupState(state: SetupState): Promise<SetupState> {
-  const parsed = setupStateSchema.parse(state);
-  await mkdir(dirname(SETUP_STATE_PATH), { recursive: true });
-  await writeFile(SETUP_STATE_PATH, `${JSON.stringify(parsed, null, 2)}\n`);
-  return parsed;
+async function writeSetupStateRow(state: SetupState): Promise<void> {
+  await withDocsAgentDatabase(async (db) => {
+    await upsertSetupStateRow(db, state);
+  });
+}
+
+async function upsertSetupStateRow(
+  db: DocsAgentDatabase,
+  state: SetupState,
+): Promise<void> {
+  const now = new Date().toISOString();
+
+  await db
+    .insert(workspaceSetup)
+    .values({
+      id: DEFAULT_WORKSPACE_ID,
+      version: state.version,
+      workingRepositoryInput: state.workingRepositoryInput ?? null,
+      githubWriteback: state.githubWriteback,
+      createdAt: now,
+      updatedAt: now,
+    })
+    .onConflictDoUpdate({
+      target: workspaceSetup.id,
+      set: {
+        version: state.version,
+        workingRepositoryInput: state.workingRepositoryInput ?? null,
+        githubWriteback: state.githubWriteback,
+        updatedAt: now,
+      },
+    });
+}
+
+function parseSetupStateRow(row: typeof workspaceSetup.$inferSelect): SetupState {
+  return setupStateSchema.parse({
+    version: row.version,
+    workingRepositoryInput: row.workingRepositoryInput ?? undefined,
+    githubWriteback: row.githubWriteback,
+  });
 }
 
 export function repositoryInputForSetup(input: RepositoryInput): RepositoryInput {
@@ -399,7 +472,7 @@ function evaluateSetupState(state: SetupState | null): SetupStatus {
       docsMaintenanceReady: false,
       githubWritebackReady: false,
       setupMode: true,
-      statePath: SETUP_STATE_PATH,
+      statePath: setupStateLocation(),
       githubWriteback: {
         connectorConfigured: false,
         preflight: {
@@ -516,7 +589,7 @@ function evaluateSetupState(state: SetupState | null): SetupStatus {
     docsMaintenanceReady,
     githubWritebackReady,
     setupMode: !docsMaintenanceReady,
-    statePath: SETUP_STATE_PATH,
+    statePath: setupStateLocation(),
     workingRepository:
       repository === undefined
         ? undefined
@@ -553,7 +626,7 @@ function buildInvalidSetupStatus(message: string): SetupStatus {
     docsMaintenanceReady: false,
     githubWritebackReady: false,
     setupMode: true,
-    statePath: SETUP_STATE_PATH,
+    statePath: setupStateLocation(),
     githubWriteback: {
       connectorConfigured: false,
       preflight: {
@@ -718,6 +791,10 @@ function formatSetupRequiredMessage(
   const detail = issues.map((issue) => issue.message).join(" ");
 
   return `Setup required before ${capability}: ${detail}`;
+}
+
+function setupStateLocation(): string {
+  return docsAgentDatabaseLocation();
 }
 
 type GitHubInstallationRepositoriesResponse = {

@@ -28,13 +28,15 @@ The repository input contract captures:
 - `provenanceLabel`: `working-documentation-repository`.
 
 The active working repository configuration is persisted as versioned setup
-state in `.docs-agent/config.json`. Calling `configure_working_repository`
-validates the repository input through the configured app-scoped GitHub connector
-and saves only the reusable repository setup. It also records the full
-per-session repository input in Eve state so the next workflow call can use
-attached context without re-asking for setup. It does not materialize the sandbox
-checkout unless explicitly requested. One-off scenario context is not persisted
-as workspace setup.
+state in the app-owned Drizzle/libSQL database. Local development defaults to a
+SQLite-compatible file at `.docs-agent/docs-agent.sqlite`; deployed runtimes must
+provide `DOCS_AGENT_DATABASE_URL` and fail visibly when setup persistence is not
+available. Calling `configure_working_repository` validates the repository input
+through the configured app-scoped GitHub connector and saves only the reusable
+repository setup. It also records the full per-session repository input in Eve
+state so the next workflow call can use attached context without re-asking for
+setup. It does not materialize the sandbox checkout unless explicitly requested.
+One-off scenario context is not persisted as workspace setup.
 
 At the start of each turn, dynamic Eve instructions read setup state and guide
 the model into setup mode when required fields are missing or stale. When setup
@@ -202,11 +204,13 @@ SQLite file through `@libsql/client`, while deployed runtimes can use the same
 Drizzle schema against libSQL, with Turso Cloud as the likely first managed
 backend when hosted persistence is needed.
 
-`.docs-agent/config.json` remains setup state for the configured workspace. It
-stores reusable repository setup and writeback configuration; it does not store
-mutable signal queue state. A later migration may move workspace setup into the
-same database boundary, but that should preserve the distinction between global
-workspace configuration and per-signal workflow state.
+Workspace setup state now lives in the same app-owned database boundary as the
+future signal queue, but it remains a separate record from mutable signal
+workflow state. It stores reusable repository setup and writeback configuration;
+it does not store signal queue state, verification runs, workflow events, or
+patch artifacts. Existing `.docs-agent/config.json` files are legacy import
+sources only: when the database has no setup row, a valid legacy JSON file may
+be imported once, and new writes continue only to the database.
 
 The signal database should start small but support the near-term M3 workflows:
 

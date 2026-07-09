@@ -26,3 +26,9 @@ pnpm install
 pnpm eval
 pnpm dev
 ```
+
+Local setup persistence uses a Drizzle/libSQL SQLite file at
+`.docs-agent/docs-agent.sqlite` when `DOCS_AGENT_DATABASE_URL` is not set. In a
+deployed runtime, set `DOCS_AGENT_DATABASE_URL` and, when required by the
+provider, `DOCS_AGENT_DATABASE_AUTH_TOKEN`; otherwise setup persistence fails
+visibly before docs work continues.
