@@ -232,6 +232,8 @@ writeback boundary.
   context repository, external context, sandbox, and provenance contract.
 - `docs/USER_TESTING.md`: manual user-test scenarios, expected outcomes, and
   eval readiness notes.
+- `docs/WORKFLOWS.md`: docs-signal workflow model, runtime boundaries, and tool
+  mapping for channel, scan, verification, patch, and writeback work.
 - `evals/scenarios/`: typed user-test fixture data used by manual tests and
   future executable evals.
 - `docs/adr/`: durable decision records, created through `$to-adr`.

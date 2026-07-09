@@ -139,7 +139,7 @@ ordering cannot be read.
 4. Model Docs Agent workflows explicitly. (#23)
    Represent the everyday loops: mentioned in context, periodic scans, initiative
    or project participation, release readiness, current-docs verification, and
-   patch handoff.
+   patch handoff. The durable contract lives in `docs/WORKFLOWS.md`.
 
 5. Add Slack intake. (#24)
    Capture explicit Slack thread mentions as communication-thread signals, run

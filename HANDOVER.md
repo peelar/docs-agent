@@ -77,3 +77,22 @@ Behavior verification: run `pnpm check`. Behaviorally, an internal-only signal
 should not open the docs sandbox, a substantive source-backed signal should ask
 to verify current docs, and a discussion-only public claim should request source
 or release evidence first.
+
+## #23 Model docs maintainer workflows for signals, scans, initiatives, release readiness, and patch handoff
+
+Decision: document workflows as product/runtime contracts before adding Slack or
+Linear channels.
+
+Design: add `docs/WORKFLOWS.md` with six workflows, runtime boundaries, current
+tool mapping, and two realistic Slack/Linear scenario outlines. Keep
+`run_docs_maintenance_scenario` as the eval/scenario terminal workflow for now;
+a later signal-verification wrapper should reuse the repository workflow pieces.
+
+User effect: users get clearer behavior: mention/context intake creates a
+signal, decisioning decides whether docs verification is needed, verification is
+separate from patching, and publishing still requires approval.
+
+Behavior verification: run `pnpm check`. Behaviorally, a Slack mention with
+source evidence should become a signal and then request current-docs
+verification; a Linear issue without source evidence should become a signal but
+skip sandbox verification until evidence exists.
