@@ -388,8 +388,9 @@ export function buildSetupInstructions(status: SetupStatus): string {
     return [
       "## Setup State",
       "",
-      "The workspace setup is incomplete. Stay in setup mode before normal docs maintenance.",
+      "The workspace setup is incomplete. Enter setup mode when the user asks for docs maintenance.",
       "",
+      "Ordinary conversation is not docs maintenance. Do not ask for repository setup until a docs task is clear.",
       "Ask for the working documentation repository GitHub URL if the user has not provided it.",
       "When the user provides a URL, call `configure_working_repository`. Use provided ref/docs root values, but do not require them: ref defaults to `main`, and docs root is detected when the sandbox checkout is first materialized.",
       "Do not call docs-maintenance or publish tools until setup is ready.",

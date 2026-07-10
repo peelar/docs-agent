@@ -15,3 +15,12 @@ package docs are unavailable, use <https://eve.dev/docs> as a fallback.
   remembered steps.
 - Once a scope of work is complete, propose a commit message following conventional commit message conventions. End with "Commit? [Y/n]".
 - We'll be often using peelar/saleor-docs as the working documentation repository. It is our dogfooding project. Avoid overfitting to this repository. It's only an example we need to generalize from.
+
+## Identity Instructions
+
+- Keep `agent/instructions/identity.md` deliberately small.
+- Use short, plain sentences for permanent identity, tone, and cross-channel behavior only.
+- Before changing it, search the other model-visible instructions, skills, tool descriptions, and channel context. Do not duplicate guidance from those surfaces.
+- Do not put workflows, tool routing, examples, temporary requirements, or provider-specific behavior in `identity.md`.
+- Prefer replacing or deleting an existing sentence over appending another one.
+- Cover every behavior change in `identity.md` with an eval, or show that an existing eval already proves it.

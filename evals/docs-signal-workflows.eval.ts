@@ -33,13 +33,20 @@ export default [
         satisfies(
           (reply) => {
             const text = String(reply).toLowerCase();
-            return text.includes("slack") &&
-              (text.includes("needs-docs-verification") || text.includes("current docs")) &&
-              (text.includes("setup") || text.includes("blocked")) &&
-              (text.includes("no patch") || text.includes("not prepare")) &&
-              (text.includes("no pr") || text.includes("did not publish"));
+            return text.includes("verif") &&
+              text.includes("docs") &&
+              includesAny(text, ["setup", "not been configured", "isn't configured"]) &&
+              includesAny(text, ["no patch", "did not prepare", "didn't prepare"]) &&
+              statesNoPrWasPublished(text);
           },
           "final reply summarizes Slack verification need, setup blocking, and no writeback",
+        ),
+      );
+      t.check(
+        t.reply,
+        satisfies(
+          (reply) => matchesHumanFacingWorkflowReply(reply),
+          "final reply uses plain language without raw provider identifiers or internal decision enums",
         ),
       );
     },
@@ -68,13 +75,25 @@ export default [
         satisfies(
           (reply) => {
             const text = String(reply).toLowerCase();
-            return text.includes("linear") &&
-              text.includes("source evidence") &&
-              (text.includes("needs-source-evidence") || text.includes("needs source evidence")) &&
-              (text.includes("no verification") || text.includes("not verify")) &&
-              (text.includes("no pr") || text.includes("not publish"));
+            return describesMissingSourceEvidence(text) &&
+              includesAny(text, [
+                "no verification",
+                "not verify",
+                "not verified",
+                "did not verify",
+                "didn't verify",
+                "held off",
+              ]) &&
+              statesNoPrWasPublished(text);
           },
           "final reply explains why Linear context alone cannot trigger verification or writeback",
+        ),
+      );
+      t.check(
+        t.reply,
+        satisfies(
+          (reply) => matchesHumanFacingWorkflowReply(reply),
+          "final reply uses plain language without raw provider identifiers or internal decision enums",
         ),
       );
     },
@@ -108,7 +127,7 @@ function renderSlackSetupBlockedPrompt(): string {
     "- currentDocsState: not-run",
     "- evidence: release note confirms the API behavior changed, URL https://github.com/example/api/releases/tag/v2.4.0",
     "",
-    "Reply with the Slack signal status, the current-docs verification need, whether setup blocked verification, and an explicit statement that no patch was prepared and no PR was published.",
+    "Reply in ordinary language with the current-docs verification need, whether setup blocked verification, and an explicit statement that no patch was prepared and no PR was published. Do not repeat raw Slack identifiers or internal decision labels.",
   ].join("\n");
 }
 
@@ -143,7 +162,7 @@ function renderLinearSourceEvidencePrompt(): string {
     "- currentDocsState: not-run",
     "- missingEvidence: Source commit or release note confirming the public behavior change.",
     "",
-    "Reply through the Linear Agent Activity style: say the signal needs source evidence, current docs were not verified, and no PR was published.",
+    "Reply through the Linear Agent Activity style in ordinary language: say the signal needs source evidence, current docs were not verified, and no PR was published. Do not repeat raw Linear identifiers or internal decision labels.",
   ].join("\n");
 }
 
@@ -212,6 +231,48 @@ function assertNoRepositoryOrWriteTools(t: {
   t.notCalledTool("publish_working_repository_pr");
   t.notCalledTool("bash");
   t.notCalledTool("write_file");
+}
+
+function matchesHumanFacingWorkflowReply(reply: unknown): boolean {
+  const text = String(reply);
+
+  return !text.includes("<@") &&
+    !/\b[UCT]_[A-Z0-9_]+\b/.test(text) &&
+    !/\b(?:org|session|issue)_docs(?:_\d+)?\b/i.test(text) &&
+    !text.includes("needs-docs-verification") &&
+    !text.includes("needs-source-evidence");
+}
+
+function statesNoPrWasPublished(text: string): boolean {
+  return /\bno (?:draft )?(?:pr|pull request)\b/.test(text) ||
+    includesAny(text, [
+      "did not publish",
+      "didn't publish",
+      "not publish",
+      "did not open",
+      "didn't open",
+    ]);
+}
+
+function describesMissingSourceEvidence(text: string): boolean {
+  return includesAny(text, [
+    "source evidence",
+    "source commit",
+    "release note",
+    "maintainer-confirmed evidence",
+  ]) && includesAny(text, [
+    "need",
+    "needed",
+    "missing",
+    "no source",
+    "cannot confirm",
+    "can't confirm",
+    "not enough",
+  ]);
+}
+
+function includesAny(value: string, candidates: string[]): boolean {
+  return candidates.some((candidate) => value.includes(candidate));
 }
 
 function includesAll(value: unknown, expected: string[]): boolean {

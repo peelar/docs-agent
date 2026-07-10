@@ -198,7 +198,8 @@ function matchesScenarioReply(
     return (
       text.includes("docs/api-usage/metadata.mdx") &&
       text.includes("private metadata") &&
-      (text.includes("docs patch") || text.includes("updated") || text.includes("patch"))
+      (text.includes("docs patch") || text.includes("updated") || text.includes("patch")) &&
+      !text.includes("docs-patch")
     );
   }
 
@@ -207,7 +208,8 @@ function matchesScenarioReply(
       (text.includes("no docs change") || text.includes("no documentation change")) &&
       text.includes("120") &&
       text.includes("180") &&
-      (text.includes("no patch") || text.includes("no diff") || text.includes("unchanged"))
+      (text.includes("no patch") || text.includes("no diff") || text.includes("unchanged")) &&
+      !text.includes("no-docs-change")
     );
   }
 
