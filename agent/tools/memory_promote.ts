@@ -1,17 +1,17 @@
 import { defineTool } from "eve/tools";
 
 import {
-  promoteWorkspaceKnowledge,
-  promoteWorkspaceKnowledgeInputSchema,
-  workspaceKnowledgeDetailSchema,
-} from "../lib/workspace-knowledge.js";
+  promoteWorkspaceMemory,
+  promoteWorkspaceMemoryInputSchema,
+  workspaceMemoryDetailSchema,
+} from "../lib/workspace-memory.js";
 
 export default defineTool({
   description:
-    "Promote a proposed workspace knowledge record to active after explicit maintainer or workflow confirmation. This makes it eligible for compact dynamic-instruction loading.",
-  inputSchema: promoteWorkspaceKnowledgeInputSchema,
-  outputSchema: workspaceKnowledgeDetailSchema,
-  execute: promoteWorkspaceKnowledge,
+    "Promote a proposed workspace memory to active after explicit maintainer or workflow confirmation. This makes it eligible for compact dynamic-instruction loading.",
+  inputSchema: promoteWorkspaceMemoryInputSchema,
+  outputSchema: workspaceMemoryDetailSchema,
+  execute: promoteWorkspaceMemory,
   toModelOutput(output) {
     return {
       type: "json",

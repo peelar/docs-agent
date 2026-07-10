@@ -160,9 +160,9 @@ pnpm eval --list
 pnpm test
 ```
 
-The setup-state check covers database-backed setup persistence, legacy JSON
-import, corrupt setup state, and missing deployed database configuration. The
-docs-signal queue check covers signal capture, provider/permalink dedupe,
+The setup-state check covers database-backed setup persistence, stale JSON setup
+being ignored, invalid database setup state, and missing deployed database
+configuration. The docs-signal queue check covers signal capture, provider/permalink dedupe,
 open-signal listing, lifecycle updates, provenance preservation, artifact
 storage, missing deployed database configuration, and stale signal status
 handling. The docs-impact decision check covers skipped verification, required
@@ -190,8 +190,8 @@ signals require current-docs verification and fail closed when setup is missing,
 internal-only signals skip verification with a concrete reason, Linear signals
 without source evidence cannot enter patch handoff, and only already verified
 patch-recommended signals can proceed to patch preparation. The workspace
-knowledge check covers proposal, explicit promotion, exact/tag search, full
-record reads with source text provenance, stale and retired lifecycle behavior,
+memory check covers proposal, explicit promotion, exact/tag search, full memory
+reads with source text provenance, stale and retired lifecycle behavior,
 freshness filtering, strict rejection of model-supplied workspace ids, deployed
 database failure behavior, and prompt-injection trust boundaries in dynamic
 instructions.

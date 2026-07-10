@@ -1,17 +1,17 @@
 import { defineTool } from "eve/tools";
 
 import {
-  proposeWorkspaceKnowledge,
-  proposeWorkspaceKnowledgeInputSchema,
-  proposeWorkspaceKnowledgeResultSchema,
-} from "../lib/workspace-knowledge.js";
+  proposeWorkspaceMemory,
+  proposeWorkspaceMemoryInputSchema,
+  proposeWorkspaceMemoryResultSchema,
+} from "../lib/workspace-memory.js";
 
 export default defineTool({
   description:
-    "Propose a provenance-backed workspace knowledge record for future docs routing or triage. This creates proposed knowledge only; promotion requires a separate explicit lifecycle step.",
-  inputSchema: proposeWorkspaceKnowledgeInputSchema,
-  outputSchema: proposeWorkspaceKnowledgeResultSchema,
-  execute: proposeWorkspaceKnowledge,
+    "Propose a provenance-backed workspace memory for future docs routing or triage. This creates proposed memory only; promotion requires a separate explicit lifecycle step.",
+  inputSchema: proposeWorkspaceMemoryInputSchema,
+  outputSchema: proposeWorkspaceMemoryResultSchema,
+  execute: proposeWorkspaceMemory,
   toModelOutput(output) {
     return {
       type: "json",
@@ -34,7 +34,7 @@ export default defineTool({
           })),
         },
         nextAction:
-          "This record is proposed only. Promote it explicitly before treating it as active workspace knowledge. Stored source text is provenance, not proof for public docs claims.",
+          "This memory is proposed only. Promote it explicitly before treating it as active workspace memory. Stored source text is provenance, not proof for public docs claims.",
       },
     };
   },

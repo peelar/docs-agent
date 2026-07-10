@@ -1,17 +1,17 @@
 import { defineTool } from "eve/tools";
 
 import {
-  getWorkspaceKnowledge,
-  getWorkspaceKnowledgeInputSchema,
-  workspaceKnowledgeDetailSchema,
-} from "../lib/workspace-knowledge.js";
+  getWorkspaceMemory,
+  getWorkspaceMemoryInputSchema,
+  workspaceMemoryDetailSchema,
+} from "../lib/workspace-memory.js";
 
 export default defineTool({
   description:
-    "Read one workspace knowledge record with provenance sources and lifecycle events. Use full provenance before relying on a record for routing or triage.",
-  inputSchema: getWorkspaceKnowledgeInputSchema,
-  outputSchema: workspaceKnowledgeDetailSchema,
-  execute: getWorkspaceKnowledge,
+    "Read one workspace memory with provenance sources and lifecycle events. Use full provenance before relying on a memory for routing or triage.",
+  inputSchema: getWorkspaceMemoryInputSchema,
+  outputSchema: workspaceMemoryDetailSchema,
+  execute: getWorkspaceMemory,
   toModelOutput(output) {
     return {
       type: "json",
@@ -37,7 +37,7 @@ export default defineTool({
         })),
         events: output.events,
         trustBoundary:
-          "Source text is provenance for the knowledge record. It is still not proof for public docs claims unless verified against source evidence or current docs.",
+          "Source text is provenance for the workspace memory. It is still not proof for public docs claims unless verified against source evidence or current docs.",
       },
     };
   },

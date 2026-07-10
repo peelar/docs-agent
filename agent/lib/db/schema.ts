@@ -166,7 +166,7 @@ export const docsSignalEvents = sqliteTable(
   ],
 );
 
-export const workspaceKnowledgeRecords = sqliteTable(
+export const workspaceMemoryRecords = sqliteTable(
   "workspace_knowledge_records",
   {
     id: text("id").primaryKey(),
@@ -205,13 +205,13 @@ export const workspaceKnowledgeRecords = sqliteTable(
   ],
 );
 
-export const workspaceKnowledgeSources = sqliteTable(
+export const workspaceMemorySources = sqliteTable(
   "workspace_knowledge_sources",
   {
     id: text("id").primaryKey(),
     recordId: text("record_id")
       .notNull()
-      .references(() => workspaceKnowledgeRecords.id, { onDelete: "cascade" }),
+      .references(() => workspaceMemoryRecords.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id").notNull(),
     kind: text("kind").notNull(),
     label: text("label"),
@@ -232,13 +232,13 @@ export const workspaceKnowledgeSources = sqliteTable(
   ],
 );
 
-export const workspaceKnowledgeEvents = sqliteTable(
+export const workspaceMemoryEvents = sqliteTable(
   "workspace_knowledge_events",
   {
     id: text("id").primaryKey(),
     recordId: text("record_id")
       .notNull()
-      .references(() => workspaceKnowledgeRecords.id, { onDelete: "cascade" }),
+      .references(() => workspaceMemoryRecords.id, { onDelete: "cascade" }),
     workspaceId: text("workspace_id").notNull(),
     eventType: text("event_type").notNull(),
     fromStatus: text("from_status"),
@@ -263,8 +263,8 @@ export const schema = {
   docsSignalLinks,
   docsSignalSources,
   docsSignals,
-  workspaceKnowledgeEvents,
-  workspaceKnowledgeRecords,
-  workspaceKnowledgeSources,
+  workspaceMemoryEvents,
+  workspaceMemoryRecords,
+  workspaceMemorySources,
   workspaceSetup,
 };

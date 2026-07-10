@@ -26,9 +26,8 @@ boundary as future signal state, while remaining a separate setup record.
 
 Design: add a `workspace_setup` table, Drizzle config, migration script, and a
 runtime DB client. Local dev defaults to `.docs-agent/docs-agent.sqlite`.
-Deployed runtimes require `DOCS_AGENT_DATABASE_URL`. A valid legacy
-`.docs-agent/config.json` is imported only when the database has no setup row;
-new writes go only to the database.
+Deployed runtimes require `DOCS_AGENT_DATABASE_URL`. Setup reads and writes use
+only the database; existing `.docs-agent/config.json` files are ignored.
 
 User effect: users keep the same setup tools and setup-mode behavior, but setup
 state is durable in the real app store instead of a JSON side file. Missing or
@@ -36,7 +35,7 @@ broken storage is reported before docs maintenance proceeds.
 
 Behavior verification: run `pnpm check`. Behaviorally, first-run setup should
 still ask for the working documentation repository, configured setup should be
-remembered across turns, legacy JSON setup should import once, and deployed
+remembered across turns, stale JSON setup should be ignored, and deployed
 runtime without `DOCS_AGENT_DATABASE_URL` should fail visibly.
 
 ## #21 Add a docs signal work queue
@@ -213,31 +212,31 @@ expected behavior is Slack capture plus setup-gated current-docs verification
 blocking with no patch or PR, and Linear source-evidence blocking with no
 sandbox verification or writeback.
 
-## #29 Add workspace knowledge records for docs context memory
+## #29 Add workspace memories for docs context
 
-Decision: reusable docs context memory is app-owned workspace knowledge, not
+Decision: reusable docs context is app-owned workspace memory, not
 docs signals, setup state, Eve `defineState`, Eve skills, or generated docs.
-Stored knowledge is routing and triage context only; it is not proof for public
+Stored memory is routing and triage context only; it is not proof for public
 documentation claims.
 
-Design: add Drizzle/libSQL tables for workspace knowledge records, provenance
-sources, and lifecycle events. Add `agent/lib/workspace-knowledge.ts` with
+Design: add Drizzle/libSQL tables for workspace memories, provenance sources,
+and lifecycle events. Add `agent/lib/workspace-memory.ts` with
 strict model inputs, runtime-owned workspace scoping, proposal, exact/tag
 search, read, promote, stale, and retire APIs. Add model-facing
-`knowledge_*` tools and dynamic instructions that inject a compact active
-knowledge slice with explicit trust-boundary wording. Source text stays on
+`memory_*` tools and dynamic instructions that inject a compact active memory
+slice with explicit trust-boundary wording. Source text stays on
 provenance rows, separate from model-generated statements and summaries.
 
 User effect: maintainers can capture compact reusable docs concepts, surfaces,
 style rules, workflow rules, ownership, and decisions without turning Slack or
-Linear discussion into unsupported docs truth. Records must be promoted before
+Linear discussion into unsupported docs truth. Memories must be promoted before
 active use, can become stale or retired, and can be searched or inspected with
 provenance.
 
 Behavior verification: run `pnpm check`. Behaviorally, model-supplied workspace
-ids should be rejected, proposed records should not appear in default active
-search, promoted records should search by exact text or tag, expired/stale
-records should be filtered unless requested, retired records should disappear
-from default search, dynamic instructions should label knowledge as untrusted
+ids should be rejected, proposed memories should not appear in default active
+search, promoted memories should search by exact text or tag, expired/stale
+memories should be filtered unless requested, retired memories should disappear
+from default search, dynamic instructions should label memory as untrusted
 context, and deployed runtime without `DOCS_AGENT_DATABASE_URL` should fail
-knowledge workflows visibly.
+memory workflows visibly.
