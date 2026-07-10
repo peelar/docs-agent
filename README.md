@@ -44,8 +44,9 @@ The channel handles explicit app mentions and DMs, fetches thread context since
 the last agent reply, and records Slack threads as docs signals instead of
 reading channels ambiently.
 
-Linear intake uses Eve's Linear Agent Session channel at `/eve/v1/linear`.
-Configure Linear Agent Session webhooks and provide `LINEAR_AGENT_ACCESS_TOKEN`
-plus `LINEAR_WEBHOOK_SECRET` in the runtime environment. The channel handles
-delegated or prompted Agent Sessions and records Linear issues as docs signals;
-it does not crawl or edit Linear issues.
+Linear intake uses Eve's Linear Agent Session channel and Vercel Connect
+credentials. Set `DOCS_AGENT_LINEAR_CONNECTOR` to the Linear Connect client UID,
+or create the default `linear/docs-agent` connector and attach its trigger to
+`/eve/v1/linear`. Connect manages the Linear app token and verifies forwarded
+webhooks. The channel handles delegated or prompted Agent Sessions and records
+Linear issues as docs signals; it does not crawl or edit Linear issues.
