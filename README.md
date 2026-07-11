@@ -51,6 +51,7 @@ Use Node 24.18.0.
 
 ```sh
 pnpm install
+pnpm --filter @docs-agent/web exec playwright install chromium
 pnpm check
 pnpm eval --list
 pnpm dev --no-ui
@@ -61,6 +62,10 @@ right application. `pnpm dev --no-ui`, `pnpm eval`, and `pnpm db:migrate` target
 the Eve app in `apps/agent`. Use `pnpm dev:web` for the minimal Next.js app. The
 package-qualified forms are `pnpm --filter docs-agent <command>` and
 `pnpm --filter @docs-agent/web <command>`.
+
+The web package uses Playwright Chromium for its desktop and mobile shell smoke
+test. Install that browser once after dependencies; `pnpm check` runs the smoke
+alongside the production web build.
 
 Put local agent variables in `apps/agent/.env.local` and web-only variables in
 `apps/web/.env.local`. Local state still uses `.docs-agent/docs-agent.sqlite` at

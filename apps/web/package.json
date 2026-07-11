@@ -4,9 +4,10 @@
   "private": true,
   "scripts": {
     "build": "next build",
-    "check": "pnpm typecheck && pnpm build",
+    "check": "pnpm typecheck && pnpm build && pnpm test",
     "dev": "next dev",
     "start": "next start",
+    "test": "playwright test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
@@ -15,6 +16,7 @@
     "react-dom": "19.2.7"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "@types/node": "24.x",
     "@types/react": "^19.2.0",
     "@types/react-dom": "^19.2.0",

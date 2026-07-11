@@ -1,11 +1,15 @@
 import type { Metadata } from "next";
 import type { ReactNode } from "react";
 
+import { AppShell } from "../components/app-shell";
 import "./globals.css";
 
 export const metadata: Metadata = {
-  title: "Docs Agent",
-  description: "Operator control plane for Docs Agent.",
+  title: {
+    default: "Docs Agent",
+    template: "%s · Docs Agent",
+  },
+  description: "A quiet control plane for documentation operations.",
 };
 
 export default function RootLayout({
@@ -15,7 +19,9 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en">
-      <body>{children}</body>
+      <body>
+        <AppShell>{children}</AppShell>
+      </body>
     </html>
   );
 }

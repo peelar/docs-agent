@@ -8,6 +8,8 @@ node_modules
 .output
 .nitro
 .turbo
+playwright-report
+test-results
 dist
 .DS_Store
 *.tsbuildinfo
