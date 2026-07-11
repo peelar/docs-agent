@@ -4,17 +4,16 @@ import {
   docsImpactDecisionRecordSchema,
   docsImpactEvidenceSchema,
   docsImpactTriageInputSchema,
-  planDocsImpactDecision,
-  shouldVerifyCurrentDocs,
-  type DocsImpactDecisionRecord,
 } from "./docs-impact-decision.js";
 import {
-  captureDocsSignal,
+  buildDocsSignalReplyGuidance,
+  captureProviderDocsSignal,
+  docsSignalVerificationStatusSchema,
+} from "./docs-signal-intake.js";
+import {
   docsSignalDetailSchema,
   docsSignalLinkInputSchema,
-  type DocsSignalStatus,
 } from "./docs-signals.js";
-import { getSetupStatus } from "./setup-state.js";
 
 const slackThreadMessageSchema = z.object({
   author: z.string().trim().min(1),
@@ -37,13 +36,6 @@ const communicationThreadContextSchema = z.object({
   firstMessageAt: z.string(),
   lastMessageAt: z.string(),
   capturedAt: z.string(),
-});
-
-const verificationStatusSchema = z.object({
-  required: z.boolean(),
-  setupReady: z.boolean(),
-  state: z.enum(["not-needed", "needed", "blocked", "completed"]),
-  reason: z.string(),
 });
 
 export const captureSlackDocsSignalInputSchema = z.object({
@@ -78,7 +70,7 @@ export const captureSlackDocsSignalResultSchema = z.object({
   externalContext: communicationThreadContextSchema,
   decision: docsImpactDecisionRecordSchema,
   shouldVerifyCurrentDocs: z.boolean(),
-  verificationStatus: verificationStatusSchema,
+  verificationStatus: docsSignalVerificationStatusSchema,
   replyGuidance: z.array(z.string()),
 });
 
@@ -99,20 +91,8 @@ export async function captureSlackDocsSignal(
     buildSlackEvidence(parsed),
     ...parsed.evidence,
   ];
-  const decision = planDocsImpactDecision({
-    signalSummary: parsed.sourceSummary,
-    publicDocsImpact: parsed.publicDocsImpact,
-    sourceEvidence: parsed.sourceEvidence,
-    currentDocsState: parsed.currentDocsState,
-    evidence,
-    missingEvidence: parsed.missingEvidence,
-    uncertainty: parsed.uncertainty,
-    skippedVerificationReason: parsed.skippedVerificationReason,
-  });
-  const desiredStatus = statusForDecision(decision);
-
-  const created = await captureDocsSignal(
-    {
+  const intake = await captureProviderDocsSignal({
+    signal: {
       source: {
         kind: "slack-thread",
         provider: "slack",
@@ -151,35 +131,33 @@ export async function captureSlackDocsSignal(
       ],
       artifacts: [],
     },
-    {
-      status: desiredStatus,
-      reason: decision.reason,
-      actor: "docs-agent:slack-intake",
-      metadata: {
-        decision: decision.decision,
-        recommendedNextAction: decision.recommendedNextAction,
-        currentDocsVerification: decision.currentDocsVerification,
-        shouldVerifyCurrentDocs: shouldVerifyCurrentDocs(decision),
-        externalContext,
-      },
+    triage: {
+      signalSummary: parsed.sourceSummary,
+      publicDocsImpact: parsed.publicDocsImpact,
+      sourceEvidence: parsed.sourceEvidence,
+      currentDocsState: parsed.currentDocsState,
+      evidence,
+      missingEvidence: parsed.missingEvidence,
+      uncertainty: parsed.uncertainty,
+      skippedVerificationReason: parsed.skippedVerificationReason,
     },
-  );
-
-  const setupStatus = await getSetupStatus();
-  const verificationStatus = buildVerificationStatus(
-    decision,
-    setupStatus.docsMaintenanceReady,
-    setupStatus.issues.map((issue) => issue.message),
-  );
+    actor: "docs-agent:slack-intake",
+    externalContext,
+  });
 
   return captureSlackDocsSignalResultSchema.parse({
-    created: created.created,
-    signal: created.signal,
+    created: intake.created,
+    signal: intake.signal,
     externalContext,
-    decision,
-    shouldVerifyCurrentDocs: shouldVerifyCurrentDocs(decision),
-    verificationStatus,
-    replyGuidance: buildReplyGuidance(decision, verificationStatus),
+    decision: intake.decision,
+    shouldVerifyCurrentDocs: intake.shouldVerifyCurrentDocs,
+    verificationStatus: intake.verificationStatus,
+    replyGuidance: buildDocsSignalReplyGuidance({
+      decision: intake.decision,
+      verificationStatus: intake.verificationStatus,
+      transportInstruction:
+        "Reply in the Slack thread with the captured signal summary, decision, evidence, uncertainty, verification status, and next action.",
+    }),
   });
 }
 
@@ -246,90 +224,4 @@ function slackThreadLinks(
       },
     },
   ];
-}
-
-function statusForDecision(
-  decision: DocsImpactDecisionRecord,
-): DocsSignalStatus {
-  switch (decision.decision) {
-    case "not-docs-relevant":
-      return "closed-not-docs-relevant";
-    case "needs-maintainer-answer":
-      return "needs-maintainer-answer";
-    case "needs-source-evidence":
-      return "needs-source-evidence";
-    case "verification-skipped":
-      return "verification-skipped";
-    case "already-covered":
-      return "closed-already-covered";
-    case "likely-stale":
-    case "docs-patch-recommended":
-    case "changelog-only":
-      return "docs-verified";
-    case "needs-docs-verification":
-      return "captured";
-  }
-}
-
-function buildVerificationStatus(
-  decision: DocsImpactDecisionRecord,
-  setupReady: boolean,
-  setupIssues: string[],
-): z.infer<typeof verificationStatusSchema> {
-  const required = shouldVerifyCurrentDocs(decision);
-
-  if (decision.currentDocsVerification.state === "completed") {
-    return {
-      required,
-      setupReady,
-      state: "completed",
-      reason: decision.currentDocsVerification.reason,
-    };
-  }
-
-  if (required && !setupReady) {
-    return {
-      required,
-      setupReady,
-      state: "blocked",
-      reason: [
-        "Current docs verification is required, but workspace setup is not ready.",
-        ...setupIssues,
-      ].join(" "),
-    };
-  }
-
-  return {
-    required,
-    setupReady,
-    state: decision.currentDocsVerification.state,
-    reason: decision.currentDocsVerification.reason,
-  };
-}
-
-function buildReplyGuidance(
-  decision: DocsImpactDecisionRecord,
-  verificationStatus: z.infer<typeof verificationStatusSchema>,
-): string[] {
-  const guidance = [
-    "Reply in the Slack thread with the captured signal summary, decision, evidence, uncertainty, verification status, and next action.",
-  ];
-
-  if (decision.decision === "needs-source-evidence") {
-    guidance.push("Ask for source, release, or maintainer-confirmed evidence before making public docs claims.");
-  }
-
-  if (decision.decision === "verification-skipped") {
-    guidance.push("Include the explicit skipped-verification reason.");
-  }
-
-  if (verificationStatus.state === "blocked") {
-    guidance.push("Use setup mode to collect the working documentation repository before docs verification.");
-  } else if (verificationStatus.required) {
-    guidance.push("Verify current docs against the configured working documentation repository before deciding whether docs are stale.");
-  }
-
-  guidance.push("Do not prepare a patch, publish, or open a draft PR without a later explicit approval-gated handoff.");
-
-  return guidance;
 }

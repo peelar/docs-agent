@@ -8,7 +8,7 @@ import {
 
 export default defineTool({
   description:
-    "Capture a delegated or prompted Linear Agent Session issue as structured issue-tracker-item context, create or update the docs signal queue, run the shared docs-impact decision model, and return Linear Agent Activity reply guidance. Use this for Linear docs-signal intake before any patch or writeback workflow.",
+    "Capture a delegated or prompted Linear Agent Session issue as structured issue-tracker-item context, create or return the existing docs signal through the shared provider-neutral intake pipeline, and return Linear Agent Activity reply guidance. Use this before any patch or writeback workflow.",
   inputSchema: captureLinearDocsSignalInputSchema,
   outputSchema: captureLinearDocsSignalResultSchema,
   execute: captureLinearDocsSignal,

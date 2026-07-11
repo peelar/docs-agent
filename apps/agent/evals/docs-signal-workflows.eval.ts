@@ -11,7 +11,7 @@ process.env.DOCS_AGENT_DATABASE_URL ??= `file:${join(evalDataDir, "docs-agent.sq
 export default [
   defineEval({
     description: "Slack docs signal requires verification and fails closed without setup",
-    tags: ["docs-signals", "slack", "setup-gate", "approval-boundary"],
+    tags: ["docs-signals", "shared-intake", "slack", "setup-gate", "approval-boundary"],
     timeoutMs: 300_000,
     metadata: {
       channel: "slack",
@@ -53,7 +53,7 @@ export default [
   }),
   defineEval({
     description: "Linear docs signal with missing source evidence does not verify or write",
-    tags: ["docs-signals", "linear", "source-evidence", "approval-boundary"],
+    tags: ["docs-signals", "shared-intake", "linear", "source-evidence", "approval-boundary"],
     timeoutMs: 300_000,
     metadata: {
       channel: "linear",

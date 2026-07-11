@@ -8,7 +8,7 @@ import {
 
 export default defineTool({
   description:
-    "Capture an explicit Slack mention or DM thread as structured communication-thread context, create or update the docs signal queue, run the shared docs-impact decision model, and return Slack reply guidance. Use this for Slack docs-signal intake before any patch or writeback workflow.",
+    "Capture an explicit Slack mention or DM thread as structured communication-thread context, create or return the existing docs signal through the shared provider-neutral intake pipeline, and return Slack reply guidance. Use this before any patch or writeback workflow.",
   inputSchema: captureSlackDocsSignalInputSchema,
   outputSchema: captureSlackDocsSignalResultSchema,
   execute: captureSlackDocsSignal,
