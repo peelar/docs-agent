@@ -6,6 +6,7 @@ import { dirname, join } from "node:path";
 import type { ToolContext } from "eve/tools";
 
 import { abandonAuthoringDraft, applyAuthoringDraft, inspectAuthoringDraft, prepareAuthoringDraft } from "../agent/lib/authoring-workspace.js";
+import { createContentPlan } from "../agent/lib/content-plan.js";
 import type { ResolvedRepositoryInput } from "../agent/lib/repository-contract.js";
 import type { WorkflowState } from "../agent/lib/repository-workflow-contract.js";
 import { collectChangedFileEntries } from "../agent/lib/github-writeback.js";
@@ -33,6 +34,17 @@ const noPersist = async () => {};
 
 try {
   const asset = Buffer.from([0, 1, 2, 3, 255]).toString("base64");
+  const plan = await createContentPlan({
+    sourceDecisionReference: "docs-impact:DOCS-53",
+    taskReferences: ["DOCS-53"],
+    reader: "Developers",
+    desiredOutcome: "use the new guide",
+    contentType: "guide",
+    placement: "docs",
+    affectedSurfaces: [{ action: "create", path: "docs/new-page.mdx" }, { action: "change", path: "sidebars.js" }],
+    outline: ["Complete guide"], requiredEvidence: [], examples: [], assets: ["static/img/example.bin"], unresolvedDecisions: [],
+    validation: ["build", "diff-check"], definitionOfDone: ["The complete multi-file draft passes checks"],
+  }, state, noPersist);
   const first = await applyAuthoringDraft({ taskReferences: ["DOCS-53"], operations: [
     { kind: "write-text", path: "docs/new-page.mdx", content: "# New page\n\nA complete page.\n" },
     { kind: "write-text", path: "sidebars.js", content: "module.exports = ['docs/new-page', 'docs/related'];\n" },
@@ -44,6 +56,7 @@ try {
     { kind: "delete", path: "docs/obsolete.mdx" },
   ] }, ctx, state, noPersist);
   assert.equal(first?.baseRevision, baseRevision);
+  assert.equal(first?.contentPlanId, plan.plan.id);
   assert.equal(first?.changedFiles.length, 8);
   const inspected = await inspectAuthoringDraft({ paths: ["docs/new-page.mdx", "sidebars.js"] }, ctx, state, noPersist);
   assert.equal(inspected.files[0]?.content?.includes("complete page"), true);

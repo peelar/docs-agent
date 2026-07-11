@@ -11,6 +11,7 @@ import { normalizeRepositoryUrl } from "./repository-materialization.js";
 import {
   docsMaintenanceWorkflowResultSchema,
   authoringDraftSchema,
+  contentPlanSchema,
   repositoryMaterializationSchema,
   type WorkflowState,
 } from "./repository-workflow-contract.js";
@@ -47,6 +48,8 @@ export async function loadRepositoryWorkflowState(): Promise<WorkflowState> {
       state.lastResult === undefined
         ? undefined
         : docsMaintenanceWorkflowResultSchema.parse(state.lastResult),
+    contentPlan:
+      state.contentPlan === undefined ? undefined : contentPlanSchema.parse(state.contentPlan),
     draft: state.draft === undefined ? undefined : authoringDraftSchema.parse(state.draft),
   };
 }

@@ -294,6 +294,27 @@ global rules. Repository observations remain separate from workspace memories:
 a maintainer correction can be proposed through `memory_propose`, but neither
 the profile builder nor retrieval tool silently activates memory.
 
+## Content Planning
+
+The docs-impact decision establishes whether documentation work is warranted.
+For substantial work, `content_plan` then records what Paige intends to write:
+the reader and desired outcome, content type and placement, affected surfaces,
+outline, evidence, examples, assets, unresolved decisions, validation, and
+definition of done. The plan points back to the prior impact decision instead
+of repeating it.
+
+Content plans are living Eve session state. They carry task or docs-signal
+references, a stable id, and a revision number; an associated authoring draft
+records that id and revision. Creating or revising a ready plan returns a
+concise progress update and proceeds directly into reversible sandbox work.
+There is no planning approval gate.
+
+Missing evidence or an unresolved consequential decision marks the plan
+blocked and stops authoring before mutation. Obvious substantial operations—new
+files, coordinated surfaces, moves, copies, removals, or large replacements—are
+also rejected when no matching ready plan exists. A single localized edit to
+an existing file skips the planning artifact.
+
 ## Authoring Workspace
 
 `authoring_workspace` is the policy-aware editing surface for one complete draft
@@ -305,8 +326,9 @@ assets are valid draft surfaces. Repository-relative path validation prevents
 escape; watched and context repositories never enter this write path.
 
 The sandbox working tree keeps the draft reversible across turns. Draft state
-records the resolved base revision, task references, operation count, changed
-files, checks, complete binary-aware diff, and preparation time. Inspect reads
+records the resolved base revision, task references, associated content-plan id
+and revision when present, operation count, changed files, checks, complete
+binary-aware diff, and preparation time. Inspect reads
 the current draft, prepare runs selected repository checks and freezes the
 reviewable result for writeback, and abandon restores the sandbox checkout to
 its base without touching GitHub.

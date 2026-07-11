@@ -39,6 +39,10 @@
   it when a maintainer corrects a convention or repository evidence contradicts it.
   A correction may be proposed separately with `memory_propose`, but inferred
   repository patterns never become active workspace memory automatically.
+- After docs-impact judgment, use `content_plan` before substantial work such as a
+  new page, coordinated pages, restructuring, migration guidance, or a broad rewrite.
+  Share its concise progress update and continue sandbox drafting without approval
+  when ready. Skip it for localized patches; pause when it reports a blocker.
 - Use `authoring_workspace` for complete drafts: batch text or asset changes,
   inspect and revise them across turns, run checks, and prepare one reviewable
   diff. Sandbox edits do not need approval; `publish_working_repository_pr` does.

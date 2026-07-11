@@ -63,11 +63,54 @@ export const docsMaintenanceWorkflowResultSchema = z.object({
 export const authoringDraftSchema = z.object({
   baseRevision: z.string(),
   taskReferences: z.array(z.string()),
+  contentPlanId: z.string().optional(),
+  contentPlanRevision: z.number().int().positive().optional(),
   operationCount: z.number().int().nonnegative(),
   checks: z.array(repositoryCheckResultSchema),
   changedFiles: z.array(z.string()),
   diff: z.string(),
   preparedAt: z.string().optional(),
+});
+
+export const contentPlanSurfaceSchema = z.object({
+  action: z.enum(["create", "change", "move", "remove"]),
+  path: z.string().trim().min(1),
+  destination: z.string().trim().min(1).optional(),
+});
+
+export const contentPlanEvidenceSchema = z.object({
+  need: z.string().trim().min(1),
+  status: z.enum(["available", "missing"]),
+  source: z.string().trim().min(1).optional(),
+});
+
+export const contentPlanDecisionSchema = z.object({
+  question: z.string().trim().min(1),
+  consequential: z.boolean(),
+  resolution: z.string().trim().min(1).optional(),
+});
+
+export const contentPlanSchema = z.object({
+  id: z.string(),
+  revision: z.number().int().positive(),
+  sourceDecisionReference: z.string().trim().min(1),
+  taskReferences: z.array(z.string().trim().min(1)),
+  reader: z.string().trim().min(1),
+  desiredOutcome: z.string().trim().min(1),
+  contentType: z.string().trim().min(1),
+  placement: z.string().trim().min(1),
+  affectedSurfaces: z.array(contentPlanSurfaceSchema).min(1),
+  outline: z.array(z.string().trim().min(1)).min(1),
+  requiredEvidence: z.array(contentPlanEvidenceSchema),
+  examples: z.array(z.string().trim().min(1)),
+  assets: z.array(z.string().trim().min(1)),
+  unresolvedDecisions: z.array(contentPlanDecisionSchema),
+  validation: z.array(z.string().trim().min(1)).min(1),
+  definitionOfDone: z.array(z.string().trim().min(1)).min(1),
+  status: z.enum(["ready", "blocked"]),
+  blockers: z.array(z.string()),
+  createdAt: z.string(),
+  updatedAt: z.string(),
 });
 
 export const runDocsMaintenanceScenarioInputSchema = z.object({
@@ -94,5 +137,6 @@ export interface WorkflowState {
   materialization: DocsMaintenanceWorkflowResult["materialization"];
   actionProvenance: RepositoryActionRecord[];
   lastResult?: DocsMaintenanceWorkflowResult;
+  contentPlan?: z.infer<typeof contentPlanSchema>;
   draft?: z.infer<typeof authoringDraftSchema>;
 }

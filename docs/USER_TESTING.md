@@ -316,6 +316,29 @@ must fail visibly. Maintainer corrections may be proposed separately with
 contradiction refresh, repository rule and validation extraction, local example
 loading, traversal rejection, and visible generation failure.
 
+## Substantial-work Content Planning
+
+After a docs-impact decision recommends a new page, coordinated page set,
+restructure, migration guide, or broad replacement, call `content_plan` before
+authoring. Confirm the complete artifact identifies the reader and outcome,
+content type and placement, affected surfaces, outline, evidence, examples,
+assets, unresolved decisions, validation, and definition of done. The returned
+progress update should be concise and `continuesToDraft` should be true without
+an approval prompt when the plan is ready.
+
+Call `authoring_workspace` with the same task or docs-signal reference. Confirm
+the draft records the plan id and revision, and that a later `content_plan`
+revision remains attached across turns. A single localized change to an
+existing page should work without creating or displaying a plan.
+
+Repeat with missing evidence or an unresolved consequential product decision.
+The plan should return `continuesToDraft: false`; authoring must stop before any
+sandbox mutation. New files and other clearly substantial operations must also
+fail visibly when no matching ready plan exists. The executable
+`check-content-planning.ts` covers the small-patch skip, ready-plan continuation
+and revision, substantial-work enforcement, and blocker pause through
+`pnpm check`.
+
 ## Multi-file Authoring Workspace
 
 Use `get_docs_profile` first, then call `authoring_workspace` in `apply` mode
