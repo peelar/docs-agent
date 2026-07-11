@@ -12,8 +12,9 @@ boundary, operator shell, shared app-owned database and read-service package,
 readiness report, docs-signal queue, and complete signal detail are in place.
 The Technical Editor epic is complete. Paige now profiles the repository,
 chooses the reader-solving intervention, plans substantial work, authors complete
-multi-file drafts, and owns that work durably to the next human boundary. The
-next appetite is bounded scheduled follow-up on the shared signal service.
+multi-file drafts, and owns that work durably to the next human boundary.
+Bounded scheduled follow-up on the shared signal service is also complete. The
+next appetite is durable Chat SDK state before replacing Slack transport.
 
 The first delivery is read-only and bound to the local machine. Production
 deployment and authentication, guided setup, connector handoffs,
@@ -75,7 +76,7 @@ one coherent draft to the next human boundary.
 
 | Order | Issue | Why Later | Depends On |
 | --- | --- | --- | --- |
-| 6 | #51 Run scheduled follow-ups | Adds bounded proactive maintenance after the shared signal service exists. | #38 |
+| Complete | #51 Run scheduled follow-ups | Adds bounded proactive maintenance after the shared signal service exists. | #38 (complete) |
 | 7 | #33 Persist Chat SDK state in libSQL/Turso | Adds durable subscription and debounce state through the shared database boundary. | #38 |
 | 8 | #34 Replace Eve's native Slack channel with Chat SDK | Establishes the transport and privacy boundary needed for continued participation. | #33 |
 | 9 | #30 Keep participating after a Slack mention | Makes Paige a scoped thread participant rather than a repeatedly invoked bot. | #33, #34 |

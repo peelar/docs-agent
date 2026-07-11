@@ -316,6 +316,28 @@ must fail visibly. Maintainer corrections may be proposed separately with
 contradiction refresh, repository rule and validation extraction, local example
 loading, traversal rejection, and visible generation failure.
 
+## Scheduled Follow-up Checklist
+
+Create an existing docs signal, then call `docs_follow_up` with a UTC due time
+and short reason. Confirm the checklist is stored in the app-owned database and
+the signal's next action reflects its earliest pending follow-up. Listing and
+cancelling should update that projection without creating a second work queue.
+
+Build the agent and confirm Eve discovers `daily-docs-follow-ups` with cron
+`0 9 * * *`. In development, dispatch it once through Eve's schedule route.
+`process_due_docs_followups` should claim at most 20 items, append one due event
+to each relevant signal, and return them for the normal evidence-first workflow.
+Dispatch the same UTC occurrence again and confirm it returns the existing run
+without duplicate item events.
+
+Use `docs_follow_up` in `schedule-status` mode to inspect completed counts and
+the last failure. A processor failure must be recorded and then fail the task
+visibly. Scheduled work must never call `publish_working_repository_pr`; later
+publication still requires a user-driven approval-gated session. The executable
+`check-docs-follow-ups.ts` covers persistence, earliest due projection,
+bounded/idempotent processing, signal updates, replay, explicit UTC, and durable
+failure information through `pnpm check`.
+
 ## Substantial Owned Work
 
 Start with a captured docs signal and ask Paige to “take care of” a substantial

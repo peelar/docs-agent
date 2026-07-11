@@ -1,5 +1,7 @@
 import "server-only";
 
+export * from "./docs-follow-ups.js";
+
 export {
   DOCS_PROFILE_FORMAT_VERSION,
   cachedDocsProfileSchema,

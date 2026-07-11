@@ -304,6 +304,25 @@ abandonment. Routine reads, edits, retries, and successful checks return no
 channel update while their events and typed artifacts remain visible on the
 signal detail page. Quick questions and localized edits do not create owned work.
 
+## Scheduled Follow-ups
+
+`docs_follow_ups` stores a small checklist attached to existing docs signals:
+one UTC due time, short reason, and pending/completed/cancelled status. The
+earliest pending item is projected onto the signal's `nextActionAt`.
+
+Eve discovers `daily-docs-follow-ups` at `0 9 * * *`, explicitly UTC. Its
+task-mode prompt calls `process_due_docs_followups` once, then investigates the
+bounded result through the normal signal workflow. Each UTC-date occurrence has
+one unique `docs_follow_up_runs` record; pending-item claims are conditional, so
+replays and concurrent dispatches cannot process an item twice. A run handles at
+most 20 items.
+
+Completed and failed run state, counts, timestamps, timezone, and bounded error
+text are durable and visible through `docs_follow_up` schedule status. Due items
+append signal events and remain ordinary evidence-first docs work. The schedule
+cannot publish: task mode cannot park for approval, its prompt forbids writeback,
+and `publish_working_repository_pr` retains the existing approval gate.
+
 ## Repository Docs Profile
 
 The first real materialization of a working documentation repository performs a

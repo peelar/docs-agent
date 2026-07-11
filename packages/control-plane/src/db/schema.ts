@@ -232,6 +232,46 @@ export const docsSignalOwnedWork = sqliteTable(
   ],
 );
 
+export const docsFollowUps = sqliteTable(
+  "docs_follow_ups",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    signalId: text("signal_id").notNull().references(() => docsSignals.id, { onDelete: "cascade" }),
+    reason: text("reason").notNull(),
+    dueAt: text("due_at").notNull(),
+    status: text("status").notNull(),
+    processedOccurrence: text("processed_occurrence"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("docs_follow_ups_due_idx").on(table.workspaceId, table.status, table.dueAt),
+    index("docs_follow_ups_signal_idx").on(table.workspaceId, table.signalId),
+  ],
+);
+
+export const docsFollowUpRuns = sqliteTable(
+  "docs_follow_up_runs",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    scheduleId: text("schedule_id").notNull(),
+    occurrenceKey: text("occurrence_key").notNull(),
+    timeZone: text("time_zone").notNull(),
+    status: text("status").notNull(),
+    dueCount: integer("due_count").notNull().default(0),
+    processedCount: integer("processed_count").notNull().default(0),
+    error: text("error"),
+    startedAt: text("started_at").notNull(),
+    completedAt: text("completed_at"),
+  },
+  (table) => [
+    uniqueIndex("docs_follow_up_runs_occurrence_idx").on(table.workspaceId, table.scheduleId, table.occurrenceKey),
+    index("docs_follow_up_runs_started_idx").on(table.workspaceId, table.startedAt),
+  ],
+);
+
 export const workspaceMemoryRecords = sqliteTable(
   "workspace_knowledge_records",
   {
@@ -325,6 +365,8 @@ export const workspaceMemoryEvents = sqliteTable(
 
 export const schema = {
   docsProfiles,
+  docsFollowUpRuns,
+  docsFollowUps,
   docsSignalArtifacts,
   docsSignalEvents,
   docsSignalLinks,
