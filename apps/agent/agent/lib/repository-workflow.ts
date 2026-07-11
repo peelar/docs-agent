@@ -1,7 +1,6 @@
 import { createHash } from "node:crypto";
 
 import { defineState } from "eve/context";
-import type { SandboxCommandResult } from "eve/sandbox";
 import type { ToolContext } from "eve/tools";
 import { z } from "zod";
 
@@ -22,7 +21,24 @@ import {
   type ResolvedWorkingDocumentationRepository,
   type WorkingDocumentationRepository,
 } from "./repository-contract.js";
+import {
+  assertRepositoryMaterializationAllowed,
+  cloneRepositoryCheckout,
+  quoteShellArgument as sh,
+  recordRepositoryAction,
+  RepositoryPolicyError,
+  repositoryActionRecordSchema,
+  resolveRepositoryCommit,
+  summarizeCommandFailure,
+  type RepositoryActionRecord,
+  workingRepositoryMaterializationPolicy,
+} from "./repository-materialization.js";
 import { readSetupState, requireSetupReady, saveWorkingRepositorySetup } from "./setup-state.js";
+
+export {
+  repositoryActionRecordSchema,
+  type RepositoryActionRecord,
+} from "./repository-materialization.js";
 
 export const repositoryCheckNameSchema = z.enum([
   "install",
@@ -33,15 +49,6 @@ export const repositoryCheckNameSchema = z.enum([
 ]);
 
 export const impactDecisionSchema = legacyImpactDecisionSchema;
-
-export const repositoryActionRecordSchema = z.object({
-  action: z.string(),
-  target: z.string().optional(),
-  commandCategory: z.string().optional(),
-  provenanceLabel: z.string(),
-  status: z.enum(["success", "failure"]),
-  reason: z.string().optional(),
-});
 
 export const repositoryCheckResultSchema = z.object({
   name: repositoryCheckNameSchema,
@@ -95,7 +102,6 @@ export const runDocsMaintenanceScenarioInputSchema = z.object({
 });
 
 export type RepositoryCheckName = z.infer<typeof repositoryCheckNameSchema>;
-export type RepositoryActionRecord = z.infer<typeof repositoryActionRecordSchema>;
 export type RepositoryCheckResult = z.infer<typeof repositoryCheckResultSchema>;
 export type DocumentationImpactReport = z.infer<typeof documentationImpactReportSchema>;
 export type DocsMaintenanceWorkflowResult = z.infer<typeof docsMaintenanceWorkflowResultSchema>;
@@ -152,13 +158,6 @@ const configuredRepositoryInputState = defineState<RepositoryInput | null>(
   "docs-agent.configured-repository-input",
   () => null,
 );
-
-class RepositoryPolicyError extends Error {
-  constructor(message: string) {
-    super(message);
-    this.name = "RepositoryPolicyError";
-  }
-}
 
 export async function runDocsMaintenanceScenario(
   input: RunDocsMaintenanceScenarioInput,
@@ -269,9 +268,7 @@ export async function materializeWorkingRepository(
   actionProvenance: RepositoryActionRecord[] = [],
 ): Promise<DocsMaintenanceWorkflowResult["materialization"]> {
   const repository = repositoryInput.workingDocumentationRepository;
-
-  assertActionAllowed(repository, "clone");
-  assertSandboxPath(repository.sandboxPath);
+  assertRepositoryMaterializationAllowed(workingRepositoryMaterializationPolicy(repository));
 
   const checkout = await inspectWorkingRepositoryCheckout(ctx, repository);
   if (checkout === "matching") {
@@ -314,8 +311,7 @@ export async function validateWorkingRepositorySetup(
 ): Promise<RepositoryActionRecord[]> {
   const parsed = repositoryInputSchema.parse(repositoryInput);
   const repository = parsed.workingDocumentationRepository;
-  assertActionAllowed(repository, "clone");
-  assertSandboxPath(repository.sandboxPath);
+  assertRepositoryMaterializationAllowed(workingRepositoryMaterializationPolicy(repository));
 
   const slug = parseGitHubRepositoryUrl(repository.source.url);
   const token = await resolveRepositoryValidationToken(slug);
@@ -872,55 +868,11 @@ async function cloneWorkingRepository(
   repository: WorkingDocumentationRepository,
   actionProvenance: RepositoryActionRecord[],
 ): Promise<void> {
-  const sandbox = await ctx.getSandbox();
-  await sandbox.removePath({
-    path: repository.sandboxPath,
-    recursive: true,
-    force: true,
-    abortSignal: ctx.abortSignal,
-  });
-
-  const cloneCommand = [
-    "git",
-    "clone",
-    "--depth=1",
-    "--branch",
-    sh(repository.ref),
-    sh(repository.source.url),
-    sh(repository.sandboxPath),
-  ].join(" ");
-
-  let clone = await sandbox.run({ command: cloneCommand, abortSignal: ctx.abortSignal });
-
-  if (clone.exitCode !== 0) {
-    await sandbox.removePath({
-      path: repository.sandboxPath,
-      recursive: true,
-      force: true,
-      abortSignal: ctx.abortSignal,
-    });
-    const fallbackCommand = [
-      "git",
-      "clone",
-      sh(repository.source.url),
-      sh(repository.sandboxPath),
-      "&&",
-      "git",
-      "-C",
-      sh(repository.sandboxPath),
-      "checkout",
-      sh(repository.ref),
-    ].join(" ");
-    clone = await sandbox.run({ command: fallbackCommand, abortSignal: ctx.abortSignal });
-  }
-
-  if (clone.exitCode !== 0) {
-    const reason = summarizeCommandFailure(clone);
-    actionProvenance.push(recordAction(repository, "clone", "failure", { reason }));
-    throw new Error(`Failed to clone working documentation repository: ${reason}`);
-  }
-
-  actionProvenance.push(recordAction(repository, "clone", "success", { target: repository.sandboxPath }));
+  await cloneRepositoryCheckout(
+    ctx,
+    workingRepositoryMaterializationPolicy(repository),
+    actionProvenance,
+  );
 }
 
 async function resolveMaterialization(
@@ -939,16 +891,10 @@ async function resolveMaterialization(
     throw new Error(reason);
   }
 
-  const resolvedCommitResult = await sandbox.run({
-    command: `git -C ${sh(repository.sandboxPath)} rev-parse HEAD`,
-    abortSignal: ctx.abortSignal,
-  });
-
   return {
     repositoryUrl: repository.source.url,
     requestedRef: repository.ref,
-    resolvedCommit:
-      resolvedCommitResult.exitCode === 0 ? resolvedCommitResult.stdout.trim() : undefined,
+    resolvedCommit: await resolveRepositoryCommit(ctx, repository.sandboxPath),
     docsRoot: repository.docsRoot,
     sandboxPath: repository.sandboxPath,
     status: "materialized" as const,
@@ -1391,12 +1337,6 @@ function assertActionAllowed(
   }
 }
 
-function assertSandboxPath(path: string): void {
-  if (!path.startsWith("/workspace/") || path.split("/").includes("..")) {
-    throw new RepositoryPolicyError(`Sandbox path must stay under /workspace: ${path}`);
-  }
-}
-
 function resolveRepositoryPath(repository: WorkingDocumentationRepository, path: string): string {
   if (path.trim() === "" || path.startsWith("/") || path.includes("\\") || path.includes("\0")) {
     throw new RepositoryPolicyError(`Use a repository-relative path: ${path}`);
@@ -1662,25 +1602,10 @@ function recordAction(
   status: RepositoryActionRecord["status"],
   details: Omit<RepositoryActionRecord, "action" | "status" | "provenanceLabel"> = {},
 ): RepositoryActionRecord {
-  return {
-    action,
-    provenanceLabel: repository.provenanceLabel,
-    status,
-    ...details,
-  };
-}
-
-function summarizeCommandFailure(result: SandboxCommandResult): string {
-  const stderr = result.stderr.trim();
-  const stdout = result.stdout.trim();
-  return truncate(stderr || stdout || `Command exited with ${result.exitCode}.`, 1_000);
+  return recordRepositoryAction(repository, action, status, details);
 }
 
 function truncate(value: string, maxLength: number): string {
   if (value.length <= maxLength) return value;
   return `${value.slice(0, maxLength - 20)}\n...[truncated]`;
-}
-
-function sh(value: string): string {
-  return `'${value.replaceAll("'", "'\\''")}'`;
 }

@@ -1,4 +1,3 @@
-import type { SandboxCommandResult } from "eve/sandbox";
 import type { ToolContext } from "eve/tools";
 import { z } from "zod";
 
@@ -16,10 +15,18 @@ import {
   type RepositoryActionRecord,
 } from "./repository-workflow.js";
 import {
-  WORKING_REPOSITORY_SANDBOX_NETWORK_ALLOWLIST,
   type WatchedRepository,
   type WorkingDocumentationRepository,
 } from "./repository-contract.js";
+import {
+  cloneRepositoryCheckout,
+  quoteShellArgument as sh,
+  recordRepositoryAction,
+  resolveRepositoryCommit,
+  summarizeCommandFailure,
+  type WatchedRepositoryCheckoutAccess,
+  watchedRepositoryMaterializationPolicy,
+} from "./repository-materialization.js";
 import { requireSetupReady, resolveGitHubConnector } from "./setup-state.js";
 
 const watchedRepositoryMaterializationSchema = z.object({
@@ -105,11 +112,7 @@ type GitHubRelease = {
   published_at: string | null;
 };
 
-type GitHubReleaseAccess = {
-  mode: "github-app" | "public-github";
-  token?: string;
-  reason?: string;
-};
+type GitHubReleaseAccess = WatchedRepositoryCheckoutAccess & { reason?: string };
 
 type GitHubReleaseLookup = {
   access: GitHubReleaseAccess;
@@ -236,7 +239,7 @@ async function fetchRecentReleases(
     actionProvenance,
   });
   const result = await githubApiRequest<GitHubRelease[]>({
-    token: access.token,
+    token: access.mode === "github-app" ? access.token : undefined,
     path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(
       slug.repo,
     )}/releases?per_page=${limit}`,
@@ -335,116 +338,18 @@ async function materializeWatchedRepository(
   actionProvenance: RepositoryActionRecord[],
   access: GitHubReleaseAccess,
 ): Promise<WatchedRepositoryMaterialization> {
-  assertWatchedActionAllowed(repository, "clone");
-  assertWatchedSandboxPath(repository.sandboxPath);
-
-  const sandbox = await ctx.getSandbox();
-  if (access.mode === "github-app" && access.token !== undefined) {
-    await brokerGitHubTokenForSandbox(ctx, access.token);
-    actionProvenance.push(
-      recordWatchedAction(repository, "broker-github-token", "success", {
-        target: "github.com",
-        reason: "Using GitHub App access for watched repository materialization.",
-      }),
-    );
-  } else {
-    await usePublicGitHubForSandbox(ctx);
-  }
-
-  await sandbox.removePath({
-    path: repository.sandboxPath,
-    recursive: true,
-    force: true,
-    abortSignal: ctx.abortSignal,
-  });
-
-  const cloneCommand = [
-    "git",
-    "clone",
-    "--depth=1",
-    "--branch",
-    sh(ref),
-    sh(repository.source.url),
-    sh(repository.sandboxPath),
-  ].join(" ");
-
-  let clone = await sandbox.run({ command: cloneCommand, abortSignal: ctx.abortSignal });
-
-  if (clone.exitCode !== 0) {
-    await sandbox.removePath({
-      path: repository.sandboxPath,
-      recursive: true,
-      force: true,
-      abortSignal: ctx.abortSignal,
-    });
-    const fallbackCommand = [
-      "git",
-      "clone",
-      sh(repository.source.url),
-      sh(repository.sandboxPath),
-      "&&",
-      "git",
-      "-C",
-      sh(repository.sandboxPath),
-      "checkout",
-      sh(ref),
-    ].join(" ");
-    clone = await sandbox.run({ command: fallbackCommand, abortSignal: ctx.abortSignal });
-  }
-
-  if (clone.exitCode !== 0) {
-    const reason = summarizeCommandFailure(clone);
-    actionProvenance.push(
-      recordWatchedAction(repository, "clone", "failure", {
-        target: `${repository.source.url}#${ref}`,
-        reason,
-      }),
-    );
-    throw new Error(`Failed to clone watched repository ${repository.id}: ${reason}`);
-  }
-
-  const resolvedCommit = await sandbox.run({
-    command: `git -C ${sh(repository.sandboxPath)} rev-parse HEAD`,
-    abortSignal: ctx.abortSignal,
-  });
-  actionProvenance.push(
-    recordWatchedAction(repository, "clone", "success", {
-      target: `${repository.sandboxPath}#${ref}`,
-    }),
-  );
+  const policy = watchedRepositoryMaterializationPolicy(repository, ref, access);
+  await cloneRepositoryCheckout(ctx, policy, actionProvenance);
+  const resolvedCommit = await resolveRepositoryCommit(ctx, repository.sandboxPath);
 
   return {
     repositoryId: repository.id,
     repositoryUrl: repository.source.url,
     requestedRef: ref,
-    resolvedCommit: resolvedCommit.exitCode === 0 ? resolvedCommit.stdout.trim() : undefined,
+    resolvedCommit,
     sandboxPath: repository.sandboxPath,
     status: "materialized",
   };
-}
-
-async function brokerGitHubTokenForSandbox(ctx: ToolContext, token: string): Promise<void> {
-  const sandbox = await ctx.getSandbox();
-  const authorization = `Basic ${Buffer.from(`x-access-token:${token}`).toString("base64")}`;
-  await sandbox.setNetworkPolicy({
-    allow: {
-      "github.com": [{ transform: [{ headers: { authorization } }] }],
-      "*": [],
-    },
-    subnets: {
-      deny: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16"],
-    },
-  });
-}
-
-async function usePublicGitHubForSandbox(ctx: ToolContext): Promise<void> {
-  const sandbox = await ctx.getSandbox();
-  await sandbox.setNetworkPolicy({
-    allow: [...WORKING_REPOSITORY_SANDBOX_NETWORK_ALLOWLIST],
-    subnets: {
-      deny: ["10.0.0.0/8", "172.16.0.0/12", "192.168.0.0/16", "169.254.0.0/16"],
-    },
-  });
 }
 
 async function collectWatchedSourceEvidence(
@@ -660,38 +565,13 @@ function assertWatchedActionAllowed(
   }
 }
 
-function assertWatchedSandboxPath(path: string): void {
-  if (
-    !path.startsWith("/workspace/watched/") ||
-    path.includes("\\") ||
-    path.split("/").includes("..")
-  ) {
-    throw new Error(`Watched repository sandbox path must stay under /workspace/watched: ${path}`);
-  }
-}
-
 function recordWatchedAction(
   repository: WatchedRepository,
   action: string,
   status: RepositoryActionRecord["status"],
   details: Omit<RepositoryActionRecord, "action" | "status" | "provenanceLabel"> = {},
 ): RepositoryActionRecord {
-  return {
-    action,
-    provenanceLabel: repository.provenanceLabel,
-    status,
-    ...details,
-  };
-}
-
-function summarizeCommandFailure(result: SandboxCommandResult): string {
-  const stderr = result.stderr.trim();
-  const stdout = result.stdout.trim();
-  return truncate(stderr || stdout || `Command exited with ${result.exitCode}.`, 1_000);
-}
-
-function sh(value: string): string {
-  return `'${value.replace(/'/g, "'\\''")}'`;
+  return recordRepositoryAction(repository, action, status, details);
 }
 
 function truncate(value: string, maxLength: number): string {
