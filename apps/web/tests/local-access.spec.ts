@@ -18,14 +18,3 @@ test("the local access policy accepts only loopback hostnames", () => {
   expect(isLoopbackHostHeader("operator.example.com:3100")).toBe(false);
   expect(isLoopbackHostHeader(null)).toBe(false);
 });
-
-test("the web server rejects a non-loopback host", async ({ request }) => {
-  const response = await request.get("/status", {
-    headers: { host: "operator.example.com" },
-    maxRedirects: 0,
-  });
-
-  expect(response.status()).toBe(403);
-  expect(response.headers()["cache-control"]).toContain("no-store");
-  await expect(response.json()).resolves.toMatchObject({ code: "local_access_only" });
-});

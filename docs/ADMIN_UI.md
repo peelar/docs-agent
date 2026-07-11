@@ -14,10 +14,9 @@ itself. It does not replace them as the place where documentation work starts.
 
 ## Product Boundary
 
-The first version is for one local operator and one configured workspace. It is
-bound to the local machine and is not a production deployment. Remote access,
-authentication, multi-workspace switching, invitations, and roles are later
-concerns.
+The control plane is for one operator workspace. Local development is bound to
+the local machine. A remote deployment uses an allowlisted GitHub identity;
+multi-workspace switching, invitations, and roles remain later concerns.
 
 The UI is an application surface, not a database editor. It uses the same typed
 setup, signal, memory, and workflow services as the agent. Mutations must keep
@@ -60,9 +59,9 @@ installation ready -> channel reachable -> workspace ready -> first useful signa
 ### Installation
 
 Installation makes the agent reachable. For the local-first delivery it includes
-database configuration, Vercel Connect clients, provider app installation, and
-webhook or trigger attachment. Web deployment and operator authentication are a
-later slice.
+database configuration, Vercel Connect clients, provider app installation,
+webhook or trigger attachment, and an independently deployed authenticated web
+app.
 
 App-scoped Slack, Linear, and GitHub credentials must exist before those
 surfaces can wake or authorize the agent. This cannot be deferred to the first
@@ -183,12 +182,35 @@ states are explicit.
 The first queue and detail slices are read-only. Operator mutations can follow
 once the read model proves the right interaction shape.
 
+### 7. Production operator access
+
+Tracked by [#37](https://github.com/peelar/docs-agent/issues/37).
+
+The independently deployed Next.js app uses Better Auth's GitHub provider and
+an eight-hour stateless JWT cookie. The cookie is secure, HTTP-only, same-site,
+and scoped to the web origin. The callback accepts only normalized logins in the
+server-only allowlist. Every protected page and operation checks that allowlist
+again, so removing a login invalidates an existing session without waiting for
+expiry.
+
+The app-owned principal is `docs-agent:github:<github-account-id>`, with the
+verified GitHub account id, normalized login, and display name available for
+later audit events. Provider-owned identity cannot be updated, linked, or
+unlinked through browser endpoints. There is no email/password or public signup
+path. Missing production configuration returns an unavailable response rather
+than anonymous access.
+
+Web authentication does not authenticate Eve. When an operator action later
+needs an Eve route, the web server must validate its own session, mint or obtain
+a short-lived audience-bound server credential, and call Eve server-to-server.
+The Eve channel must verify that credential with a reviewed `AuthFn` or JWT
+verifier and map the same app-owned principal into `SessionAuthContext`. The
+browser cookie must never be reused across origins.
+
 ## Later Backlog
 
 The following work stays below the first delivery chain:
 
-- production deployment and single-workspace authentication
-  ([#37](https://github.com/peelar/docs-agent/issues/37));
 - guided workspace setup from the readiness screen ([#42](https://github.com/peelar/docs-agent/issues/42));
 - connector installation handoffs and verification ([#43](https://github.com/peelar/docs-agent/issues/43));
 - workspace-memory proposal, freshness, promotion, and retirement review ([#44](https://github.com/peelar/docs-agent/issues/44));
@@ -214,8 +236,7 @@ folded into the web foundation.
 ## Non-Goals For The First Delivery
 
 - Multi-tenant accounts, invitations, or roles.
-- Production deployment or remote access to the unauthenticated local operator
-  app.
+- Remote access without the GitHub allowlist and secure web session.
 - Replacing Slack or Linear as the source of docs signals.
 - A raw SQL, table, environment-variable, or workflow-state editor.
 - Building a complete tracing backend.

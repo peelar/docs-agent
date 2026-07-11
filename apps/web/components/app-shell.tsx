@@ -4,9 +4,17 @@ import type { ReactNode } from "react";
 
 import { Badge } from "@/components/ui/badge";
 import { Separator } from "@/components/ui/separator";
+import type { OperatorPrincipal } from "@/lib/operator";
 import { PrimaryNav } from "./primary-nav";
+import { OperatorMenu } from "./operator-menu";
 
-export function AppShell({ children }: { children: ReactNode }) {
+export function AppShell({
+  children,
+  operator,
+}: {
+  children: ReactNode;
+  operator: OperatorPrincipal;
+}) {
   return (
     <div
       className="grid min-h-svh grid-cols-1 lg:grid-cols-[17.5rem_minmax(0,1fr)]"
@@ -44,10 +52,10 @@ export function AppShell({ children }: { children: ReactNode }) {
 
         <div className="mt-auto hidden rounded-xl border border-foreground/15 bg-background/60 p-4 lg:grid lg:gap-1.5">
           <span className="font-mono text-[0.64rem] font-bold tracking-[0.1em] text-muted-foreground uppercase">Workspace</span>
-          <p className="font-heading text-lg font-semibold">Local operator</p>
+          <p className="font-heading text-lg font-semibold">{operator.displayName}</p>
           <div className="flex items-center gap-2 text-xs text-muted-foreground">
             <span className="size-2 rounded-full bg-[#9aaa79] shadow-[0_0_0_3px_rgba(154,170,121,0.2)]" />
-            Environment-backed
+            @{operator.githubLogin}
           </div>
         </div>
       </aside>
@@ -58,10 +66,17 @@ export function AppShell({ children }: { children: ReactNode }) {
             <p className="font-mono text-[0.68rem] font-bold tracking-[0.12em] text-muted-foreground uppercase">Control plane</p>
             <strong className="font-heading font-semibold max-sm:hidden">Documentation operations</strong>
           </div>
-          <Badge className="gap-2 border-foreground/15 bg-card text-foreground" variant="outline">
-            <span className="size-2 rounded-full bg-[#9aaa79] shadow-[0_0_0_3px_rgba(154,170,121,0.2)]" />
-            Local only
-          </Badge>
+          <div className="flex items-center gap-3">
+            <Badge className="gap-2 border-foreground/15 bg-card text-foreground" variant="outline">
+              <span className="size-2 rounded-full bg-[#9aaa79] shadow-[0_0_0_3px_rgba(154,170,121,0.2)]" />
+              {operator.authMethod === "local" ? "Local only" : "Authenticated"}
+            </Badge>
+            <OperatorMenu
+              canSignOut={operator.authMethod !== "local"}
+              displayName={operator.displayName}
+              githubLogin={operator.githubLogin}
+            />
+          </div>
         </header>
 
         <main

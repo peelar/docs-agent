@@ -16,8 +16,8 @@ multi-file drafts, and owns that work durably to the next human boundary.
 Bounded scheduled follow-up and durable Chat SDK state on the shared database
 service, the privacy-filtered Chat SDK Slack transport, and scoped continued
 thread participation, and bounded user-authorized Slack context retrieval are
-also complete. The next appetite is authenticated production deployment of the
-operator app.
+also complete. The authenticated operator implementation is in place; its real
+GitHub OAuth deployment smoke remains required before #37 is complete.
 
 The first delivery is read-only and bound to the local machine. Production
 deployment and authentication, guided setup, connector handoffs,

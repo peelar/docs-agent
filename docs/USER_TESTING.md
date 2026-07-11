@@ -209,6 +209,38 @@ look successful. The page may name server-side variable keys and supported
 routes, but it must never render credential values, tokens, or raw connector
 responses.
 
+## Operator GitHub OAuth Smoke
+
+Run this scenario against a preview or production-like `apps/web` deployment
+before closing [#37](https://github.com/peelar/docs-agent/issues/37). Test-only
+auth does not satisfy this smoke.
+
+1. Configure the deployment with `DOCS_AGENT_OPERATOR_ACCESS=github`, a fresh
+   `BETTER_AUTH_SECRET`, its public `BETTER_AUTH_URL`, GitHub OAuth credentials,
+   and a server-only `DOCS_AGENT_APPROVED_GITHUB_LOGINS` containing the tester.
+   Register `<BETTER_AUTH_URL>/api/auth/callback/github` in the GitHub OAuth app.
+2. Open a protected route in a clean browser profile. Confirm it redirects to
+   `/sign-in`, then to GitHub with an opaque state value. Complete GitHub consent
+   and confirm the callback returns to the control plane.
+3. Confirm `/status` and `/signals` navigate without another login, a reload
+   restores the session, and `/api/operator/whoami` returns the stable
+   `docs-agent:github:<account-id>` principal and normalized login. Inspect the
+   browser storage view: auth cookies are secure, HTTP-only, same-site, and no
+   provider token is readable from page code.
+4. Remove the tester from `DOCS_AGENT_APPROVED_GITHUB_LOGINS` and redeploy or
+   restart. Without clearing cookies, confirm a protected page and
+   `/api/operator/whoami` both return forbidden. Restore the allowlist.
+5. Sign out and confirm the protected API returns unauthorized and a protected
+   page returns to `/sign-in`. Complete one more login, wait for or deliberately
+   issue an expired test deployment session, and confirm the same recovery.
+6. Record the deployment URL, GitHub login used, UTC time, and pass/fail evidence
+   in the issue. Do not record the Better Auth secret, OAuth client secret,
+   cookies, authorization code, access token, or raw callback URL.
+
+Keep the Eve deployment on its own origin during this scenario. The web cookie
+must not authorize Eve routes; a future operator-to-Eve action needs the
+server-to-server `AuthFn` bridge described in `docs/ADMIN_UI.md`.
+
 ### Slack Chat SDK End-to-End
 
 Use a non-production Slack channel and the installed `slack/docs-agent`

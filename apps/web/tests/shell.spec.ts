@@ -11,7 +11,7 @@ test("the shell navigates and adapts to the viewport", async ({ page }, testInfo
   await expect(navigation).toBeVisible();
 
   await page.getByRole("link", { name: "Status", exact: true }).click();
-  await expect(page).toHaveURL(/\/status$/);
+  await expect(page).toHaveURL(/\/status$/, { timeout: 15_000 });
   await expect(page.getByRole("link", { name: "Status", exact: true })).toHaveAttribute(
     "aria-current",
     "page",

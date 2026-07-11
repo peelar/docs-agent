@@ -56,6 +56,13 @@ publishing remains a separate explicit approval through
 
 ## Runtime Boundaries
 
+The operator app has a separate inbound identity boundary. Better Auth verifies
+the GitHub callback and web cookie, then maps the approved account to an
+app-owned operator principal. That cookie authorizes only Next.js pages and
+server operations. A future cross-origin call into Eve must use a short-lived
+server credential and an Eve route `AuthFn`; it cannot rely on the browser
+cookie or silently inherit web authentication.
+
 | Boundary | Owns | Current implementation | Must not do |
 | --- | --- | --- | --- |
 | Slack thread presence | Admit only invited thread replies and preserve conversational continuity. | Separate `slack_thread_presence` state plus Chat SDK subscriptions, one-second burst debounce, silent observer turns, dismissal, signal-resolution cleanup, and seven-day inactivity expiry. | Persist or model-process unenrolled channel traffic, create signals from ordinary chatter, or widen participation beyond the invited thread. |

@@ -30,6 +30,7 @@ function start(label, args) {
     env: {
       ...process.env,
       DOCS_AGENT_EVE_URL: "http://127.0.0.1:2000",
+      DOCS_AGENT_OPERATOR_ACCESS: "local",
       DOCS_AGENT_READINESS_TEST_SCENARIOS: "",
       FORCE_COLOR: "0",
       NO_COLOR: "1",

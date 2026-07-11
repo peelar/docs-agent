@@ -36,7 +36,7 @@ Slack · Linear · Releases · Repositories
 | Concern | Implementation |
 | --- | --- |
 | Agent runtime | [Eve](https://eve.dev) |
-| Operator app | Local-only Next.js control plane; production deployment is deferred |
+| Operator app | Next.js control plane with explicit local access or allowlisted GitHub authentication |
 | Workspace | pnpm and Turborepo with `apps/agent` and `apps/web` |
 | Team context | Explicit Slack mentions and Linear Agent Sessions |
 | Repository evidence | GitHub working repository plus optional read-only watched repositories |
@@ -92,17 +92,29 @@ partial schema and never apply migrations as a side effect.
 ## Deploy On Vercel
 
 The repository root owns workspace orchestration and is not a deployable app.
-The current deployed surface is the Eve app:
+Create two projects from this repository:
 
 - set the agent project's Root Directory to `apps/agent`; it owns Eve routes,
   channels, tools, sandboxes, workflow state, and agent runtime variables.
+- set the operator project's Root Directory to `apps/web`; it owns authenticated
+  pages and server-side control-plane reads. Run the committed database
+  migrations before either app uses a new schema.
 
-The web app is intentionally local-only for the first control-plane delivery.
-`pnpm dev:web` binds it to `127.0.0.1`, and server-side environment such as the
-database URL is reported as readiness state rather than used as browser
-authentication. Do not deploy or expose it remotely before
-[production authentication issue #37](https://github.com/peelar/docs-agent/issues/37)
-lands.
+The operator deployment requires `DOCS_AGENT_OPERATOR_ACCESS=github`,
+`BETTER_AUTH_SECRET`, `BETTER_AUTH_URL`, `GITHUB_CLIENT_ID`,
+`GITHUB_CLIENT_SECRET`, and the server-only comma-separated
+`DOCS_AGENT_APPROVED_GITHUB_LOGINS`. Set `BETTER_AUTH_URL` to the operator
+deployment origin and register
+`<BETTER_AUTH_URL>/api/auth/callback/github` as the GitHub OAuth callback. Give
+the web project the same `DOCS_AGENT_DATABASE_URL` and, when applicable,
+`DOCS_AGENT_DATABASE_AUTH_TOKEN` as the agent project. Missing or invalid auth
+configuration leaves protected access unavailable.
+
+`pnpm dev:web` remains the explicit local path. It binds to `127.0.0.1` and
+selects local operator access; local and test modes are rejected on a Vercel
+production deployment. The GitHub session cookie belongs only to the web
+origin. It is not an Eve credential and must not be forwarded to the separately
+deployed runtime.
 
 ## Connect Team Context
 

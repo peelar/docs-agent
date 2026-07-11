@@ -5,13 +5,14 @@
   "scripts": {
     "build": "pnpm --filter @docs-agent/control-plane build && next build",
     "check": "pnpm typecheck && pnpm test",
-    "dev": "next dev --hostname 127.0.0.1",
+    "dev": "DOCS_AGENT_OPERATOR_ACCESS=local next dev --hostname 127.0.0.1",
     "start": "next start --hostname 127.0.0.1",
     "test": "pnpm build && playwright test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@docs-agent/control-plane": "workspace:*",
+    "better-auth": "1.6.23",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "lucide-react": "^1.24.0",
