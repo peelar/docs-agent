@@ -24,7 +24,7 @@ for (const boundary of [
   "Signal intake",
   "Decision and triage",
   "Current-docs verification",
-  "Patch preparation",
+  "Draft authoring",
   "Writeback",
 ]) {
   assert.match(workflows, new RegExp(`\\| ${boundary} \\|`));
@@ -34,6 +34,7 @@ for (const tool of [
   "create_docs_signal",
   "scan_watched_repositories",
   "run_docs_maintenance_scenario",
+  "authoring_workspace",
   "publish_working_repository_pr",
 ]) {
   assert.equal(workflows.includes(`\`${tool}\``), true);

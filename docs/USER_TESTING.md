@@ -315,3 +315,32 @@ must fail visibly. Maintainer corrections may be proposed separately with
 `pnpm check` covers cache identity, reuse, revision/source invalidation, expiry,
 contradiction refresh, repository rule and validation extraction, local example
 loading, traversal rejection, and visible generation failure.
+
+## Multi-file Authoring Workspace
+
+Use `get_docs_profile` first, then call `authoring_workspace` in `apply` mode
+with one coherent operation batch. The supported operations write complete text
+files, add base64 binary assets, copy, move, and delete repository-relative
+files. Exercise at least one file outside `docsRoot`—for example navigation or
+configuration—to confirm the authority boundary is the complete working
+repository. `../` traversal and absolute paths must fail.
+
+Call `inspect` in a later turn to review the retained changed-file list, full
+binary-aware diff, and selected text files. Call `prepare` with the repository
+checks indicated by the docs profile. The prepared draft must retain its base
+revision, task references, operation count, check results, and complete diff.
+A changed local or remote base must stop preparation or publication visibly and
+require re-materialization.
+
+Use `abandon` to restore the sandbox working tree without changing the source
+repository. Sandbox authoring requires no approval. Only
+`publish_working_repository_pr` may create a branch and draft PR, and it remains
+always approval-gated. Approved writeback supports text and binary additions or
+modifications, deletions, and moves/renames as one tree; an existing matching
+branch and PR are returned rather than published twice.
+
+The executable `check-authoring-workspace.ts` scenario creates a complete page,
+updates navigation and related content, adds a binary asset, copies, moves, and
+deletes files, inspects the draft across calls, runs repository build and diff
+checks, proves stale-base and traversal failures, verifies publish-tree entries,
+and abandons back to a clean checkout. It runs through `pnpm check`.

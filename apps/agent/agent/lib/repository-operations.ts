@@ -106,6 +106,74 @@ export async function replaceRepositoryText(
   actionProvenance.push(recordAction(repository, "patch", "success", { target: path }));
 }
 
+export async function writeRepositoryText(
+  ctx: ToolContext,
+  repository: ResolvedWorkingDocumentationRepository,
+  path: string,
+  content: string,
+  actionProvenance: RepositoryActionRecord[],
+): Promise<void> {
+  assertActionAllowed(repository, "patch");
+  const absolutePath = resolveRepositoryPath(repository, path);
+  await ensureParentDirectory(ctx, repository, path);
+  const sandbox = await ctx.getSandbox();
+  await sandbox.writeTextFile({ path: absolutePath, content, abortSignal: ctx.abortSignal });
+  await markIntentToAdd(ctx, repository, path);
+  actionProvenance.push(recordAction(repository, "patch", "success", { target: path }));
+}
+
+export async function writeRepositoryBinary(
+  ctx: ToolContext,
+  repository: ResolvedWorkingDocumentationRepository,
+  path: string,
+  contentBase64: string,
+  actionProvenance: RepositoryActionRecord[],
+): Promise<void> {
+  assertActionAllowed(repository, "patch");
+  resolveRepositoryPath(repository, path);
+  await ensureParentDirectory(ctx, repository, path);
+  const sandbox = await ctx.getSandbox();
+  const result = await sandbox.run({
+    command: `node -e ${sh("require('node:fs').writeFileSync(process.argv[1], Buffer.from(process.argv[2], 'base64'))")} ${sh(path)} ${sh(contentBase64)}`,
+    workingDirectory: repository.sandboxPath,
+    abortSignal: ctx.abortSignal,
+  });
+  if (result.exitCode !== 0) throw new Error(`Binary write failed: ${summarizeCommandFailure(result)}`);
+  await markIntentToAdd(ctx, repository, path);
+  actionProvenance.push(recordAction(repository, "patch", "success", { target: path }));
+}
+
+export async function moveRepositoryFile(ctx: ToolContext, repository: ResolvedWorkingDocumentationRepository, from: string, to: string, actionProvenance: RepositoryActionRecord[]): Promise<void> {
+  await mutateRepositoryPath(ctx, repository, "mv", from, to);
+  const sandbox = await ctx.getSandbox();
+  await sandbox.run({ command: `git reset -- ${sh(from)}`, workingDirectory: repository.sandboxPath, abortSignal: ctx.abortSignal });
+  await markIntentToAdd(ctx, repository, to);
+  actionProvenance.push(recordAction(repository, "patch", "success", { target: `${from} -> ${to}` }));
+}
+
+export async function copyRepositoryFile(ctx: ToolContext, repository: ResolvedWorkingDocumentationRepository, from: string, to: string, actionProvenance: RepositoryActionRecord[]): Promise<void> {
+  await mutateRepositoryPath(ctx, repository, "cp", from, to);
+  await markIntentToAdd(ctx, repository, to);
+  actionProvenance.push(recordAction(repository, "patch", "success", { target: `${from} -> ${to}` }));
+}
+
+export async function deleteRepositoryFile(ctx: ToolContext, repository: ResolvedWorkingDocumentationRepository, path: string, actionProvenance: RepositoryActionRecord[]): Promise<void> {
+  assertActionAllowed(repository, "patch");
+  resolveRepositoryPath(repository, path);
+  const sandbox = await ctx.getSandbox();
+  const result = await sandbox.run({ command: `rm -f -- ${sh(path)}`, workingDirectory: repository.sandboxPath, abortSignal: ctx.abortSignal });
+  if (result.exitCode !== 0) throw new Error(`Delete failed: ${summarizeCommandFailure(result)}`);
+  actionProvenance.push(recordAction(repository, "patch", "success", { target: path }));
+}
+
+export async function resetRepositoryDraft(ctx: ToolContext, repository: ResolvedWorkingDocumentationRepository, actionProvenance: RepositoryActionRecord[]): Promise<void> {
+  assertActionAllowed(repository, "patch");
+  const sandbox = await ctx.getSandbox();
+  const result = await sandbox.run({ command: "git reset --mixed HEAD -- && git restore --source=HEAD --staged --worktree -- . && git clean -fd --", workingDirectory: repository.sandboxPath, abortSignal: ctx.abortSignal });
+  if (result.exitCode !== 0) throw new Error(`Draft reset failed: ${summarizeCommandFailure(result)}`);
+  actionProvenance.push(recordAction(repository, "patch", "success", { reason: "Authoring draft reset to its base revision." }));
+}
+
 export async function runRepositoryCheck(
   ctx: ToolContext,
   repository: ResolvedWorkingDocumentationRepository,
@@ -128,7 +196,7 @@ export async function exportRepositoryDiff(
   assertActionAllowed(repository, "export-diff");
   const sandbox = await ctx.getSandbox();
   const result = await sandbox.run({
-    command: "git diff --no-ext-diff --",
+    command: "git diff --no-ext-diff --binary --full-index --find-renames --",
     workingDirectory: repository.sandboxPath,
     abortSignal: ctx.abortSignal,
   });
@@ -151,7 +219,7 @@ export async function listChangedFiles(
   assertActionAllowed(repository, "export-diff");
   const sandbox = await ctx.getSandbox();
   const result = await sandbox.run({
-    command: "git diff --name-only --",
+    command: "git diff --name-only --no-renames --",
     workingDirectory: repository.sandboxPath,
     abortSignal: ctx.abortSignal,
   });
@@ -276,8 +344,8 @@ function assertActionAllowed(
   }
 }
 
-function resolveRepositoryPath(repository: WorkingDocumentationRepository, path: string): string {
-  if (path.trim() === "" || path.startsWith("/") || path.includes("\\") || path.includes("\0")) {
+export function resolveRepositoryPath(repository: WorkingDocumentationRepository, path: string): string {
+  if (path.trim() === "" || path.startsWith("/") || path.includes("\\") || /[\0\r\n]/.test(path)) {
     throw new RepositoryPolicyError(`Use a repository-relative path: ${path}`);
   }
 
@@ -287,6 +355,30 @@ function resolveRepositoryPath(repository: WorkingDocumentationRepository, path:
   }
 
   return joinSandboxPath(repository.sandboxPath, parts.join("/"));
+}
+
+async function ensureParentDirectory(ctx: ToolContext, repository: WorkingDocumentationRepository, path: string): Promise<void> {
+  resolveRepositoryPath(repository, path);
+  const parent = path.split("/").slice(0, -1).join("/");
+  if (parent === "") return;
+  const sandbox = await ctx.getSandbox();
+  const result = await sandbox.run({ command: `mkdir -p -- ${sh(parent)}`, workingDirectory: repository.sandboxPath, abortSignal: ctx.abortSignal });
+  if (result.exitCode !== 0) throw new Error(`Directory creation failed: ${summarizeCommandFailure(result)}`);
+}
+
+async function markIntentToAdd(ctx: ToolContext, repository: WorkingDocumentationRepository, path: string): Promise<void> {
+  const sandbox = await ctx.getSandbox();
+  await sandbox.run({ command: `git add --intent-to-add -- ${sh(path)}`, workingDirectory: repository.sandboxPath, abortSignal: ctx.abortSignal });
+}
+
+async function mutateRepositoryPath(ctx: ToolContext, repository: ResolvedWorkingDocumentationRepository, command: "cp" | "mv", from: string, to: string): Promise<void> {
+  assertActionAllowed(repository, "patch");
+  resolveRepositoryPath(repository, from);
+  resolveRepositoryPath(repository, to);
+  await ensureParentDirectory(ctx, repository, to);
+  const sandbox = await ctx.getSandbox();
+  const result = await sandbox.run({ command: `${command} -- ${sh(from)} ${sh(to)}`, workingDirectory: repository.sandboxPath, abortSignal: ctx.abortSignal });
+  if (result.exitCode !== 0) throw new Error(`${command === "cp" ? "Copy" : "Move"} failed: ${summarizeCommandFailure(result)}`);
 }
 
 async function readLockfileHash(

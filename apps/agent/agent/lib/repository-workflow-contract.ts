@@ -60,6 +60,16 @@ export const docsMaintenanceWorkflowResultSchema = z.object({
   rawSandboxToolsPolicy: z.string(),
 });
 
+export const authoringDraftSchema = z.object({
+  baseRevision: z.string(),
+  taskReferences: z.array(z.string()),
+  operationCount: z.number().int().nonnegative(),
+  checks: z.array(repositoryCheckResultSchema),
+  changedFiles: z.array(z.string()),
+  diff: z.string(),
+  preparedAt: z.string().optional(),
+});
+
 export const runDocsMaintenanceScenarioInputSchema = z.object({
   scenarioText: z
     .string()
@@ -84,4 +94,5 @@ export interface WorkflowState {
   materialization: DocsMaintenanceWorkflowResult["materialization"];
   actionProvenance: RepositoryActionRecord[];
   lastResult?: DocsMaintenanceWorkflowResult;
+  draft?: z.infer<typeof authoringDraftSchema>;
 }

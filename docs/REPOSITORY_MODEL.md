@@ -294,6 +294,29 @@ global rules. Repository observations remain separate from workspace memories:
 a maintainer correction can be proposed through `memory_propose`, but neither
 the profile builder nor retrieval tool silently activates memory.
 
+## Authoring Workspace
+
+`authoring_workspace` is the policy-aware editing surface for one complete draft
+inside the materialized working documentation repository. A single batch can
+write full text files or base64 binary assets, copy, move, and delete files
+anywhere under the repository root. It is intentionally not limited to
+`docsRoot`: navigation, configuration, redirects, examples, and repository-owned
+assets are valid draft surfaces. Repository-relative path validation prevents
+escape; watched and context repositories never enter this write path.
+
+The sandbox working tree keeps the draft reversible across turns. Draft state
+records the resolved base revision, task references, operation count, changed
+files, checks, complete binary-aware diff, and preparation time. Inspect reads
+the current draft, prepare runs selected repository checks and freezes the
+reviewable result for writeback, and abandon restores the sandbox checkout to
+its base without touching GitHub.
+
+New files use intent-to-add only so they appear in an unstaged review diff.
+GitHub writeback still requires explicit approval and verifies that the remote
+base branch has not moved. Its tree builder now publishes text and binary
+additions/modifications, deletions, and both sides of moves or renames. Existing
+branch/PR detection keeps a successfully published draft idempotent.
+
 ## Workspace Memories
 
 Workspace memories are compact docs-context records that help future triage,

@@ -127,11 +127,25 @@ interface GitHubPullResponse {
   draft?: boolean;
 }
 
-interface ChangedFileEntry {
+export type ChangedFileEntry = {
   path: string;
   mode: "100644" | "100755";
   content: string;
-}
+  contentBase64?: never;
+  deleted?: never;
+} | {
+  path: string;
+  mode: "100644" | "100755";
+  contentBase64: string;
+  content?: never;
+  deleted?: never;
+} | {
+  path: string;
+  mode: "100644" | "100755";
+  deleted: true;
+  content?: never;
+  contentBase64?: never;
+};
 
 export class GitHubWritebackError extends Error {
   constructor(message: string) {
@@ -376,14 +390,14 @@ async function assertNoUnsupportedWorkingTreeState(
   }
 }
 
-async function collectChangedFileEntries(
+export async function collectChangedFileEntries(
   ctx: ToolContext,
   repository: WorkingDocumentationRepository,
   changedFiles: string[],
 ): Promise<ChangedFileEntry[]> {
   const sandbox = await ctx.getSandbox();
   const statusResult = await sandbox.run({
-    command: "git diff --name-status --",
+    command: "git diff --name-status --no-renames --",
     workingDirectory: repository.sandboxPath,
     abortSignal: ctx.abortSignal,
   });
@@ -395,7 +409,7 @@ async function collectChangedFileEntries(
   }
 
   const binaryResult = await sandbox.run({
-    command: "git diff --numstat --",
+    command: "git diff --numstat --no-renames --",
     workingDirectory: repository.sandboxPath,
     abortSignal: ctx.abortSignal,
   });
@@ -406,12 +420,10 @@ async function collectChangedFileEntries(
     );
   }
 
-  for (const line of binaryResult.stdout.split("\n").filter(Boolean)) {
+  const binaryPaths = new Set(binaryResult.stdout.split("\n").filter(Boolean).flatMap((line) => {
     const [added, removed, path] = line.split("\t");
-    if (added === "-" && removed === "-") {
-      throw new GitHubWritebackError(`Cannot publish binary file changes: ${path}.`);
-    }
-  }
+    return added === "-" && removed === "-" && path !== undefined ? [path] : [];
+  }));
 
   const statusByPath = parseNameStatus(statusResult.stdout);
   if (!sameStringSet([...statusByPath.keys()], changedFiles)) {
@@ -424,22 +436,27 @@ async function collectChangedFileEntries(
   for (const path of changedFiles) {
     assertRepositoryRelativePath(path);
     const status = statusByPath.get(path);
-    if (status !== "M" && status !== "A") {
+    if (status !== "M" && status !== "A" && status !== "D") {
       throw new GitHubWritebackError(
-        `Cannot publish ${status ?? "unknown"} change for ${path}. Only text additions and modifications are supported in this writeback slice.`,
+        `Cannot publish unsupported ${status ?? "unknown"} change for ${path}.`,
       );
     }
 
-    const content = await sandbox.readTextFile({
-      path: joinSandboxPath(repository.sandboxPath, path),
-      abortSignal: ctx.abortSignal,
-    });
-    if (content === null) {
-      throw new GitHubWritebackError(`Changed file no longer exists in the sandbox: ${path}.`);
+    if (status === "D") {
+      entries.push({ path, mode: await readGitFileMode(ctx, repository, path, true), deleted: true });
+      continue;
     }
 
     const mode = await readGitFileMode(ctx, repository, path);
-    entries.push({ path, mode, content });
+    if (binaryPaths.has(path)) {
+      const content = await sandbox.readBinaryFile({ path: joinSandboxPath(repository.sandboxPath, path), abortSignal: ctx.abortSignal });
+      if (content === null) throw new GitHubWritebackError(`Changed binary file no longer exists: ${path}.`);
+      entries.push({ path, mode, contentBase64: Buffer.from(content).toString("base64") });
+    } else {
+      const content = await sandbox.readTextFile({ path: joinSandboxPath(repository.sandboxPath, path), abortSignal: ctx.abortSignal });
+      if (content === null) throw new GitHubWritebackError(`Changed file no longer exists in the sandbox: ${path}.`);
+      entries.push({ path, mode, content });
+    }
   }
 
   return entries;
@@ -468,10 +485,11 @@ async function readGitFileMode(
   ctx: ToolContext,
   repository: WorkingDocumentationRepository,
   path: string,
+  fromHead = false,
 ): Promise<ChangedFileEntry["mode"]> {
   const sandbox = await ctx.getSandbox();
   const result = await sandbox.run({
-    command: `git ls-files -s -- ${sh(path)}`,
+    command: fromHead ? `git ls-tree HEAD -- ${sh(path)}` : `git ls-files -s -- ${sh(path)}`,
     workingDirectory: repository.sandboxPath,
     abortSignal: ctx.abortSignal,
   });
@@ -551,6 +569,22 @@ async function createGitHubDraftPullRequest(input: {
   });
   const baseTreeSha = getGitCommitTreeSha(baseCommit, "base");
 
+  const treeEntries = [];
+  for (const file of input.changedFiles) {
+    if (file.deleted) {
+      treeEntries.push({ path: file.path, mode: file.mode, type: "blob", sha: null });
+    } else if (file.contentBase64 !== undefined) {
+      const blob = await githubRequest<{ sha: string }>({
+        token, method: "POST",
+        path: `/repos/${encodePathPart(slug.owner)}/${encodePathPart(slug.repo)}/git/blobs`,
+        abortSignal, body: { content: file.contentBase64, encoding: "base64" },
+      });
+      treeEntries.push({ path: file.path, mode: file.mode, type: "blob", sha: blob.sha });
+    } else {
+      treeEntries.push({ path: file.path, mode: file.mode, type: "blob", content: file.content });
+    }
+  }
+
   const tree = await githubRequest<GitHubTreeResponse>({
     token,
     method: "POST",
@@ -558,12 +592,7 @@ async function createGitHubDraftPullRequest(input: {
     abortSignal,
     body: {
       base_tree: baseTreeSha,
-      tree: input.changedFiles.map((file) => ({
-        path: file.path,
-        mode: file.mode,
-        type: "blob",
-        content: file.content,
-      })),
+      tree: treeEntries,
     },
   });
 

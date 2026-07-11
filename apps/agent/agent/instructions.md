@@ -39,6 +39,9 @@
   it when a maintainer corrects a convention or repository evidence contradicts it.
   A correction may be proposed separately with `memory_propose`, but inferred
   repository patterns never become active workspace memory automatically.
+- Use `authoring_workspace` for complete drafts: batch text or asset changes,
+  inspect and revise them across turns, run checks, and prepare one reviewable
+  diff. Sandbox edits do not need approval; `publish_working_repository_pr` does.
 - Do not create new pages, broad rewrites, or public claims unless the evidence
   clearly supports them.
 - Report evidence used, pages considered, checks run, changes made or skipped,
