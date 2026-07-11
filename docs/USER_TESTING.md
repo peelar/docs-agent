@@ -266,3 +266,27 @@ list with a distinct contract error instead of disappearing.
 `pnpm check` covers shared-service ordering, filtering, open/closed behavior,
 payload redaction, and invalid rows, plus ready, empty, filtered-empty,
 database-error, and invalid-record browser states on desktop and mobile.
+
+## Signal Detail
+
+Open a signal summary from `/signals` and confirm the stable `/signals/<id>`
+route presents one read-only product record. Review the source summary, current
+status, priority, uncertainty, next action, extracted claims, likely docs pages
+and concepts, product surfaces, missing evidence, provenance, lifecycle, links,
+and artifacts.
+
+The provenance section labels stored source text as **Verbatim source content**
+so it cannot be mistaken for the model-generated summary or claims. Provider,
+authors, source/capture timestamps, and safe HTTPS permalinks should be visible.
+Markup in source text must remain literal text and must not execute.
+
+Lifecycle events run chronologically from capture to the latest transition and
+show actor, reason, statuses, and time. Verification reports, check logs, diffs,
+and draft PRs render as distinct artifact kinds, with safe external links when
+available. Credential-shaped metadata values render as `[redacted]`; internal
+workspace, provider, and dedupe ids do not enter the operator projection.
+
+Verify missing, corrupt, unauthorized, and database-failure detail states. Each
+must stop visibly and return to the queue without mutating lifecycle state,
+priority, links, or artifacts. `pnpm check` covers the projection and all detail
+states on desktop and mobile.

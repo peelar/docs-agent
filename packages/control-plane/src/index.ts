@@ -44,3 +44,9 @@ export {
   type ReadinessReport,
   type ReadinessState,
 } from "./readiness.js";
+export {
+  getOperatorSignalDetail,
+  operatorSignalDetailSchema,
+  redactMetadata,
+  type OperatorSignalDetail,
+} from "./signal-detail.js";

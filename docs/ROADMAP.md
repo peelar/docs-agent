@@ -7,10 +7,11 @@ signals, Slack and Linear intake, patch handoff, and workspace memories are now
 implemented. The product has useful state, but operators cannot see it without
 asking the agent or inspecting runtime and database internals.
 
-The current appetite is to finish the first local-only web control-plane
-delivery. The Turborepo boundary, operator shell, shared app-owned database and
-read-service package, readiness report, and docs-signal queue are complete. The
-remaining work is to expose full signal detail.
+The first local-only web control-plane delivery is complete: the Turborepo
+boundary, operator shell, shared app-owned database and read-service package,
+readiness report, docs-signal queue, and complete signal detail are in place.
+The next appetite is the Technical Editor epic, beginning with a reusable
+repository docs profile.
 
 The first delivery is read-only and bound to the local machine. Production
 deployment and authentication, guided setup, connector handoffs,
@@ -37,22 +38,21 @@ tracing backend, broad context ingestion, and autonomous publishing.
 ## M4 Slice Plan
 
 The repository conversion (#35), operator shell (#36), shared control-plane
-services (#38), readiness report (#39), and signal queue (#40) are complete.
+services (#38), readiness report (#39), signal queue (#40), and signal detail
+(#41) are complete.
 
-1. Show signal detail. (#41)
-   Present provenance, claims, missing evidence, lifecycle events, reports,
-   checks, diffs, and draft PR artifacts.
+The first delivery has no remaining implementation slice.
 
 ## Ordered Backlog
 
 Use these tables as the agreed fallback order when GitHub Projects or custom
 issue ordering cannot be read.
 
-### First Delivery
+### First Delivery (Complete)
 
 | Order | Issue | Why Now | Depends On |
 | --- | --- | --- | --- |
-| 1 | #41 Show docs-signal provenance, lifecycle, and artifacts | Makes the queue trustworthy by showing the complete evidence and workflow record. | #40 (complete) |
+| Complete | #41 Show docs-signal provenance, lifecycle, and artifacts | Makes the queue trustworthy by showing the complete evidence and workflow record. | #40 (complete) |
 
 ### Technical Editor
 
@@ -63,31 +63,31 @@ one coherent draft to the next human boundary.
 
 | Order | Issue | Why Next | Depends On |
 | --- | --- | --- | --- |
-| 2 | #52 Build and maintain a repository docs profile | Stops Paige from rediscovering conventions and checks on every task. | #38 |
-| 3 | #53 Add a complete multi-file authoring workspace | Removes the one-file exact-replacement ceiling while preserving sandbox and approval boundaries. | #38, #52 |
-| 4 | #54 Plan substantial documentation work before drafting | Makes large work understandable and steerable without adding an approval gate. | #52, #53 |
-| 5 | #55 Choose the right editorial intervention | Lets Paige patch, add, restructure, consolidate, remove, wait, or ask based on the reader problem. | #52, #53, #54 |
-| 6 | #56 Own substantial documentation work asynchronously | Carries investigation, planning, drafting, validation, and continuation as one durable work item. | #41, #53, #54, #55 |
+| 1 | #52 Build and maintain a repository docs profile | Stops Paige from rediscovering conventions and checks on every task. | #38 |
+| 2 | #53 Add a complete multi-file authoring workspace | Removes the one-file exact-replacement ceiling while preserving sandbox and approval boundaries. | #38, #52 |
+| 3 | #54 Plan substantial documentation work before drafting | Makes large work understandable and steerable without adding an approval gate. | #52, #53 |
+| 4 | #55 Choose the right editorial intervention | Lets Paige patch, add, restructure, consolidate, remove, wait, or ask based on the reader problem. | #52, #53, #54 |
+| 5 | #56 Own substantial documentation work asynchronously | Carries investigation, planning, drafting, validation, and continuation as one durable work item. | #41, #53, #54, #55 |
 
 ### Later Backlog
 
 | Order | Issue | Why Later | Depends On |
 | --- | --- | --- | --- |
-| 7 | #51 Run scheduled follow-ups | Adds bounded proactive maintenance after the shared signal service exists. | #38 |
-| 8 | #33 Persist Chat SDK state in libSQL/Turso | Adds durable subscription and debounce state through the shared database boundary. | #38 |
-| 9 | #34 Replace Eve's native Slack channel with Chat SDK | Establishes the transport and privacy boundary needed for continued participation. | #33 |
-| 10 | #30 Keep participating after a Slack mention | Makes Paige a scoped thread participant rather than a repeatedly invoked bot. | #33, #34 |
-| 11 | #49 Retrieve missing Slack context on demand | Adds bounded, user-authorized retrieval without ambient ingestion. | #34 |
-| 12 | #37 Deploy and protect the operator app | Adds remote access only after the local control plane proves its value and boundaries. | #41 |
-| 13 | #42 Add guided workspace onboarding | Adds authenticated setup mutations after the readiness model proves what users need. | #37, #39 (complete) |
-| 14 | #43 Add connector installation handoffs | Improves installation without pretending provider consent can be silent. | #37, #39 (complete) |
-| 15 | #44 Add workspace-memory review | Exposes an existing human-governed lifecycle in the authenticated app. | #37, #38 |
-| 16 | #45 Add product-level run history and trace links | Connects product work to Eve and Vercel traces without building a second runtime. | #37, #38 |
-| 17 | #47 Add a centralized approval inbox | Aggregates pending side effects while Eve remains the approval source of truth. | #37, #38, #41, #45 |
-| 18 | #50 Record eval and validation results | Establishes a durable, redacted result source before the assurance UI. | #38 |
-| 19 | #48 Show eval results and behavioral regressions | Renders recorded assurance data without inventing browser-side execution. | #36 (complete), #37, #50 |
-| 20 | #32 Reduce always-on instruction bloat | Moves situational workflows into the right Eve context boundaries without changing behavior. | None |
-| 21 | #46 Add personality and participation settings | Tunes tested defaults without exposing raw prompts or widening authority. | #30, #31 (complete), #32, #37, #38 |
+| 6 | #51 Run scheduled follow-ups | Adds bounded proactive maintenance after the shared signal service exists. | #38 |
+| 7 | #33 Persist Chat SDK state in libSQL/Turso | Adds durable subscription and debounce state through the shared database boundary. | #38 |
+| 8 | #34 Replace Eve's native Slack channel with Chat SDK | Establishes the transport and privacy boundary needed for continued participation. | #33 |
+| 9 | #30 Keep participating after a Slack mention | Makes Paige a scoped thread participant rather than a repeatedly invoked bot. | #33, #34 |
+| 10 | #49 Retrieve missing Slack context on demand | Adds bounded, user-authorized retrieval without ambient ingestion. | #34 |
+| 11 | #37 Deploy and protect the operator app | Adds remote access only after the local control plane proves its value and boundaries. | #41 (complete) |
+| 12 | #42 Add guided workspace onboarding | Adds authenticated setup mutations after the readiness model proves what users need. | #37, #39 (complete) |
+| 13 | #43 Add connector installation handoffs | Improves installation without pretending provider consent can be silent. | #37, #39 (complete) |
+| 14 | #44 Add workspace-memory review | Exposes an existing human-governed lifecycle in the authenticated app. | #37, #38 |
+| 15 | #45 Add product-level run history and trace links | Connects product work to Eve and Vercel traces without building a second runtime. | #37, #38 |
+| 16 | #47 Add a centralized approval inbox | Aggregates pending side effects while Eve remains the approval source of truth. | #37, #38, #41 (complete), #45 |
+| 17 | #50 Record eval and validation results | Establishes a durable, redacted result source before the assurance UI. | #38 |
+| 18 | #48 Show eval results and behavioral regressions | Renders recorded assurance data without inventing browser-side execution. | #36 (complete), #37, #50 |
+| 19 | #32 Reduce always-on instruction bloat | Moves situational workflows into the right Eve context boundaries without changing behavior. | None |
+| 20 | #46 Add personality and participation settings | Tunes tested defaults without exposing raw prompts or widening authority. | #30, #31 (complete), #32, #37, #38 |
 
 ## Later
 

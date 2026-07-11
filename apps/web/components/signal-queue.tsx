@@ -179,7 +179,7 @@ function SignalRow({ signal }: { signal: DocsSignalQueueItem }) {
         </div>
       </td>
       <td className="max-w-md px-0 py-0 lg:table-cell lg:px-5 lg:py-5">
-        <p className="text-sm leading-6 font-medium">{signal.sourceSummary}</p>
+        <Link className="text-sm leading-6 font-medium underline decoration-foreground/25 underline-offset-4 hover:decoration-accent" href={`/signals/${encodeURIComponent(signal.id)}`}>{signal.sourceSummary}</Link>
         <p className="mt-2 font-mono text-[0.6rem] tracking-[0.06em] text-muted-foreground uppercase">{signal.id}</p>
       </td>
       <td className="col-start-2 mt-3 px-0 py-0 lg:table-cell lg:mt-0 lg:px-5 lg:py-5">

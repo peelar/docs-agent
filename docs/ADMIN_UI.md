@@ -161,15 +161,24 @@ metadata, workspace ids, and dedupe keys stay outside the browser contract.
 Open work is the default. Operators can filter by the existing status and
 source vocabularies or explicitly include closed work. Results sort by priority,
 then updated time, then stable id. Loading, empty, database failure, and invalid
-persisted-record states remain visible and read-only.
+persisted-record states remain visible and read-only. Each summary opens the
+stable `/signals/<id>` detail route.
 
 ### 6. Signal detail
 
 Tracked by [#41](https://github.com/peelar/docs-agent/issues/41).
 
-Show one signal as the complete product record: source provenance, extracted
-claims, missing evidence, likely docs surfaces, decision state, lifecycle
-events, verification reports, checks, diffs, and draft PR artifacts.
+The detail route now shows one signal as the complete product record: source
+provenance, extracted claims, missing evidence, likely docs surfaces, decision
+state, chronological lifecycle events, safe related links, verification
+reports, checks, diffs, and draft PR artifacts.
+
+A dedicated operator projection removes workspace, provider, and dedupe ids;
+redacts credential-shaped metadata recursively; and accepts only HTTPS links
+without embedded credentials or sensitive query parameters. Verbatim source
+text is clearly separated from the model-generated summary and claims, and is
+rendered as inert text. Missing, corrupt, unauthorized, and database-failure
+states are explicit.
 
 The first queue and detail slices are read-only. Operator mutations can follow
 once the read model proves the right interaction shape.
