@@ -72,6 +72,10 @@ alongside the production web build.
 The Status page checks Eve at `http://127.0.0.1:2000` by default, matching
 `pnpm dev --no-ui`. Set `DOCS_AGENT_EVE_URL` server-side when the runtime uses a
 different origin. The browser receives only the redacted readiness report.
+An authenticated operator can also validate and save the working repository,
+optional watched repositories, and GitHub writeback connector from that page.
+Validation is read-only; failed repository, ref, docs-root, installation,
+repository-grant, or permission checks are shown before anything is saved.
 
 Put local agent variables in `apps/agent/.env.local` and web-only variables in
 `apps/web/.env.local`. Both apps resolve local state through

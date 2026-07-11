@@ -61,12 +61,36 @@ export {
 } from "./owned-docs-work-contract.js";
 export {
   getSetupStatus,
+  readSetupAuditEvents,
   setupStatusSchema,
+  setupAuditActorSchema,
+  setupAuditEventSchema,
   type SetupStatus,
+  type SetupAuditActor,
+  type SetupAuditEvent,
   readPersistedSetupStatus,
   persistedSetupStatusSchema,
   type PersistedSetupStatus,
 } from "./setup-state.js";
+export {
+  buildWorkspaceOnboardingState,
+  readWorkspaceOnboardingDraft,
+  saveValidatedWorkspaceOnboarding,
+  validateWorkspaceOnboarding,
+  workspaceOnboardingCheckSchema,
+  workspaceOnboardingDraftSchema,
+  workspaceOnboardingInputSchema,
+  workspaceOnboardingValidationSchema,
+  WorkspaceOnboardingValidationError,
+  type WorkspaceOnboardingDraft,
+  type WorkspaceOnboardingInput,
+  type WorkspaceOnboardingValidation,
+} from "./workspace-onboarding.js";
+export {
+  validateWorkingRepositoryAccess,
+  workingRepositoryValidationSchema,
+  type WorkingRepositoryValidation,
+} from "./repository-validation.js";
 export {
   collectReadinessReport,
   getReadinessReport,

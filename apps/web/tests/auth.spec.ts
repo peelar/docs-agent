@@ -43,6 +43,9 @@ test("unauthenticated pages redirect to sign in and protected operations reject"
   await expect(operation.json()).resolves.toMatchObject({
     code: "operator_unauthorized",
   });
+  expect((await page.request.post("/api/operator/workspace-setup/validate", {
+    data: { repositoryUrl: "https://github.com/example/docs" },
+  })).status()).toBe(401);
 });
 
 test("sign in uses GitHub OAuth state in an HttpOnly cookie", async ({ page }) => {

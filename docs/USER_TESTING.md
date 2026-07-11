@@ -241,6 +241,39 @@ Keep the Eve deployment on its own origin during this scenario. The web cookie
 must not authorize Eve routes; a future operator-to-Eve action needs the
 server-to-server `AuthFn` bridge described in `docs/ADMIN_UI.md`.
 
+## Guided Workspace Onboarding
+
+Use an authenticated operator session and a non-production GitHub App
+installation. Start from `/status` with a clean or deliberately incomplete
+workspace setup.
+
+1. Enter the working documentation repository and the existing GitHub connector.
+   Leave the ref empty and confirm validation uses `main`. Leave docs root empty
+   and confirm it remains unset for later checkout-time inference.
+2. Validate with a missing ref, an ungranted repository, and insufficient
+   `contents:write` or `pull_requests:write` permission in turn. Each result must
+   stay visible in the preflight ledger, the save action must stay absent, and
+   neither `workspace_setup` nor `workspace_setup_events` may change.
+3. Restore repository access and permissions, then validate again. Confirm the
+   repository, GitHub writeback, and watched-repository checks all pass before
+   the save action appears.
+4. Add one watched repository and save. Confirm it persists with
+   `sandbox-read`, only `clone`, `read`, `search`, `inspect-diff`, and
+   `run-readonly-checks`, plus its `watched-repository:<owner>/<repo>` provenance
+   label. It must not gain `patch`, `export-diff`, or `publish-pr`.
+5. Confirm the Status page refreshes from the canonical readiness service. In an
+   agent conversation, inspect setup status and confirm it reads the same
+   working repository, `main` ref, and watched repository without asking for
+   setup again.
+6. Inspect the latest `workspace_setup_events` entry. It should contain the
+   saved setup snapshot, `workspace-onboarding-saved`, the stable operator id,
+   and normalized GitHub login. It must not contain a connector token or GitHub
+   credential.
+
+Provider app creation, Vercel Connect installation, and GitHub consent remain
+outside this flow. A missing installation is a visible human action, not a
+successful onboarding result.
+
 ### Slack Chat SDK End-to-End
 
 Use a non-production Slack channel and the installed `slack/docs-agent`

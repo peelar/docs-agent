@@ -20,6 +20,27 @@ export const workspaceSetup = sqliteTable("workspace_setup", {
   updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
 });
 
+export const workspaceSetupEvents = sqliteTable(
+  "workspace_setup_events",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    actorId: text("actor_id").notNull(),
+    actorLogin: text("actor_login").notNull(),
+    action: text("action").notNull(),
+    setupSnapshot: text("setup_snapshot", { mode: "json" })
+      .$type<unknown>()
+      .notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("workspace_setup_events_workspace_created_idx").on(
+      table.workspaceId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const docsProfiles = sqliteTable(
   "docs_profiles",
   {
@@ -466,4 +487,5 @@ export const schema = {
   workspaceMemoryRecords,
   workspaceMemorySources,
   workspaceSetup,
+  workspaceSetupEvents,
 };

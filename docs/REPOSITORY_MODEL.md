@@ -263,6 +263,16 @@ it does not store signal queue state, verification runs, workflow events, or
 patch artifacts. Existing `.docs-agent/config.json` files are ignored; a missing
 database setup row means the workspace must be configured from scratch.
 
+The agent and authenticated web onboarding both use this canonical setup row.
+The web flow first validates the working repository, requested ref, optional
+docs root, GitHub App installation, repository grant, and writeback permissions;
+failed checks never produce a ready setup. A successful save appends a full
+setup snapshot to `workspace_setup_events` with the authenticated operator id
+and normalized GitHub login. Watched repositories are reconstructed on the
+server with sandbox-read access, the fixed read-only action set, and their
+provenance label before persistence. The browser cannot turn one into a
+writeback target.
+
 The signal database should start small but support the near-term M3 workflows:
 
 - workspaces for the future tenant or workspace boundary;

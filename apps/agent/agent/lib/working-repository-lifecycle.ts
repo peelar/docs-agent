@@ -2,15 +2,8 @@ import { createHash } from "node:crypto";
 
 import type { ToolContext } from "eve/tools";
 import { z } from "zod";
+import { validateWorkingRepositoryAccess } from "@docs-agent/control-plane/agent";
 
-import {
-  formatUnknownError,
-  githubApiRequest,
-  parseGitHubRepositoryUrl,
-  resolveGitHubAppInstallationToken,
-  resolveGitHubConnector,
-  type GitHubRepositorySlug,
-} from "./github-app-client.js";
 import {
   repositoryInputSchema,
   type RepositoryInput,
@@ -39,7 +32,7 @@ import type {
   DocsMaintenanceWorkflowResult,
   WorkflowState,
 } from "./repository-workflow-contract.js";
-import { readSetupState, requireSetupReady, saveWorkingRepositorySetup } from "./setup-state.js";
+import { requireSetupReady, saveWorkingRepositorySetup } from "./setup-state.js";
 import { ensureDocsProfile } from "./docs-profile.js";
 
 const repositoryCacheMarkerSchema = z.object({
@@ -118,45 +111,16 @@ export async function validateWorkingRepositorySetup(
   const parsed = repositoryInputSchema.parse(repositoryInput);
   const repository = parsed.workingDocumentationRepository;
   assertRepositoryMaterializationAllowed(workingRepositoryMaterializationPolicy(repository));
-
-  const slug = parseGitHubRepositoryUrl(repository.source.url);
-  const token = await resolveRepositoryValidationToken(slug);
-  await assertGitHubRepositoryExists(token, slug, abortSignal);
-  await assertGitHubRefExists(token, slug, repository.ref, abortSignal);
-  if (repository.docsRoot !== undefined) {
-    await assertGitHubDirectoryExists(
-      token,
-      slug,
-      repository.ref,
-      repository.docsRoot,
-      abortSignal,
-    );
-  }
+  await validateWorkingRepositoryAccess({
+    repositoryInput: parsed,
+    abortSignal,
+  });
 
   return [
     recordAction(repository, "validate", "success", {
       target: `${repository.source.url}#${repository.ref}`,
     }),
   ];
-}
-
-async function resolveRepositoryValidationToken(slug: GitHubRepositorySlug): Promise<string> {
-  const setup = await readSetupState().catch(() => null);
-  const connector = resolveGitHubConnector(setup);
-  if (connector === "") {
-    throw new Error(
-      "Could not validate GitHub repository with app-scoped credentials: no GitHub connector is configured.",
-    );
-  }
-
-  try {
-    const tokenResponse = await resolveGitHubAppInstallationToken({ connector, slug });
-    return tokenResponse.token;
-  } catch (error) {
-    throw new Error(
-      `Could not validate GitHub repository with app-scoped credentials from connector ${connector}: ${formatUnknownError(error)}`,
-    );
-  }
 }
 
 export async function loadOrMaterializeRepositoryWorkflowState(
@@ -733,104 +697,6 @@ function repositoryCacheDirectory(repository: ResolvedWorkingDocumentationReposi
       repository.docsRoot,
     ].join("\n"),
   )}`;
-}
-
-async function assertGitHubRepositoryExists(
-  token: string,
-  slug: GitHubRepositorySlug,
-  abortSignal?: AbortSignal,
-): Promise<void> {
-  const result = await githubApiRequest<unknown>({
-    token,
-    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}`,
-    abortSignal,
-  });
-
-  if (result.ok) return;
-  if (result.status === 404) {
-    throw new Error(
-      `GitHub repository was not found or is not granted to the GitHub App installation: ${slug.owner}/${slug.repo}.`,
-    );
-  }
-
-  throw new Error(`Could not validate GitHub repository: ${result.message}`);
-}
-
-async function assertGitHubRefExists(
-  token: string,
-  slug: GitHubRepositorySlug,
-  ref: string,
-  abortSignal?: AbortSignal,
-): Promise<void> {
-  const branch = await githubApiRequest<unknown>({
-    token,
-    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}/branches/${encodeURIComponent(ref)}`,
-    abortSignal,
-  });
-  if (branch.ok) return;
-  if (branch.status !== 404) {
-    throw new Error(`Could not validate GitHub branch ${ref}: ${branch.message}`);
-  }
-
-  const tag = await githubApiRequest<unknown>({
-    token,
-    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}/git/ref/tags/${encodeURIComponent(ref)}`,
-    abortSignal,
-  });
-  if (tag.ok) return;
-  if (tag.status !== 404) {
-    throw new Error(`Could not validate GitHub tag ${ref}: ${tag.message}`);
-  }
-
-  const commit = await githubApiRequest<unknown>({
-    token,
-    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}/commits/${encodeURIComponent(ref)}`,
-    abortSignal,
-  });
-  if (commit.ok) return;
-  if (commit.status === 404) {
-    throw new Error(`GitHub ref was not found: ${slug.owner}/${slug.repo}#${ref}.`);
-  }
-
-  throw new Error(`Could not validate GitHub ref ${ref}: ${commit.message}`);
-}
-
-async function assertGitHubDirectoryExists(
-  token: string,
-  slug: GitHubRepositorySlug,
-  ref: string,
-  docsRoot: string,
-  abortSignal?: AbortSignal,
-): Promise<void> {
-  const path =
-    docsRoot === "."
-      ? ""
-      : `/${docsRoot.split("/").map((part) => encodeURIComponent(part)).join("/")}`;
-  const result = await githubApiRequest<unknown>({
-    token,
-    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}/contents${path}?ref=${encodeURIComponent(ref)}`,
-    abortSignal,
-  });
-
-  if (result.ok) {
-    if (Array.isArray(result.body) || isGitHubDirectoryContent(result.body)) return;
-    throw new Error(`Configured docs root is not a directory: ${docsRoot}.`);
-  }
-
-  if (result.status === 404) {
-    throw new Error(`Configured docs root was not found at ${ref}: ${docsRoot}.`);
-  }
-
-  throw new Error(`Could not validate docs root ${docsRoot}: ${result.message}`);
-}
-
-function isGitHubDirectoryContent(value: unknown): value is { type: "dir" } {
-  return (
-    typeof value === "object" &&
-    value !== null &&
-    "type" in value &&
-    (value as { type?: unknown }).type === "dir"
-  );
 }
 
 function hashText(value: string): string {

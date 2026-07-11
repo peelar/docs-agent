@@ -8,4 +8,5 @@ export * from "./libsql-chat-state.js";
 export * from "./slack-thread-presence.js";
 export * from "./repository-contract.js";
 export * from "./setup-state.js";
+export * from "./repository-validation.js";
 export { docsAgentDatabaseLocation } from "./db/client.js";

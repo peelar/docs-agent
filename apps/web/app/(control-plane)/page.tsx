@@ -38,8 +38,8 @@ export default function Home() {
           <p className="mb-10 font-mono text-[0.68rem] font-bold tracking-[0.12em] text-muted-foreground uppercase">First delivery / 01</p>
           <h2 className="font-heading text-3xl leading-none font-medium tracking-[-0.04em]">Evidence before action.</h2>
           <p className="mt-4 text-sm leading-6 text-muted-foreground">
-          This local-only surface is read-only while readiness and signal
-          services are connected behind one control-plane boundary.
+            Readiness and evidence stay read-only. Workspace setup changes pass
+            a visible preflight and retain the operator who saved them.
           </p>
         </CardContent>
       </Card>

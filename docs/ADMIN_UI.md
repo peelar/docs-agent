@@ -207,11 +207,34 @@ The Eve channel must verify that credential with a reviewed `AuthFn` or JWT
 verifier and map the same app-owned principal into `SessionAuthContext`. The
 browser cookie must never be reused across origins.
 
+### 8. Guided workspace onboarding
+
+Tracked by [#42](https://github.com/peelar/docs-agent/issues/42).
+
+The Status page now uses the same repository contract, setup row, GitHub
+repository validation, and writeback preflight as the agent. The operator can
+set the working GitHub repository, leave the ref at its `main` default, omit the
+docs root for checkout-time inference, retain watched repositories, and name the
+existing GitHub connector.
+
+Validation does not write. It checks repository access, the ref, an explicit
+docs root when present, the GitHub App installation, repository grant, and
+writeback permissions. The save action appears only after every required check
+passes, and the server repeats those checks before writing. Failed database,
+repository, connector, grant, and permission paths remain visible.
+
+One save writes the canonical `workspace_setup` record read by both the web app
+and the agent setup gate. It also appends a `workspace_setup_events` snapshot
+with the stable authenticated operator id and normalized GitHub login. Watched
+repositories are rebuilt server-side with `sandbox-read`, their read-only
+action set, and their `watched-repository:<owner>/<repo>` provenance label;
+browser input cannot widen that authority. A successful save refreshes the
+canonical readiness report.
+
 ## Later Backlog
 
 The following work stays below the first delivery chain:
 
-- guided workspace setup from the readiness screen ([#42](https://github.com/peelar/docs-agent/issues/42));
 - connector installation handoffs and verification ([#43](https://github.com/peelar/docs-agent/issues/43));
 - workspace-memory proposal, freshness, promotion, and retirement review ([#44](https://github.com/peelar/docs-agent/issues/44));
 - product-level run history and links to deeper Eve or Vercel traces ([#45](https://github.com/peelar/docs-agent/issues/45));

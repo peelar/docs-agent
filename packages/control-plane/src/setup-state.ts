@@ -1,4 +1,6 @@
-import { eq } from "drizzle-orm";
+import { randomUUID } from "node:crypto";
+
+import { desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -6,7 +8,7 @@ import {
   withDocsAgentDatabase,
   type DocsAgentDatabase,
 } from "./db/client.js";
-import { workspaceSetup } from "./db/schema.js";
+import { workspaceSetup, workspaceSetupEvents } from "./db/schema.js";
 import {
   repositoryInputSchema,
   type RepositoryInput,
@@ -126,6 +128,20 @@ export const persistedSetupStatusSchema = z.object({
   state: setupStateSchema.nullable(),
 });
 
+export const setupAuditActorSchema = z.object({
+  id: z.string().trim().min(1),
+  githubLogin: z.string().trim().min(1).transform((value) => value.toLowerCase()),
+});
+
+export const setupAuditEventSchema = z.object({
+  id: z.string(),
+  workspaceId: z.string(),
+  actor: setupAuditActorSchema,
+  action: z.string(),
+  setupSnapshot: setupStateSchema,
+  createdAt: z.string(),
+});
+
 export type SetupState = z.infer<typeof setupStateSchema>;
 export type PersistedSetupStatus = z.infer<typeof persistedSetupStatusSchema>;
 export type ReadySetupState = SetupState & {
@@ -134,6 +150,8 @@ export type ReadySetupState = SetupState & {
 export type SetupStatus = z.infer<typeof setupStatusSchema>;
 export type SetupIssue = z.infer<typeof setupIssueSchema>;
 export type SetupCapability = "docs-maintenance" | "github-writeback";
+export type SetupAuditActor = z.infer<typeof setupAuditActorSchema>;
+export type SetupAuditEvent = z.infer<typeof setupAuditEventSchema>;
 
 export class SetupRequiredError extends Error {
   readonly status: SetupStatus;
@@ -167,6 +185,31 @@ export async function readPersistedSetupStatus(): Promise<PersistedSetupStatus> 
     configured: state !== null,
     statePath: docsAgentDatabaseLocation(),
     state,
+  });
+}
+
+export async function readSetupAuditEvents(
+  limit = 50,
+): Promise<SetupAuditEvent[]> {
+  return withDocsAgentDatabase(async (db) => {
+    const rows = await db
+      .select()
+      .from(workspaceSetupEvents)
+      .where(eq(workspaceSetupEvents.workspaceId, DEFAULT_WORKSPACE_ID))
+      .orderBy(desc(workspaceSetupEvents.createdAt), desc(workspaceSetupEvents.id))
+      .limit(Math.max(1, Math.min(limit, 100)));
+
+    return rows.map((row) => setupAuditEventSchema.parse({
+      id: row.id,
+      workspaceId: row.workspaceId,
+      actor: {
+        id: row.actorId,
+        githubLogin: row.actorLogin,
+      },
+      action: row.action,
+      setupSnapshot: row.setupSnapshot,
+      createdAt: row.createdAt,
+    }));
   });
 }
 
@@ -398,9 +441,12 @@ function formatSetupRequiredMessage(
   return `Setup required before ${capability}: ${detail}`;
 }
 
-export async function saveSetupState(state: SetupState): Promise<SetupState> {
+export async function saveSetupState(
+  state: SetupState,
+  audit?: { actor: SetupAuditActor; action: string },
+): Promise<SetupState> {
   const parsed = setupStateSchema.parse(state);
-  await writeSetupStateRow(parsed);
+  await writeSetupStateRow(parsed, audit);
   return parsed;
 }
 
@@ -440,14 +486,35 @@ export async function saveGitHubWritebackSetup(input: {
   });
 }
 
-async function writeSetupStateRow(state: SetupState): Promise<void> {
+async function writeSetupStateRow(
+  state: SetupState,
+  audit?: { actor: SetupAuditActor; action: string },
+): Promise<void> {
   await withDocsAgentDatabase(async (db) => {
-    await upsertSetupStateRow(db, state);
+    if (audit === undefined) {
+      await upsertSetupStateRow(db, state);
+      return;
+    }
+
+    const actor = setupAuditActorSchema.parse(audit.actor);
+    const action = z.string().trim().min(1).parse(audit.action);
+    await db.transaction(async (tx) => {
+      await upsertSetupStateRow(tx, state);
+      await tx.insert(workspaceSetupEvents).values({
+        id: randomUUID(),
+        workspaceId: DEFAULT_WORKSPACE_ID,
+        actorId: actor.id,
+        actorLogin: actor.githubLogin,
+        action,
+        setupSnapshot: state,
+        createdAt: new Date().toISOString(),
+      });
+    });
   });
 }
 
 async function upsertSetupStateRow(
-  db: DocsAgentDatabase,
+  db: Pick<DocsAgentDatabase, "insert">,
   state: SetupState,
 ): Promise<void> {
   const now = new Date().toISOString();
