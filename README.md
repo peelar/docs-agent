@@ -36,7 +36,7 @@ Slack · Linear · Releases · Repositories
 | Concern | Implementation |
 | --- | --- |
 | Agent runtime | [Eve](https://eve.dev) |
-| Operator app | Next.js, deployed separately from the Eve runtime |
+| Operator app | Local-only Next.js control plane; production deployment is deferred |
 | Workspace | pnpm and Turborepo with `apps/agent` and `apps/web` |
 | Team context | Explicit Slack mentions and Linear Agent Sessions |
 | Repository evidence | GitHub working repository plus optional read-only watched repositories |
@@ -78,17 +78,17 @@ before documentation work continues.
 ## Deploy On Vercel
 
 The repository root owns workspace orchestration and is not a deployable app.
-Create two Vercel projects from the same repository:
+The current deployed surface is the Eve app:
 
 - set the agent project's Root Directory to `apps/agent`; it owns Eve routes,
-  channels, tools, sandboxes, workflow state, and agent runtime variables;
-- set the web project's Root Directory to `apps/web`; it owns the Next.js
-  operator pages and web-only variables.
+  channels, tools, sandboxes, workflow state, and agent runtime variables.
 
-Keep the two projects independently linked and configured. The web app does not
-mount Eve with `withEve`, proxy agent routes, or inherit the agent project's
-environment. Cross-app authentication and service calls are intentionally left
-for their dedicated issues.
+The web app is intentionally local-only for the first control-plane delivery.
+`pnpm dev:web` binds it to `127.0.0.1`, and server-side environment such as the
+database URL is reported as readiness state rather than used as browser
+authentication. Do not deploy or expose it remotely before
+[production authentication issue #37](https://github.com/peelar/docs-agent/issues/37)
+lands.
 
 ## Connect Team Context
 

@@ -58,7 +58,8 @@ successful setup.
 - The web app and agent must not implement separate setup schemas or validation.
 - Connector installation may initially link to Eve CLI, Vercel Connect, or the
   provider rather than being silently automated in the web app.
-- Setup changes need auditability and explicit production authentication.
+- Remote setup changes need auditability and explicit production
+  authentication. The local-only operator app does not authorize remote access.
 - The first web onboarding slice can be read-only readiness; guided mutations
   and connector handoffs can follow independently.
 

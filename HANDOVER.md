@@ -1,4 +1,76 @@
-# Handover
+# Handover: Local Operator Control Plane
+
+Date: 2026-07-11
+Next issue: [#38](https://github.com/peelar/docs-agent/issues/38)
+
+Deferred issue: [#37](https://github.com/peelar/docs-agent/issues/37)
+
+## Current State
+
+- The restrictive bounded-overnight exception was removed from `AGENTS.md` and
+  `.codex/skills/next/SKILL.md`. The normal per-scope commit prompt remains.
+- Production deployment and Better Auth were split out of First Delivery. Issue
+  #37 is now a low-priority Later Backlog issue that depends on #41.
+- Issues #39 and #40 now target the local-only app and depend only on the shared
+  service boundary in #38.
+- The web app now uses Tailwind CSS v4 and checked-in shadcn/ui primitives for
+  the local operator shell.
+- Better Auth, login routes, auth APIs, auth tests, and production-auth docs were
+  removed from the current working tree.
+- The web dev and start scripts bind to `127.0.0.1`. Next.js Proxy rejects
+  non-loopback hostnames with a no-store `403` response.
+- Server environment such as `DOCS_AGENT_DATABASE_URL` is configuration and
+  readiness input, not browser authentication. Values must remain server-only.
+
+## Verified Locally
+
+- `fnm exec --using v24.18.0 pnpm check` passes for the local-only replacement:
+  both workspace checks, the production builds, 10 desktop/mobile web tests,
+  and the monorepo smoke checks complete successfully.
+- Existing desktop and mobile shell navigation, responsive layout, skip-link,
+  unknown-route, and contrast coverage remains in Playwright.
+- New deterministic coverage accepts loopback hostnames and rejects a
+  non-loopback request at the web boundary with a no-store `403` response.
+- Removing the auth routes left stale generated Next.js route types in `.next`.
+  Clearing that generated cache removed the references; a clean build then
+  passed.
+
+## Not Verified
+
+1. **Not authentication:** loopback binding and hostname rejection reduce
+   accidental exposure but do not authenticate a person. The web app must not
+   be deployed or exposed remotely before #37 lands.
+2. **Shared services:** #38 has not yet moved database ownership and read
+   services into a package both apps can consume.
+3. **Readiness:** the Status page does not yet interpret database, repository,
+   connector, or Eve configuration. Environment presence alone must not be
+   presented as reachable or verified.
+4. **Signal data:** the queue and detail pages are still placeholders pending
+   #38, #40, and #41.
+5. **Production auth:** Better Auth remains only a deferred issue contract. No
+   production deployment, OAuth application, login, secure cookie, or Eve auth
+   bridge is implemented or verified. Better Auth still appears transitively in
+   `pnpm-lock.yaml` through the agent's `@vercel/connect` dependency; it is not a
+   direct web dependency or active operator-app auth path.
+6. **Host-header boundary:** the Proxy check is defense in depth, not a substitute
+   for binding the process to loopback. A reverse proxy that rewrites host data
+   changes the assumptions and is out of scope for the local delivery.
+7. **Repository delivery:** the local changes are not committed or pushed.
+8. **In-app browser pass:** Codex's in-app browser surface was unavailable in
+   this session. The prior standalone Playwright render was inspected, but the
+   local-only shell should be rendered again after #38 adds real data.
+
+## Continue From Here
+
+1. Review and commit the local-only shell, Tailwind/shadcn migration, bounded-mode
+   rollback, backlog docs, and handover.
+2. Resume First Delivery with #38, preserving the canonical database URL and
+   repository-root local database path across both apps.
+3. Keep #37 in Later Backlog until the local control plane through #41 is proven.
+
+---
+
+# Previous Handover Ledger
 
 ## #20 Decide persistence for docs signals and workflow state
 

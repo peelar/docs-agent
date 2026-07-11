@@ -1,5 +1,8 @@
 import type { ReactNode } from "react";
 
+import { Card, CardContent } from "@/components/ui/card";
+import { cn } from "@/lib/utils";
+
 type StatePanelProps = {
   action?: ReactNode;
   body: string;
@@ -20,24 +23,35 @@ function StatePanel({
   const isError = tone === "error";
 
   return (
-    <section
-      className={`state-panel state-panel-${tone}`}
+    <Card
+      className="relative min-h-72 overflow-hidden border-foreground/20 bg-card/80 py-0 shadow-[0_22px_70px_rgba(28,43,38,0.1)]"
       role={isError ? "alert" : "status"}
       aria-live={isError ? "assertive" : "polite"}
     >
-      <div
-        className={`state-mark ${tone === "loading" ? "state-mark-loading" : ""}`}
-        aria-hidden="true"
-      >
-        {mark}
-      </div>
-      <div className="state-copy">
-        <p className="state-kicker">{kicker}</p>
-        <h2>{title}</h2>
-        <p>{body}</p>
-        {action ? <div className="state-action">{action}</div> : null}
-      </div>
-    </section>
+      <div className="pointer-events-none absolute -top-20 -right-16 size-60 rounded-full border border-foreground/10" />
+      <CardContent className="relative grid min-h-72 items-end gap-8 p-[clamp(1.5rem,4vw,3.5rem)] md:grid-cols-[minmax(8rem,0.4fr)_minmax(0,1fr)]">
+        <div
+          className={cn(
+            "grid size-[clamp(5rem,10vw,8rem)] place-items-center rounded-full border border-foreground/25 bg-background font-heading text-[clamp(2rem,5vw,4rem)] text-accent",
+            isError && "text-destructive",
+            tone === "loading" && "animate-pulse",
+          )}
+          aria-hidden="true"
+        >
+          {mark}
+        </div>
+        <div className="max-w-2xl">
+          <p className="font-mono text-[0.68rem] font-bold tracking-[0.12em] text-accent uppercase">
+            {kicker}
+          </p>
+          <h2 className="mt-3 max-w-[18ch] font-heading text-[clamp(2rem,4vw,3.8rem)] leading-none font-medium tracking-[-0.055em] text-balance">
+            {title}
+          </h2>
+          <p className="mt-5 max-w-xl leading-7 text-muted-foreground">{body}</p>
+          {action ? <div className="mt-6">{action}</div> : null}
+        </div>
+      </CardContent>
+    </Card>
   );
 }
 

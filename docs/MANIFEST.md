@@ -210,7 +210,7 @@ writeback boundary.
 - Signals from Slack, Linear, watched repositories, and release context can be
   joined so the agent does not lose context between discovery, verification,
   patch preparation, and final writeback.
-- An authenticated operator can tell whether Docs Agent is ready, browse the
+- A local operator can tell whether Docs Agent is ready, browse the
   durable docs-signal queue, and inspect signal evidence and lifecycle without
   reading SQLite or runtime logs.
 

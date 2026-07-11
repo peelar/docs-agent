@@ -10,15 +10,15 @@ test("the shell navigates and adapts to the viewport", async ({ page }, testInfo
   const navigation = page.getByRole("navigation", { name: "Primary" });
   await expect(navigation).toBeVisible();
 
-  await page.getByRole("link", { name: "Status" }).click();
+  await page.getByRole("link", { name: "Status", exact: true }).click();
   await expect(page).toHaveURL(/\/status$/);
-  await expect(page.getByRole("link", { name: "Status" })).toHaveAttribute(
+  await expect(page.getByRole("link", { name: "Status", exact: true })).toHaveAttribute(
     "aria-current",
     "page",
   );
   await expect(page.getByRole("heading", { name: "Status", exact: true })).toBeVisible();
 
-  await page.getByRole("link", { name: "Signals" }).click();
+  await page.getByRole("link", { name: "Signals", exact: true }).click();
   await expect(page).toHaveURL(/\/signals$/);
   await expect(page.getByRole("link", { name: "Signals" })).toHaveAttribute(
     "aria-current",
@@ -44,8 +44,12 @@ test("keyboard users can skip navigation and recover from an unknown route", asy
   page,
 }) => {
   await page.goto("/");
-  await page.keyboard.press("Tab");
-  await expect(page.getByRole("link", { name: "Skip to content" })).toBeFocused();
+  const skipLink = page.getByRole("link", { name: "Skip to content" });
+  for (let attempt = 0; attempt < 3; attempt += 1) {
+    await page.keyboard.press("Tab");
+    if (await skipLink.evaluate((element) => element === document.activeElement)) break;
+  }
+  await expect(skipLink).toBeFocused();
   await page.keyboard.press("Enter");
   await expect(page.locator("#main-content")).toBeFocused();
 

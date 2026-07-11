@@ -1,7 +1,7 @@
 import type { Metadata } from "next";
 
-import { PageHeading } from "../../components/page-heading";
-import { EmptyState } from "../../components/state-panel";
+import { PageHeading } from "../../../components/page-heading";
+import { EmptyState } from "../../../components/state-panel";
 
 export const metadata: Metadata = {
   title: "Signals",
@@ -9,7 +9,7 @@ export const metadata: Metadata = {
 
 export default function SignalsPage() {
   return (
-    <div className="page-stack">
+    <div className="grid gap-[clamp(2rem,6vw,5rem)]">
       <PageHeading
         index="02"
         title="Signals"

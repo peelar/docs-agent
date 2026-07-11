@@ -14,8 +14,9 @@ itself. It does not replace them as the place where documentation work starts.
 
 ## Product Boundary
 
-The first version is for one authenticated operator and one configured
-workspace. Multi-workspace switching, invitations, and roles are later
+The first version is for one local operator and one configured workspace. It is
+bound to the local machine and is not a production deployment. Remote access,
+authentication, multi-workspace switching, invitations, and roles are later
 concerns.
 
 The UI is an application surface, not a database editor. It uses the same typed
@@ -58,9 +59,10 @@ installation ready -> channel reachable -> workspace ready -> first useful signa
 
 ### Installation
 
-Installation makes the agent reachable. It includes deployment, database
-configuration, operator authentication, Vercel Connect clients, provider app
-installation, and webhook or trigger attachment.
+Installation makes the agent reachable. For the local-first delivery it includes
+database configuration, Vercel Connect clients, provider app installation, and
+webhook or trigger attachment. Web deployment and operator authentication are a
+later slice.
 
 App-scoped Slack, Linear, and GitHub credentials must exist before those
 surfaces can wake or authorize the agent. This cannot be deferred to the first
@@ -110,16 +112,7 @@ Add the operator application shell, navigation, loading and failure states, and
 the minimum design system needed for later screens. Do not fill the shell with
 mock operational data.
 
-### 3. Authentication
-
-Tracked by [#37](https://github.com/peelar/docs-agent/issues/37).
-
-Protect the web app and its server-side operations with a real single-workspace
-operator identity. Production must fail closed. Authentication should establish
-the caller boundary that later setup mutations, approvals, and Eve access can
-authorize against.
-
-### 4. Shared control-plane services
+### 3. Shared control-plane services
 
 Tracked by [#38](https://github.com/peelar/docs-agent/issues/38).
 
@@ -127,7 +120,7 @@ Give the agent and web app one app-owned database and service boundary. Move
 only the schemas, migrations, setup reads, and signal reads needed by both apps.
 The browser never imports database code or raw tables.
 
-### 5. Readiness status
+### 4. Readiness status
 
 Tracked by [#39](https://github.com/peelar/docs-agent/issues/39).
 
@@ -147,7 +140,7 @@ Each failed or incomplete check needs a concrete next action. The first slice is
 read-only: it reports and links to remediation without trying to provision every
 provider.
 
-### 6. Work queue
+### 5. Work queue
 
 Tracked by [#40](https://github.com/peelar/docs-agent/issues/40).
 
@@ -155,7 +148,7 @@ Show the existing docs signals as the core operational queue. The list should
 support the current status and source vocabularies, priority, updated time, next
 action, uncertainty, and useful empty or failure states.
 
-### 7. Signal detail
+### 6. Signal detail
 
 Tracked by [#41](https://github.com/peelar/docs-agent/issues/41).
 
@@ -170,6 +163,8 @@ once the read model proves the right interaction shape.
 
 The following work stays below the first delivery chain:
 
+- production deployment and single-workspace authentication
+  ([#37](https://github.com/peelar/docs-agent/issues/37));
 - guided workspace setup from the readiness screen ([#42](https://github.com/peelar/docs-agent/issues/42));
 - connector installation handoffs and verification ([#43](https://github.com/peelar/docs-agent/issues/43));
 - workspace-memory proposal, freshness, promotion, and retirement review ([#44](https://github.com/peelar/docs-agent/issues/44));
@@ -192,6 +187,8 @@ folded into the web foundation.
 ## Non-Goals For The First Delivery
 
 - Multi-tenant accounts, invitations, or roles.
+- Production deployment or remote access to the unauthenticated local operator
+  app.
 - Replacing Slack or Linear as the source of docs signals.
 - A raw SQL, table, environment-variable, or workflow-state editor.
 - Building a complete tracing backend.
@@ -201,7 +198,7 @@ folded into the web foundation.
 
 ## Success
 
-The first delivery is useful when an authenticated operator can open the app,
+The first delivery is useful when a local operator can open the app,
 understand whether Docs Agent is ready, see the durable work queue, and inspect
 the full evidence and lifecycle of one signal without reaching for SQLite or
 runtime logs.
