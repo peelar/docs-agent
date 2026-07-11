@@ -1,8 +1,12 @@
 import { getTokenResponse, type ConnectTokenResponse } from "@vercel/connect";
+import {
+  GITHUB_CONNECTOR_ENV,
+  resolveGitHubConnector,
+} from "@docs-agent/control-plane/agent";
 
 export type { ConnectTokenResponse };
+export { GITHUB_CONNECTOR_ENV, resolveGitHubConnector };
 
-export const GITHUB_CONNECTOR_ENV = "DOCS_AGENT_GITHUB_CONNECTOR";
 export const GITHUB_API_VERSION = "2022-11-28";
 
 export interface GitHubRepositorySlug {
@@ -23,16 +27,6 @@ export type GitHubApiResult<T> =
       body: T;
     }
   | GitHubApiErrorResult;
-
-export function resolveGitHubConnector(
-  state?: { githubWriteback?: { connector?: string } } | null,
-): string {
-  return (
-    process.env[GITHUB_CONNECTOR_ENV]?.trim() ||
-    state?.githubWriteback?.connector?.trim() ||
-    ""
-  );
-}
 
 export async function resolveGitHubAppInstallationToken(input: {
   connector: string;

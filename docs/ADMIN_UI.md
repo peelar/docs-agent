@@ -116,9 +116,10 @@ mock operational data.
 
 Tracked by [#38](https://github.com/peelar/docs-agent/issues/38).
 
-Give the agent and web app one app-owned database and service boundary. Move
-only the schemas, migrations, setup reads, and signal reads needed by both apps.
-The browser never imports database code or raw tables.
+The agent and web app now share `@docs-agent/control-plane`. That server-only
+package owns the Drizzle schema, migrations, setup persistence, and typed signal
+list and detail reads. Agent tools remain thin adapters over those services, and
+the browser cannot import the package's agent or raw database entrypoints.
 
 ### 4. Readiness status
 

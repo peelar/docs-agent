@@ -1,0 +1,42 @@
+{
+  "name": "@docs-agent/control-plane",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    ".": "./src/index.ts",
+    "./agent": {
+      "types": "./src/agent.ts",
+      "browser": null,
+      "default": "./src/agent.ts"
+    },
+    "./testing": {
+      "types": "./src/testing.ts",
+      "browser": null,
+      "default": "./src/testing.ts"
+    }
+  },
+  "scripts": {
+    "check": "pnpm typecheck && pnpm test",
+    "db:generate": "drizzle-kit generate",
+    "db:migrate": "tsx scripts/migrate-db.ts",
+    "db:migrate:deployment": "tsx scripts/migrate-db-for-build.ts",
+    "test": "tsx scripts/check-db-migration-parity.ts && tsx scripts/check-db-schema-lifecycle.ts && tsx scripts/check-control-plane-boundary.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "drizzle-orm": "^0.45.2",
+    "server-only": "^0.0.1",
+    "zod": "4.4.3"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "drizzle-kit": "^0.31.10",
+    "tsx": "^4.23.0",
+    "typescript": "7.0.2"
+  },
+  "engines": {
+    "node": "24.18.0"
+  }
+}

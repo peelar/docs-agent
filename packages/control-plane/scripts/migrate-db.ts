@@ -1,4 +1,4 @@
-import { migrateDocsAgentDatabase } from "../agent/lib/db/client.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.js";
 
 await migrateDocsAgentDatabase();
 

@@ -9,8 +9,8 @@ import { sql } from "drizzle-orm";
 import {
   migrateDocsAgentDatabase,
   withDocsAgentDatabase,
-} from "../agent/lib/db/client.js";
-import { readDocsAgentMigrations } from "../agent/lib/db/migrations.js";
+} from "../src/db/client.js";
+import { readDocsAgentMigrations } from "../src/db/migrations.js";
 
 const migrations = readDocsAgentMigrations();
 const tempRoot = await mkdtemp(join(tmpdir(), "docs-agent-schema-lifecycle-"));

@@ -1,4 +1,4 @@
-import { migrateDocsAgentDatabase } from "../agent/lib/db/client.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.js";
 
 if (process.env.VERCEL === "1") {
   await migrateDocsAgentDatabase();

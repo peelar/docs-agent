@@ -8,17 +8,16 @@
     "#evals/*": "./evals/*"
   },
   "scripts": {
-    "build": "tsx scripts/migrate-db-for-build.ts && eve build",
+    "build": "pnpm --filter @docs-agent/control-plane db:migrate:deployment && eve build",
     "check": "pnpm typecheck && pnpm test && pnpm build",
-    "db:generate": "drizzle-kit generate",
-    "db:migrate": "tsx scripts/migrate-db.ts",
-    "dev": "pnpm db:migrate && eve dev",
+    "dev": "pnpm --filter @docs-agent/control-plane db:migrate && eve dev",
     "eval": "eve eval",
-    "start": "pnpm db:migrate && eve start",
-    "test": "tsx scripts/check-db-migration-parity.ts && tsx scripts/check-db-schema-lifecycle.ts && tsx scripts/check-repository-materialization.ts && tsx scripts/check-repository-workflow.ts && tsx scripts/check-setup-state-db.ts && tsx scripts/check-docs-signal-queue.ts && tsx scripts/check-docs-signal-lifecycle.ts && tsx scripts/check-docs-signal-capture.ts && tsx scripts/check-docs-signal-intake.ts && tsx scripts/check-docs-impact-decision.ts && tsx scripts/check-workflow-model.ts && tsx scripts/check-slack-docs-signal.ts && tsx scripts/check-linear-docs-signal.ts && tsx scripts/check-docs-signal-patch-handoff.ts && tsx scripts/check-docs-signal-workflow-safety.ts && tsx scripts/check-workspace-memory.ts",
+    "start": "pnpm --filter @docs-agent/control-plane db:migrate && eve start",
+    "test": "tsx scripts/check-repository-materialization.ts && tsx scripts/check-repository-workflow.ts && tsx scripts/check-setup-state-db.ts && tsx scripts/check-docs-signal-queue.ts && tsx scripts/check-docs-signal-lifecycle.ts && tsx scripts/check-docs-signal-capture.ts && tsx scripts/check-docs-signal-intake.ts && tsx scripts/check-docs-impact-decision.ts && tsx scripts/check-workflow-model.ts && tsx scripts/check-slack-docs-signal.ts && tsx scripts/check-linear-docs-signal.ts && tsx scripts/check-docs-signal-patch-handoff.ts && tsx scripts/check-docs-signal-workflow-safety.ts && tsx scripts/check-workspace-memory.ts",
     "typecheck": "tsc"
   },
   "dependencies": {
+    "@docs-agent/control-plane": "workspace:*",
     "@libsql/client": "^0.17.4",
     "@vercel/connect": "0.3.2",
     "ai": "^7.0.22",
@@ -28,7 +27,6 @@
   },
   "devDependencies": {
     "@types/node": "24.x",
-    "drizzle-kit": "^0.31.10",
     "microsandbox": "^0.5.10",
     "tsx": "^4.23.0",
     "typescript": "7.0.2"

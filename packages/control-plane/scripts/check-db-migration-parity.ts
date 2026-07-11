@@ -9,16 +9,16 @@ import {
   type AnySQLiteTable,
 } from "drizzle-orm/sqlite-core";
 
-import { migrateDocsAgentDatabase } from "../agent/lib/db/client.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.js";
 import {
   docsAgentMigrationsFolder,
   readDocsAgentMigrations,
-} from "../agent/lib/db/migrations.js";
-import { schema } from "../agent/lib/db/schema.js";
+} from "../src/db/migrations.js";
+import { schema } from "../src/db/schema.js";
 import {
   DOCS_AGENT_SCHEMA_LATEST_MIGRATION_AT,
   DOCS_AGENT_SCHEMA_MIGRATION_COUNT,
-} from "../agent/lib/db/schema-readiness.js";
+} from "../src/db/schema-readiness.js";
 
 const migrationsFolder = docsAgentMigrationsFolder();
 const journal = JSON.parse(
@@ -40,7 +40,9 @@ for (const entry of journal.entries) {
 }
 
 const latestEntry = journal.entries.at(-1);
-assert.notEqual(latestEntry, undefined);
+if (latestEntry === undefined) {
+  throw new Error("Drizzle migration journal is empty.");
+}
 const latestSnapshot = JSON.parse(
   await readFile(
     join(
@@ -139,7 +141,7 @@ try {
 }
 
 const clientSource = await readFile(
-  new URL("../agent/lib/db/client.ts", import.meta.url),
+  new URL("../src/db/client.ts", import.meta.url),
   "utf8",
 );
 for (const applicationTable of expectedTables) {

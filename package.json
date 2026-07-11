@@ -6,8 +6,8 @@
   "scripts": {
     "build": "turbo run build",
     "check": "turbo run check && pnpm monorepo:smoke",
-    "db:generate": "pnpm --filter docs-agent db:generate",
-    "db:migrate": "pnpm --filter docs-agent db:migrate",
+    "db:generate": "pnpm --filter @docs-agent/control-plane db:generate",
+    "db:migrate": "pnpm --filter @docs-agent/control-plane db:migrate",
     "dev": "turbo run dev --filter=docs-agent --",
     "dev:web": "turbo run dev --filter=@docs-agent/web",
     "eval": "pnpm --filter docs-agent eval",

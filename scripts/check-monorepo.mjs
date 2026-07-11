@@ -19,7 +19,12 @@ const workspaceList = JSON.parse(
 );
 const workspaceNames = new Set(workspaceList.map((workspace) => workspace.name));
 
-for (const name of ["docs-agent-workspace", "docs-agent", "@docs-agent/web"]) {
+for (const name of [
+  "docs-agent-workspace",
+  "docs-agent",
+  "@docs-agent/control-plane",
+  "@docs-agent/web",
+]) {
   if (!workspaceNames.has(name)) {
     throw new Error(`pnpm did not discover workspace package ${name}.`);
   }
