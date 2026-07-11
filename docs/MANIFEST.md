@@ -156,9 +156,10 @@ A maintainer gives the agent a scenario containing:
 
 The agent inspects the scenario in an Eve sandbox, identifies affected docs
 surfaces in the working documentation repository, decides whether a docs change
-is needed, and emits a documentation impact report. If a change is needed, it
-prepares a minimal docs patch, records which checks ran, exports a diff, and
-publishes approved changes back to the same GitHub repository.
+is needed, and emits a documentation impact report. It then chooses the smallest
+editorial intervention that solves the reader problem, creates a content plan
+for substantial work, prepares the complete reversible draft, records checks,
+and exports a diff. Approved changes publish back to the same GitHub repository.
 
 ## Signal Workflow
 
@@ -181,6 +182,12 @@ or an explicit need to wait for source or release evidence.
 If a docs patch is warranted, patch preparation and draft PR publishing continue
 through the same sandboxed working-repository workflow and approval-gated
 writeback boundary.
+
+Substantial work stays attached to the originating docs signal and one durable
+Eve session. Paige continues reversible steps without repeated prompts, records
+meaningful milestones and inspectable artifacts, parks for real human boundaries,
+and resumes the same work after answers or corrections. This ownership record is
+a domain projection over Eve execution, not a separate workflow engine.
 
 ## Success Signals
 

@@ -36,6 +36,26 @@ export {
   type DocsSignalStatus,
 } from "./docs-signal-lifecycle.js";
 export {
+  getOwnedDocsWork,
+  ownedDocsWorkMilestoneSchema,
+  ownedDocsWorkResultSchema,
+  startOwnedDocsWork,
+  startOwnedDocsWorkInputSchema,
+  updateOwnedDocsWork,
+  updateOwnedDocsWorkInputSchema,
+  type OwnedDocsWorkRuntime,
+} from "./owned-docs-work.js";
+export {
+  ownedDocsWorkConversationSchema,
+  ownedDocsWorkOutcomeSchema,
+  ownedDocsWorkRecordSchema,
+  ownedDocsWorkReferencesSchema,
+  ownedDocsWorkStatusSchema,
+  type OwnedDocsWorkRecord,
+  type OwnedDocsWorkReferences,
+  type OwnedDocsWorkStatus,
+} from "./owned-docs-work-contract.js";
+export {
   getSetupStatus,
   setupStatusSchema,
   type SetupStatus,

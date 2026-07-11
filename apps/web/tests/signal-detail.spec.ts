@@ -20,7 +20,7 @@ test("distinguishes summary, claims, and safely rendered source text", async ({ 
   expect(await page.evaluate(() => (window as Window & { __unsafe?: boolean }).__unsafe)).toBeUndefined();
 });
 
-test("renders ordered lifecycle history and every workflow artifact kind", async ({ page }) => {
+  test("renders ordered lifecycle history and every workflow artifact kind", async ({ page }) => {
   await page.goto("/signals/signal-linear-metadata?scenario=ready");
 
   const events = page.locator("[data-signal-event]");
@@ -37,7 +37,16 @@ test("renders ordered lifecycle history and every workflow artifact kind", async
   const body = await page.locator("body").innerText();
   expect(body).not.toMatch(/lin_api_|xox[baprs]-|github_pat_/i);
   expect(body).toContain('"secretToken": "[redacted]"');
-});
+  });
+
+  test("shows the durable owned-work execution on the signal record", async ({ page }) => {
+    await page.goto("/signals/signal-private-metadata");
+    const work = page.locator("[data-owned-work-status='draft-ready']");
+    await expect(page.getByRole("heading", { name: "One task, one durable execution" })).toBeVisible();
+    await expect(work).toContainText("Deliver a checked conceptual docs update");
+    await expect(work).toContainText("session-owned-docs-101");
+    await expect(work.getByRole("link", { name: /Open originating Linear Issue/i })).toHaveAttribute("href", "https://linear.app/acme/issue/DOCS-101");
+  });
 
 test("renders missing, corrupt, unauthorized, and database failures explicitly", async ({ page }) => {
   const states = [

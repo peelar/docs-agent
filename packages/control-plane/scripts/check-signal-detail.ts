@@ -6,6 +6,7 @@ import { join } from "node:path";
 import { migrateDocsAgentDatabase } from "../src/db/client.js";
 import { createDocsSignal, updateDocsSignalLifecycle } from "../src/docs-signals.js";
 import { getOperatorSignalDetail } from "../src/signal-detail.js";
+import { startOwnedDocsWork } from "../src/owned-docs-work.js";
 
 const tempRoot = await mkdtemp(join(tmpdir(), "docs-agent-signal-detail-"));
 const originalDatabaseUrl = process.env.DOCS_AGENT_DATABASE_URL;
@@ -55,6 +56,13 @@ try {
     ],
   });
 
+  await startOwnedDocsWork({
+    signalId: created.signal.id,
+    operationKey: "accept-DOCS-101",
+    intendedOutcome: "Prepare and validate the metadata documentation update.",
+    conversation: { kind: "linear-issue", id: "DOCS-101", url: "https://linear.app/acme/issue/DOCS-101" },
+  }, { sessionId: "session-DOCS-101", runId: "run-DOCS-101-start" });
+
   await new Promise((resolve) => setTimeout(resolve, 5));
   await updateDocsSignalLifecycle({
     id: created.signal.id,
@@ -68,6 +76,8 @@ try {
 
   const detail = await getOperatorSignalDetail({ id: created.signal.id });
   assert.equal(detail.sourceSummary, "Operator-safe source summary.");
+  assert.equal(detail.ownedWork?.status, "active");
+  assert.equal(detail.ownedWork?.sessionId, "session-DOCS-101");
   assert.equal(detail.sources[0]?.provider, "Linear");
   assert.deepEqual(detail.sources[0]?.authors, ["Marta", "Kai"]);
   assert.equal(detail.sources[0]?.sourceText, "<script>unsafe()</script> literal source text");
@@ -85,16 +95,18 @@ try {
     ["check-log", "diff", "draft-pr", "verification-report"],
   );
   assert.equal(detail.artifacts.find(({ kind }) => kind === "draft-pr")?.metadata.token, "[redacted]");
-  assert.equal(detail.events.length, 2);
+  assert.equal(detail.events.length, 3);
   assert.equal(detail.events[0]?.eventType, "signal-created");
-  assert.equal(detail.events[1]?.toStatus, "needs-source-evidence");
-  assert.equal(detail.events[1]?.metadata.credential, "[redacted]");
-  assert.equal(detail.events[1]?.metadata.safe, "visible");
+  assert.equal(detail.events[1]?.eventType, "owned-work-accepted");
+  assert.equal(detail.events[2]?.toStatus, "needs-source-evidence");
+  assert.equal(detail.events[2]?.metadata.credential, "[redacted]");
+  assert.equal(detail.events[2]?.metadata.safe, "visible");
 
   const serialized = JSON.stringify(detail);
   assert.equal(serialized.includes("DOCS-101-internal"), false);
   assert.equal(serialized.includes("lin_api_secret"), false);
   assert.equal(serialized.includes("xoxb-secret"), false);
+  assert.equal(serialized.includes("accept-DOCS-101"), false);
 } finally {
   restoreEnvironment("DOCS_AGENT_DATABASE_URL", originalDatabaseUrl);
   restoreEnvironment("VERCEL", originalVercel);

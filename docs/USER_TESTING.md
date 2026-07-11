@@ -316,6 +316,39 @@ must fail visibly. Maintainer corrections may be proposed separately with
 contradiction refresh, repository rule and validation extraction, local example
 loading, traversal rejection, and visible generation failure.
 
+## Substantial Owned Work
+
+Start with a captured docs signal and ask Paige to “take care of” a substantial
+documentation outcome. Confirm `owned_docs_work` records one work id plus the
+originating signal, conversation, Eve session, starting/latest run, intended
+outcome, and revision. The acceptance update should be concise; Paige should
+then continue through reversible verification, editorial recommendation,
+content planning, multi-file authoring, and validation without asking for a new
+prompt between each step.
+
+Record routine repository reads, edits, retries, and successful checks. They
+must appear as signal events or artifacts but return no `channelUpdate`. Content
+plan, materially changed approach, blocker, draft readiness, publication
+approval, and completion should return meaningful updates. Open the same signal
+in `/signals/:id` and confirm the owned-work card, ordered activity, and typed
+artifacts are inspectable without exposing the internal operation key or
+workspace id.
+
+Exercise a missing-evidence or consequential-decision park, then answer in the
+same Eve session and resume the same work id. A stale revision, duplicate start,
+replayed operation, or different-session takeover must not create duplicate work
+or artifacts. Apply a correction and confirm Paige revises the current
+recommendation, plan, and draft references. Also exercise pause/resume and
+abandon; abandonment should reset any reversible draft separately.
+
+At draft readiness, Paige should record an approval-request milestone but must
+not call `publish_working_repository_pr` until approval is explicit. The
+`owned-docs-work.eval.ts` cases cover inline work, uninterrupted substantial
+work, park/resume, correction, quiet routine activity, and publication waiting.
+`check-owned-docs-work.ts` runs the deterministic idempotency, concurrency,
+milestone, artifact, session, correction, pause/resume, approval, completion,
+and abandonment contract through `pnpm check`.
+
 ## Editorial Intervention Choice
 
 After current-docs verification and `get_docs_profile`, ask Paige to choose an

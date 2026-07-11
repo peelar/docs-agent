@@ -51,6 +51,7 @@ publishing remains a separate explicit approval through
 | Boundary | Owns | Current implementation | Must not do |
 | --- | --- | --- | --- |
 | Signal intake | Convert provider context into a docs signal with provenance. | `capture_slack_docs_signal`, `capture_linear_docs_signal`; `create_docs_signal`, `list_docs_signals`, `get_docs_signal`, `update_docs_signal_lifecycle`; watched scans also create source evidence. | Inspect or patch docs directly. |
+| Owned execution | Keep one substantial task on its originating signal and Eve session through reversible work, human pauses, corrections, approval, and outcome. | `owned_docs_work`, the one-to-one `docs_signal_owned_work` projection, existing signal events/artifacts, and Eve's durable session/turn runtime. | Create a second workflow engine, duplicate work on resume, narrate routine activity, or bypass approval. |
 | Decision and triage | Classify docs impact, missing evidence, verification need, and next action. | `planDocsImpactDecision` and the shared decision schemas. | Treat Slack or Linear context alone as proof for public docs claims. |
 | Current-docs verification | Inspect the configured working documentation repository in the sandbox. | `verify_docs_signal_current_docs` for captured signals; existing scenario workflow in `run_docs_maintenance_scenario`. | Publish or write outside `/workspace/working-docs`. |
 | Editorial recommendation | Choose the smallest intervention that solves the reader problem and explain evidence plus important alternatives. | `editorial_recommendation`, linked to current-docs evidence, docs profile, prior impact decision, and later draft. | Turn model judgment into a large rule engine, blindly follow a requested format, or debate routine style. |
@@ -67,6 +68,10 @@ publishing remains a separate explicit approval through
   Session issue into `issue-tracker-item` external context, create or dedupe a
   Linear docs signal, run shared decision/triage, and return Agent Activity
   reply guidance.
+- `owned_docs_work`: accept or resume substantial work on one docs signal,
+  retain Eve session/run and conversation references, serialize corrections,
+  record inspectable milestones and artifacts, park for human input, and finish
+  with an explicit outcome. Quick inline work skips this tool.
 - `verify_docs_signal_current_docs`: materialize the configured working
   documentation repository for one signal, read likely docs pages, search likely
   docs terms, record a `docs-verified` lifecycle event, and return evidence

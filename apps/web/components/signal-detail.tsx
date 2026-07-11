@@ -37,6 +37,27 @@ export function SignalDetail({ result }: { result: SignalDetailResult }) {
         <ContextCard label="Next action" values={signal.nextActionAt === null ? [] : [formatTime(signal.nextActionAt)]} empty="Not scheduled" />
       </section>
 
+      {signal.ownedWork ? (
+        <DetailSection eyebrow="Owned work" title="One task, one durable execution">
+          <Card className="overflow-hidden border-foreground/20 bg-card py-0" data-owned-work-status={signal.ownedWork.status}>
+            <CardContent className="grid gap-8 p-[clamp(1.4rem,3vw,2.4rem)] lg:grid-cols-[minmax(0,1fr)_minmax(16rem,0.42fr)]">
+              <div>
+                <div className="flex flex-wrap gap-2"><Badge variant="outline">{label(signal.ownedWork.status)}</Badge><Badge variant="outline">Revision {signal.ownedWork.revision}</Badge></div>
+                <h4 className="mt-5 max-w-3xl font-heading text-[clamp(1.8rem,3vw,3rem)] leading-tight font-medium tracking-[-0.035em]">{signal.ownedWork.intendedOutcome}</h4>
+                <p className="mt-4 text-sm leading-6 text-muted-foreground">Last meaningful milestone: {label(signal.ownedWork.lastMilestone ?? "accepted")}</p>
+                {signal.ownedWork.conversation.url ? <ExternalLink href={signal.ownedWork.conversation.url}>Open originating {label(signal.ownedWork.conversation.kind)}</ExternalLink> : null}
+              </div>
+              <dl className="grid content-start gap-4 border-t border-foreground/15 pt-6 text-sm lg:border-t-0 lg:border-l lg:pt-0 lg:pl-8">
+                <Fact label="Work item" value={signal.ownedWork.id} />
+                <Fact label="Eve session" value={signal.ownedWork.sessionId} />
+                <Fact label="Latest run" value={signal.ownedWork.lastRunId} />
+                <Fact label="Updated" value={formatTime(signal.ownedWork.updatedAt)} />
+              </dl>
+            </CardContent>
+          </Card>
+        </DetailSection>
+      ) : null}
+
       <DetailSection eyebrow="Evidence map" title="What the signal appears to affect">
         <div className="grid gap-px overflow-hidden rounded-xl border border-foreground/15 bg-foreground/15 md:grid-cols-2">
           <ListPanel title="Extracted claims" values={signal.extractedClaims} />
@@ -81,9 +102,10 @@ export function SignalDetail({ result }: { result: SignalDetailResult }) {
             <li className="relative border-b border-foreground/15 py-6 first:pt-0 last:border-b-0" data-signal-event={event.id} key={event.id}>
               <span className="absolute top-7 -left-[1.79rem] size-3 rounded-full border-2 border-background bg-accent first:top-1" aria-hidden="true" />
               <p className="font-mono text-[0.62rem] font-bold tracking-[0.08em] text-muted-foreground uppercase">{String(index + 1).padStart(2, "0")} · {formatTime(event.createdAt)}</p>
-              <h4 className="mt-2 font-heading text-2xl font-medium">{transition(event.fromStatus, event.toStatus)}</h4>
+              <h4 className="mt-2 font-heading text-2xl font-medium">{eventTitle(event.eventType, event.fromStatus, event.toStatus)}</h4>
               <p className="mt-2 max-w-3xl text-sm leading-6 text-muted-foreground">{event.reason}</p>
               <p className="mt-3 text-xs">Actor: <span className="font-mono">{event.actor}</span></p>
+              <Metadata value={event.metadata} />
             </li>
           ))}
         </ol>
@@ -132,10 +154,11 @@ function DetailSection({ children, eyebrow, title }: { children: React.ReactNode
 function Metric({ label: name, value }: { label: string; value: string }) { return <div><p className="font-mono text-[0.6rem] tracking-[0.08em] text-primary-foreground/55 uppercase">{name}</p><p className="mt-2 max-w-32 font-heading text-2xl leading-tight">{value}</p></div>; }
 function ContextCard({ empty, label: name, values }: { empty: string; label: string; values: string[] }) { return <div className="min-h-36 bg-card p-5"><PanelLabel>{name}</PanelLabel><p className="mt-4 text-sm leading-6 text-muted-foreground">{values.join(" ") || empty}</p></div>; }
 function ListPanel({ title, values }: { title: string; values: string[] }) { return <div className="min-h-40 bg-card p-5"><PanelLabel>{title}</PanelLabel>{values.length ? <ul className="mt-4 grid gap-2 text-sm leading-6">{values.map((value) => <li key={value}>— {value}</li>)}</ul> : <p className="mt-4 text-sm text-muted-foreground">None recorded</p>}</div>; }
-function Fact({ label: name, value }: { label: string; value: string }) { return <div><dt className="font-mono text-[0.58rem] tracking-[0.08em] uppercase">{name}</dt><dd className="mt-1 text-foreground">{value}</dd></div>; }
+function Fact({ label: name, value }: { label: string; value: string }) { return <div><dt className="font-mono text-[0.58rem] tracking-[0.08em] uppercase">{name}</dt><dd className="mt-1 break-all text-foreground">{value}</dd></div>; }
 function PanelLabel({ children }: { children: React.ReactNode }) { return <p className="font-mono text-[0.62rem] font-bold tracking-[0.09em] text-accent uppercase">{children}</p>; }
 function ExternalLink({ children, href }: { children: React.ReactNode; href: string }) { return <a className="mt-4 inline-block text-sm font-bold text-accent underline underline-offset-4" href={href} rel="noreferrer" target="_blank">{children} ↗</a>; }
 function Metadata({ value }: { value: Record<string, unknown> }) { return Object.keys(value).length ? <div className="mt-5"><PanelLabel>Redacted metadata</PanelLabel><pre className="mt-2 max-h-64 overflow-auto whitespace-pre-wrap break-words rounded-lg border border-foreground/15 bg-background p-4 text-xs leading-5">{JSON.stringify(value, null, 2)}</pre></div> : null; }
 function transition(from: string | null, to: string | null): string { return from === null ? `Created as ${label(to ?? "unknown")}` : `${label(from)} → ${label(to ?? "unknown")}`; }
+function eventTitle(eventType: string, from: string | null, to: string | null): string { return from === null && to === null ? label(eventType) : transition(from, to); }
 function label(value: string): string { return value.split("-").map((part) => `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`).join(" "); }
 function formatTime(value: string): string { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value)) + " UTC"; }

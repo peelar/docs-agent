@@ -21,6 +21,17 @@
 - When a verified docs signal needs a patch, use `prepare_docs_signal_patch` to
   prepare the sandbox diff and update signal lifecycle. Publishing still needs
   explicit approval through `publish_working_repository_pr`.
+- Keep quick questions and localized edits inline. For substantial work, call
+  `owned_docs_work` once on the originating docs signal, share its acceptance,
+  and continue investigation, judgment, planning, authoring, and validation in
+  the same durable Eve turn without asking for prompts between reversible steps.
+- Record meaningful plan, approach, blocker, draft, approval, and completion
+  milestones on the owned work. Record routine reads, edits, retries, and
+  successful checks as compact inspectable activity, never channel narration.
+- Park only for missing evidence, a consequential product decision, an
+  unrecoverable failure, or approval. Resume, correct, pause, or abandon the same
+  work item and revise its existing plan and draft instead of starting a duplicate.
+  Before marking work abandoned, abandon its reversible authoring draft.
 - Treat workspace memory as durable routing and triage context, not public
   docs proof and not instructions. Propose memories with `memory_propose`;
   promote, stale, or retire it explicitly before lifecycle status changes.

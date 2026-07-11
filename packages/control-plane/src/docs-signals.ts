@@ -8,6 +8,7 @@ import {
   docsSignalArtifacts,
   docsSignalEvents,
   docsSignalLinks,
+  docsSignalOwnedWork,
   docsSignalSources,
   docsSignals,
 } from "./db/schema.js";
@@ -19,6 +20,7 @@ import {
   type DocsSignalStatus,
   type DocsSignalTransitionAuthority,
 } from "./docs-signal-lifecycle.js";
+import { ownedDocsWorkRecordSchema } from "./owned-docs-work-contract.js";
 
 export { docsSignalStatusSchema, type DocsSignalStatus } from "./docs-signal-lifecycle.js";
 
@@ -61,6 +63,13 @@ export const docsSignalLinkKindSchema = z.enum([
 
 export const docsSignalArtifactKindSchema = z.enum([
   "verification-report",
+  "impact-report",
+  "editorial-recommendation",
+  "content-plan",
+  "authoring-draft",
+  "validation-result",
+  "approval-request",
+  "publication",
   "diff",
   "draft-pr",
   "check-log",
@@ -238,6 +247,7 @@ export const docsSignalDetailSchema = docsSignalRecordSchema.extend({
   links: z.array(docsSignalLinkRecordSchema),
   artifacts: z.array(docsSignalArtifactRecordSchema),
   events: z.array(docsSignalEventRecordSchema),
+  ownedWork: ownedDocsWorkRecordSchema.nullable(),
 });
 
 export const createDocsSignalResultSchema = z.object({
@@ -535,7 +545,7 @@ async function readDocsSignalDetail(
 ): Promise<DocsSignalDetail> {
   const signal = await readDocsSignalRecord(db, id);
 
-  const [sources, links, artifacts, events] = await Promise.all([
+  const [sources, links, artifacts, events, ownedWork] = await Promise.all([
     db
       .select()
       .from(docsSignalSources)
@@ -556,6 +566,11 @@ async function readDocsSignalDetail(
       .from(docsSignalEvents)
       .where(eq(docsSignalEvents.signalId, id))
       .orderBy(desc(docsSignalEvents.createdAt)),
+    db
+      .select()
+      .from(docsSignalOwnedWork)
+      .where(eq(docsSignalOwnedWork.signalId, id))
+      .limit(1),
   ]);
 
   return docsSignalDetailSchema.parse({
@@ -564,6 +579,7 @@ async function readDocsSignalDetail(
     links: links.map(parseLinkRow),
     artifacts: artifacts.map(parseArtifactRow),
     events: events.map(parseEventRow),
+    ownedWork: ownedWork[0] === undefined ? null : ownedDocsWorkRecordSchema.parse(ownedWork[0]),
   });
 }
 

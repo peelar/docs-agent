@@ -193,6 +193,45 @@ export const docsSignalEvents = sqliteTable(
   ],
 );
 
+export const docsSignalOwnedWork = sqliteTable(
+  "docs_signal_owned_work",
+  {
+    id: text("id").primaryKey(),
+    signalId: text("signal_id")
+      .notNull()
+      .references(() => docsSignals.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id").notNull(),
+    status: text("status").notNull(),
+    sessionId: text("session_id").notNull(),
+    startedRunId: text("started_run_id").notNull(),
+    lastRunId: text("last_run_id").notNull(),
+    conversation: text("conversation", { mode: "json" }).$type<unknown>().notNull(),
+    intendedOutcome: text("intended_outcome").notNull(),
+    references: text("references", { mode: "json" }).$type<unknown>().notNull(),
+    outcome: text("outcome"),
+    revision: integer("revision").notNull().default(1),
+    lastOperationKey: text("last_operation_key").notNull(),
+    lastMilestone: text("last_milestone"),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    uniqueIndex("docs_signal_owned_work_signal_idx").on(
+      table.workspaceId,
+      table.signalId,
+    ),
+    index("docs_signal_owned_work_status_idx").on(
+      table.workspaceId,
+      table.status,
+      table.updatedAt,
+    ),
+    index("docs_signal_owned_work_session_idx").on(
+      table.workspaceId,
+      table.sessionId,
+    ),
+  ],
+);
+
 export const workspaceMemoryRecords = sqliteTable(
   "workspace_knowledge_records",
   {
@@ -289,6 +328,7 @@ export const schema = {
   docsSignalArtifacts,
   docsSignalEvents,
   docsSignalLinks,
+  docsSignalOwnedWork,
   docsSignalSources,
   docsSignals,
   workspaceMemoryEvents,

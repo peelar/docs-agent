@@ -7,6 +7,12 @@ import {
   getDocsSignal,
 } from "./docs-signals.js";
 import { docsSignalStatusSchema } from "./docs-signal-lifecycle.js";
+import {
+  ownedDocsWorkConversationSchema,
+  ownedDocsWorkOutcomeSchema,
+  ownedDocsWorkReferencesSchema,
+  ownedDocsWorkStatusSchema,
+} from "./owned-docs-work-contract.js";
 
 const redactedMetadataSchema = z.record(z.string(), z.unknown());
 
@@ -25,6 +31,22 @@ export const operatorSignalDetailSchema = z.object({
   nextActionAt: z.string().nullable(),
   capturedAt: z.string(),
   updatedAt: z.string(),
+  ownedWork: z.object({
+    id: z.string(),
+    signalId: z.string(),
+    status: ownedDocsWorkStatusSchema,
+    sessionId: z.string(),
+    startedRunId: z.string(),
+    lastRunId: z.string(),
+    conversation: ownedDocsWorkConversationSchema,
+    intendedOutcome: z.string(),
+    references: ownedDocsWorkReferencesSchema,
+    outcome: ownedDocsWorkOutcomeSchema.nullable(),
+    revision: z.number().int().positive(),
+    lastMilestone: z.string().nullable(),
+    createdAt: z.string(),
+    updatedAt: z.string(),
+  }).nullable(),
   sources: z.array(z.object({
     id: z.string(),
     kind: docsSignalSourceKindSchema,
@@ -89,6 +111,25 @@ export async function getOperatorSignalDetail(input: {
     nextActionAt: detail.nextActionAt,
     capturedAt: detail.capturedAt,
     updatedAt: detail.updatedAt,
+    ownedWork: detail.ownedWork === null ? null : {
+      id: detail.ownedWork.id,
+      signalId: detail.ownedWork.signalId,
+      status: detail.ownedWork.status,
+      sessionId: detail.ownedWork.sessionId,
+      startedRunId: detail.ownedWork.startedRunId,
+      lastRunId: detail.ownedWork.lastRunId,
+      conversation: {
+        ...detail.ownedWork.conversation,
+        url: safeExternalUrl(detail.ownedWork.conversation.url ?? null) ?? undefined,
+      },
+      intendedOutcome: detail.ownedWork.intendedOutcome,
+      references: detail.ownedWork.references,
+      outcome: detail.ownedWork.outcome,
+      revision: detail.ownedWork.revision,
+      lastMilestone: detail.ownedWork.lastMilestone,
+      createdAt: detail.ownedWork.createdAt,
+      updatedAt: detail.ownedWork.updatedAt,
+    },
     sources: detail.sources.map((source) => ({
       id: source.id,
       kind: source.kind,
@@ -137,7 +178,7 @@ export async function getOperatorSignalDetail(input: {
 }
 
 const sensitiveKey = /token|secret|password|authorization|cookie|credential|api[-_]?key/i;
-const internalKey = /^(?:dedupeKey|providerId|workspaceId)$/i;
+const internalKey = /^(?:dedupeKey|providerId|workspaceId|operationKey|lastOperationKey)$/i;
 const sensitiveValue = /(?:github_pat_|gh[opusr]_|xox[baprs]-|lin_api_)[A-Za-z0-9_-]+/i;
 
 export function redactMetadata(input: Record<string, unknown>): Record<string, unknown> {

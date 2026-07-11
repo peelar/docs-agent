@@ -227,6 +227,8 @@ The signal database should start small but support the near-term M3 workflows:
   PR handoff, and closure reasons;
 - artifact references to diff, report, and check artifacts rather than large
   blobs stored directly on the signal row.
+- a one-to-one substantial-work projection with Eve execution, conversation,
+  milestone, artifact, idempotency, and optimistic-revision references.
 
 The minimum query model should support provider dedupe, claim or release
 dedupe, status-based work queue lookup, scheduled follow-up lookup, and audit or
@@ -234,7 +236,8 @@ run lookup by signal id.
 
 The first queue implementation stores this state in dedicated Drizzle tables:
 `docs_signals`, `docs_signal_sources`, `docs_signal_links`,
-`docs_signal_artifacts`, and `docs_signal_events`. Runtime code owns workspace
+`docs_signal_artifacts`, `docs_signal_events`, and `docs_signal_owned_work`.
+Runtime code owns workspace
 scoping and currently uses the default workspace id; model-facing tools do not
 accept a workspace or tenant id. Source rows keep raw provenance such as source
 text, provider ids, authors, and permalinks separate from model-generated signal
@@ -270,6 +273,36 @@ writeback behavior by themselves. Slack intake now calls the queue through
 `verify_docs_signal_current_docs`. Patch handoff uses
 `prepare_docs_signal_patch` and approved draft PR publishing remains isolated in
 `publish_working_repository_pr`.
+
+## Owned Documentation Work
+
+Substantial documentation work extends its originating docs signal with one
+provider-neutral owned-work record. The record keeps a stable work id, Eve
+session id, starting and latest turn/run ids, originating conversation, intended
+outcome, current status and revision, and references to the impact report,
+editorial recommendation, content plan, draft, validation, approval, and
+publication artifacts. A unique signal constraint makes start idempotent.
+
+Eve remains the execution engine. One durable Eve turn can continue through all
+reversible investigation, judgment, planning, authoring, revision, and validation
+after the user leaves. The owned-work row is a domain projection and concurrency
+boundary, not a scheduler or second workflow engine. Updates use optimistic
+revisions and operation keys; completed Eve steps are replay-safe, corrections
+serialize against the current revision, and a different session cannot silently
+take over sandbox state.
+
+`owned_docs_work` starts, inspects, records, parks, resumes, corrects, pauses,
+abandons, or completes that work. Missing evidence and consequential decisions
+park durably; a later answer resumes the same id and session. Unrecoverable
+failure, explicit abandonment, completed draft, justified no-change, and blocked
+outcomes are terminal and explicit. Publication remains a separate
+`publish_working_repository_pr` approval.
+
+Meaningful milestones return a concise channel update: acceptance, content plan,
+changed approach, blocker, draft readiness, approval request, completion, or
+abandonment. Routine reads, edits, retries, and successful checks return no
+channel update while their events and typed artifacts remain visible on the
+signal detail page. Quick questions and localized edits do not create owned work.
 
 ## Repository Docs Profile
 
