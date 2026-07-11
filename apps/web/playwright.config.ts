@@ -15,6 +15,7 @@ export default defineConfig({
   },
   webServer: {
     command: `pnpm start --port ${port}`,
+    env: { DOCS_AGENT_READINESS_TEST_SCENARIOS: "1" },
     url: `http://127.0.0.1:${port}`,
     reuseExistingServer: false,
     timeout: 120_000,

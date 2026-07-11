@@ -4,28 +4,25 @@
   "private": true,
   "type": "module",
   "exports": {
-    ".": "./src/index.ts",
-    "./agent": {
-      "types": "./src/agent.ts",
-      "browser": null,
-      "default": "./src/agent.ts"
-    },
-    "./testing": {
-      "types": "./src/testing.ts",
-      "browser": null,
-      "default": "./src/testing.ts"
-    }
+    ".": "./dist/index.js",
+    "./agent": "./dist/agent.js",
+    "./github": "./dist/github-app-client.js",
+    "./github-preflight": "./dist/github-preflight.js",
+    "./provider-config": "./dist/provider-config.js",
+    "./testing": "./dist/testing.js"
   },
   "scripts": {
+    "build": "tsc -p tsconfig.build.json",
     "check": "pnpm typecheck && pnpm test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate-db.ts",
     "db:migrate:deployment": "tsx scripts/migrate-db-for-build.ts",
-    "test": "tsx scripts/check-db-migration-parity.ts && tsx scripts/check-db-schema-lifecycle.ts && tsx scripts/check-control-plane-boundary.ts",
+    "test": "tsx scripts/check-db-migration-parity.ts && tsx scripts/check-db-schema-lifecycle.ts && tsx scripts/check-control-plane-boundary.ts && tsx scripts/check-readiness.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
     "@libsql/client": "^0.17.4",
+    "@vercel/connect": "0.3.2",
     "drizzle-orm": "^0.45.2",
     "server-only": "^0.0.1",
     "zod": "4.4.3"

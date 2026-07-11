@@ -1,13 +1,23 @@
 import type { Metadata } from "next";
 
 import { PageHeading } from "../../../components/page-heading";
-import { EmptyState } from "../../../components/state-panel";
+import { ReadinessBoard } from "../../../components/readiness-board";
+import { resolveReadinessReport } from "../../../lib/readiness";
 
 export const metadata: Metadata = {
   title: "Status",
 };
 
-export default function StatusPage() {
+export const dynamic = "force-dynamic";
+
+export default async function StatusPage({
+  searchParams,
+}: {
+  searchParams: Promise<{ scenario?: string }>;
+}) {
+  const { scenario } = await searchParams;
+  const report = await resolveReadinessReport(scenario);
+
   return (
     <div className="grid gap-[clamp(2rem,6vw,5rem)]">
       <PageHeading
@@ -15,11 +25,7 @@ export default function StatusPage() {
         title="Status"
         summary="A single place to understand whether Docs Agent is ready and what needs attention."
       />
-      <EmptyState
-        kicker="Service boundary pending"
-        title="Readiness checks are not connected yet."
-        body="The local shell is ready for the shared control-plane service. No database or runtime result is being inferred from environment variables alone."
-      />
+      <ReadinessBoard report={report} />
     </div>
   );
 }

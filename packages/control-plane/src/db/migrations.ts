@@ -1,5 +1,5 @@
 import { existsSync } from "node:fs";
-import { resolve } from "node:path";
+import { dirname, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 
 import {
@@ -7,8 +7,9 @@ import {
   type MigrationMeta,
 } from "drizzle-orm/migrator";
 
-const MODULE_RELATIVE_MIGRATIONS_FOLDER = fileURLToPath(
-  new URL("../../drizzle/", import.meta.url),
+const MODULE_RELATIVE_MIGRATIONS_FOLDER = resolve(
+  dirname(fileURLToPath(import.meta.url)),
+  "../../drizzle",
 );
 
 export function docsAgentMigrationsFolder(): string {

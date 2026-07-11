@@ -28,7 +28,12 @@ const webRoot = join(repositoryRoot, "apps", "web");
 
 const agentDatabase = resolveDocsAgentDatabaseConfig({}, agentRoot);
 const webDatabase = resolveDocsAgentDatabaseConfig({}, webRoot);
+const productionWebDatabase = resolveDocsAgentDatabaseConfig(
+  { NODE_ENV: "production" },
+  webRoot,
+);
 assert.equal(agentDatabase.localFilePath, webDatabase.localFilePath);
+assert.equal(agentDatabase.localFilePath, productionWebDatabase.localFilePath);
 assert.equal(
   agentDatabase.localFilePath,
   join(repositoryRoot, ".docs-agent", "docs-agent.sqlite"),
@@ -106,11 +111,9 @@ try {
 
   const packageManifest = JSON.parse(
     await readFile(join(packageRoot, "package.json"), "utf8"),
-  ) as {
-    exports?: Record<string, { browser?: unknown }>;
-  };
-  assert.equal(packageManifest.exports?.["./agent"]?.browser, null);
-  assert.equal(packageManifest.exports?.["./testing"]?.browser, null);
+  ) as { exports?: Record<string, unknown> };
+  assert.equal(packageManifest.exports?.["./agent"], "./dist/agent.js");
+  assert.equal(packageManifest.exports?.["./testing"], "./dist/testing.js");
 
   const publicEntry = await readFile(join(packageRoot, "src", "index.ts"), "utf8");
   assert.match(publicEntry, /import "server-only"/);

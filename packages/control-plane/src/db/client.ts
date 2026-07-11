@@ -124,7 +124,7 @@ async function openDocsAgentDatabase() {
 }
 
 function isDeployedRuntime(env: NodeJS.ProcessEnv): boolean {
-  return env.VERCEL === "1" || env.NODE_ENV === "production";
+  return env.VERCEL === "1";
 }
 
 function resolveLocalFilePath(url: string, baseDirectory: string): string | undefined {

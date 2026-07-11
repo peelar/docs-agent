@@ -53,6 +53,7 @@ Use Node 24.18.0.
 pnpm install
 pnpm --filter @docs-agent/web exec playwright install chromium
 pnpm check
+pnpm status:smoke
 pnpm eval --list
 pnpm dev --no-ui
 ```
@@ -67,6 +68,10 @@ The package-qualified forms use `docs-agent`, `@docs-agent/control-plane`, and
 The web package uses Playwright Chromium for its desktop and mobile shell smoke
 test. Install that browser once after dependencies; `pnpm check` runs the smoke
 alongside the production web build.
+
+The Status page checks Eve at `http://127.0.0.1:2000` by default, matching
+`pnpm dev --no-ui`. Set `DOCS_AGENT_EVE_URL` server-side when the runtime uses a
+different origin. The browser receives only the redacted readiness report.
 
 Put local agent variables in `apps/agent/.env.local` and web-only variables in
 `apps/web/.env.local`. Both apps resolve local state through

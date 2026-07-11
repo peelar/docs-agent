@@ -115,6 +115,9 @@ importers:
       '@libsql/client':
         specifier: ^0.17.4
         version: 0.17.4
+      '@vercel/connect':
+        specifier: 0.3.2
+        version: 0.3.2(ai@7.0.22(zod@4.4.3))(better-auth@1.6.23(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(kysely@0.29.3))(next@16.2.10(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(eve@0.22.5(@libsql/client@0.17.4)(ai@7.0.22(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(kysely@0.29.3))(jiti@2.7.0)(microsandbox@0.5.10))
       drizzle-orm:
         specifier: ^0.45.2
         version: 0.45.2(@libsql/client@0.17.4)(kysely@0.29.3)

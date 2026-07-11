@@ -152,9 +152,50 @@ List the scenarios with:
 pnpm eval --list
 ```
 
+## Operator Readiness
+
+The Status page is a read-only report over six server-side checks: database and
+migrations, working repository setup, GitHub writeback, Slack, Linear, and Eve
+runtime health. It uses `configured`, `reachable`, `verified`, `blocked`, and
+`unknown` literally; a configured or reachable provider is not shown as
+verified when inbound delivery has not been proven.
+
+Run the local database and Eve health smoke with:
+
+```sh
+pnpm status:smoke
+```
+
+The smoke starts `pnpm dev --no-ui`, waits for `GET /eve/v1/health`, opens the
+real Status page, and asserts that the database is `verified` and Eve is
+`reachable`. It does not use readiness fixtures.
+
+Use these scenarios when real provider credentials are available:
+
+- GitHub: configure the working documentation repository and GitHub connector,
+  grant the app that repository, and open `/status`. GitHub writeback should be
+  `verified` only after the repository-targeted installation token, repository
+  access, and `contents:write` plus `pull_requests:write` checks pass.
+- Slack: open `/status` with the Slack Connect client attached. A successful
+  `auth.test` makes the connector `reachable`. Mention Paige in Slack and
+  confirm delivery to `/eve/v1/slack`; until the product records that inbound
+  operation, the page must keep the manual verification action visible rather
+  than claiming `verified`.
+- Linear: open `/status` with the Linear Connect client attached. A successful
+  viewer query makes the connector `reachable`. Delegate a test issue to Paige
+  and confirm delivery to `/eve/v1/linear`; until that inbound operation is
+  durably recorded, the page must not claim `verified`.
+
+When a connector, installation, repository grant, permission, or provider is
+unavailable, stop at the visible `blocked` or `unknown` result. Do not add local
+tokens, bypass Connect, or use test fixtures to make a real-provider scenario
+look successful. The page may name server-side variable keys and supported
+routes, but it must never render credential values, tokens, or raw connector
+responses.
+
 ## Deterministic Runtime Checks
 
-`pnpm check` also runs deterministic storage checks:
+`pnpm check` also runs deterministic storage and readiness checks:
 
 ```sh
 pnpm test
@@ -194,4 +235,7 @@ memory check covers proposal, explicit promotion, exact/tag search, full memory
 reads with source text provenance, stale and retired lifecycle behavior,
 freshness filtering, strict rejection of model-supplied workspace ids, deployed
 database failure behavior, and prompt-injection trust boundaries in dynamic
-instructions.
+instructions. The table-driven readiness check covers every readiness state for
+all six items plus probe failures and overall aggregation. Browser checks cover
+ready, partial, unknown, blocked, database-down, and provider-down reports on
+desktop and mobile.

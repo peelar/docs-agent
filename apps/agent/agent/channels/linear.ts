@@ -1,11 +1,14 @@
 import { connectLinearCredentials } from "@vercel/connect/eve";
+import {
+  DEFAULT_LINEAR_CONNECTOR,
+  resolveLinearConnector,
+  LINEAR_CONNECTOR_ENV,
+} from "@docs-agent/control-plane/provider-config";
 import { linearChannel } from "eve/channels/linear";
 
-export const LINEAR_CONNECTOR_ENV = "DOCS_AGENT_LINEAR_CONNECTOR";
-export const DEFAULT_LINEAR_CONNECTOR = "linear/docs-agent";
+export { DEFAULT_LINEAR_CONNECTOR, LINEAR_CONNECTOR_ENV };
 
-const linearConnector =
-  process.env[LINEAR_CONNECTOR_ENV]?.trim() || DEFAULT_LINEAR_CONNECTOR;
+const linearConnector = resolveLinearConnector();
 
 export default linearChannel({
   credentials: connectLinearCredentials(linearConnector),

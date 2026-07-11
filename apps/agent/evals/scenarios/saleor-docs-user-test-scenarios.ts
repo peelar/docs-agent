@@ -1,22 +1,16 @@
-import {
-  WORKING_DOCUMENTATION_REPOSITORY_SANDBOX_PATH,
-  WORKING_DOCUMENTATION_REPOSITORY_PROVENANCE_LABEL,
-  type WorkingDocumentationRepository,
-} from "../../agent/lib/repository-contract.js";
-
 import type { UserTestScenario } from "./schema.js";
 
-const saleorDocsWorkingRepository: WorkingDocumentationRepository = {
+const saleorDocsWorkingRepository: UserTestScenario["repositoryInput"]["workingDocumentationRepository"] = {
   source: {
     type: "github-url",
     url: "https://github.com/peelar/saleor-docs.git",
   },
   ref: "main",
   docsRoot: "docs",
-  sandboxPath: WORKING_DOCUMENTATION_REPOSITORY_SANDBOX_PATH,
+  sandboxPath: "/workspace/working-docs",
   accessMode: "sandbox-write",
   allowedActions: ["clone", "read", "search", "patch", "run-checks", "export-diff", "publish-pr"],
-  provenanceLabel: WORKING_DOCUMENTATION_REPOSITORY_PROVENANCE_LABEL,
+  provenanceLabel: "working-documentation-repository",
 };
 
 export const saleorDocsUserTestScenarios = [

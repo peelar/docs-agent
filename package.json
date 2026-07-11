@@ -5,13 +5,14 @@
   "packageManager": "pnpm@9.15.0",
   "scripts": {
     "build": "turbo run build",
-    "check": "turbo run check && pnpm monorepo:smoke",
+    "check": "turbo run check && pnpm monorepo:smoke && pnpm status:smoke",
     "db:generate": "pnpm --filter @docs-agent/control-plane db:generate",
     "db:migrate": "pnpm --filter @docs-agent/control-plane db:migrate",
     "dev": "turbo run dev --filter=docs-agent --",
     "dev:web": "turbo run dev --filter=@docs-agent/web",
-    "eval": "pnpm --filter docs-agent eval",
+    "eval": "pnpm --filter @docs-agent/control-plane build && pnpm --filter docs-agent eval",
     "monorepo:smoke": "node scripts/check-monorepo.mjs",
+    "status:smoke": "node scripts/check-status-smoke.mjs",
     "start": "pnpm --filter docs-agent start",
     "test": "turbo run test",
     "typecheck": "turbo run typecheck"

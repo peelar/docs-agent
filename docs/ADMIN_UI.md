@@ -125,7 +125,7 @@ the browser cannot import the package's agent or raw database entrypoints.
 
 Tracked by [#39](https://github.com/peelar/docs-agent/issues/39).
 
-The first real screen answers one question: is Docs Agent ready?
+The first real screen now answers one question: is Docs Agent ready?
 
 It should distinguish configured, reachable, verified, blocked, and unknown for
 at least:
@@ -140,6 +140,13 @@ at least:
 Each failed or incomplete check needs a concrete next action. The first slice is
 read-only: it reports and links to remediation without trying to provision every
 provider.
+
+The implementation uses one table-driven readiness vocabulary across the
+shared control-plane service and the Status page. Database and migration checks,
+canonical workspace setup, repository-targeted GitHub preflight, Slack and
+Linear provider calls, and Eve's public health endpoint all run server-side.
+Reachable providers remain distinct from verified inbound delivery, and every
+rendered item includes its source, last check time, and next action.
 
 ### 5. Work queue
 

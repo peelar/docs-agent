@@ -23,14 +23,10 @@ import {
   type SetupStatus,
 } from "@docs-agent/control-plane/agent";
 import {
-  formatUnknownError,
-  gitHubWritebackPermissions,
-  githubApiRequest,
-  parseGitHubRepositoryUrl,
-  resolveGitHubAppInstallationToken,
-  type ConnectTokenResponse,
-  type GitHubApiErrorResult,
-} from "./github-app-client.js";
+  runGitHubWritebackPreflight,
+  type GitHubWritebackPreflight,
+} from "@docs-agent/control-plane/github-preflight";
+import { resolveGitHubAppInstallationToken } from "./github-app-client.js";
 
 export {
   DEFAULT_WORKSPACE_ID,
@@ -62,104 +58,14 @@ export async function preflightGitHubWritebackSetup(
   const status = evaluateSetupState(state);
   if (state.workingRepositoryInput === undefined) return status;
 
-  const connector = resolveGitHubConnector(state);
-  if (connector.trim() === "") {
-    return withGitHubPreflight(status, {
-      status: "missing-connector",
-      message: "No GitHub connector is configured for writeback.",
-      issue: {
-        code: "github-connector-missing",
-        capability: "github-writeback",
-        message: "GitHub writeback needs an app-scoped GitHub connector.",
-        nextAction:
-          "Configure GitHub writeback setup before attempting to publish a draft PR.",
-      },
-    });
-  }
-
-  const repository = state.workingRepositoryInput.workingDocumentationRepository;
-  const slug = parseGitHubRepositoryUrl(repository.source.url);
-
-  let tokenResponse: ConnectTokenResponse;
-  let token: string;
-  try {
-    tokenResponse = await resolveGitHubAppInstallationToken({ connector, slug });
-    token = tokenResponse.token;
-  } catch (error) {
-    return withGitHubPreflight(status, classifyConnectorError(error));
-  }
-
-  const installation = await githubApiRequest<GitHubInstallationRepositoriesResponse>({
-    token,
-    path: "/installation/repositories?per_page=100",
+  const preflight = await runGitHubWritebackPreflight({
+    state,
     abortSignal: ctx.abortSignal,
   });
-
-  if (!installation.ok) {
-    return withGitHubPreflight(status, classifyInstallationError(installation));
-  }
-
-  const repositoryAccess = await githubApiRequest<GitHubRepositoryResponse>({
-    token,
-    path: `/repos/${encodeURIComponent(slug.owner)}/${encodeURIComponent(slug.repo)}`,
-    abortSignal: ctx.abortSignal,
-  });
-
-  if (!repositoryAccess.ok && repositoryAccess.status === 404) {
-    return withGitHubPreflight(status, {
-      status: "repository-not-granted",
-      message:
-        "The GitHub App token is valid, but the configured repository is not granted to the app installation.",
-      issue: {
-        code: "github-repository-not-granted",
-        capability: "github-writeback",
-        message:
-          "The configured working documentation repository is not available to the GitHub App installation.",
-        nextAction:
-          "Ask a GitHub admin to grant the app access to the configured working documentation repository, then retry setup validation.",
-      },
-    });
-  }
-
-  if (!repositoryAccess.ok) {
-    return withGitHubPreflight(status, {
-      status: "connector-unavailable",
-      message: repositoryAccess.message,
-      issue: {
-        code: "github-connector-unavailable",
-        capability: "github-writeback",
-        message: "The GitHub connector could not validate repository access.",
-        nextAction: "Retry setup validation after checking the GitHub connector runtime state.",
-      },
-    });
-  }
-
-  const permissions = gitHubWritebackPermissions(tokenResponse);
-  if (permissions.contents !== "write" || permissions.pull_requests !== "write") {
-    return withGitHubPreflight(status, {
-      status: "insufficient-permissions",
-      message:
-        "The GitHub App installation is available, but it does not have contents:write and pull_requests:write permissions.",
-      issue: {
-        code: "github-insufficient-permissions",
-        capability: "github-writeback",
-        message:
-          "GitHub writeback needs contents:write and pull_requests:write permissions on the working documentation repository.",
-        nextAction:
-          "Update the GitHub App installation permissions, then retry setup validation.",
-      },
-    });
-  }
 
   return withGitHubPreflight(status, {
-    status: "ready",
-    message: "GitHub writeback is ready for the configured working documentation repository.",
-    issue: {
-      code: "github-writeback-ready",
-      capability: "github-writeback",
-      message: "GitHub writeback preflight passed.",
-      nextAction: "Continue with the approved publish flow.",
-    },
+    ...preflight,
+    issue: githubPreflightIssue(preflight),
   });
 }
 
@@ -253,109 +159,49 @@ function withGitHubPreflight(
   };
 }
 
-function classifyConnectorError(error: unknown): {
-  status: SetupStatus["githubWriteback"]["preflight"]["status"];
-  message: string;
-  issue: SetupIssue;
-} {
-  const message = formatUnknownError(error);
-  const lower = message.toLowerCase();
-
-  if (lower.includes("connector") && lower.includes("not found")) {
-    return {
-      status: "missing-connector",
-      message,
-      issue: {
+function githubPreflightIssue(preflight: GitHubWritebackPreflight): SetupIssue {
+  switch (preflight.status) {
+    case "ready":
+      return {
+        code: "github-writeback-ready",
+        capability: "github-writeback",
+        message: "GitHub writeback preflight passed.",
+        nextAction: "Continue with the approved publish flow.",
+      };
+    case "missing-connector":
+      return {
         code: "github-connector-missing",
         capability: "github-writeback",
         message: "The configured GitHub connector was not found.",
         nextAction: "Attach or configure the GitHub connector for this runtime.",
-      },
-    };
-  }
-
-  if (
-    lower.includes("not available") ||
-    lower.includes("environment") ||
-    lower.includes("runtime") ||
-    lower.includes("project")
-  ) {
-    return {
-      status: "connector-unavailable",
-      message,
-      issue: {
+      };
+    case "app-not-installed":
+      return {
+        code: "github-app-not-installed",
+        capability: "github-writeback",
+        message: "No GitHub App installation is available for writeback.",
+        nextAction: "Ask a GitHub admin to install the app, then retry setup validation.",
+      };
+    case "repository-not-granted":
+      return {
+        code: "github-repository-not-granted",
+        capability: "github-writeback",
+        message: "The working documentation repository is not granted to the GitHub App.",
+        nextAction: "Grant the app access to the repository, then retry setup validation.",
+      };
+    case "insufficient-permissions":
+      return {
+        code: "github-insufficient-permissions",
+        capability: "github-writeback",
+        message: "The GitHub App lacks required writeback permissions.",
+        nextAction: "Grant contents:write and pull_requests:write, then retry setup validation.",
+      };
+    case "connector-unavailable":
+      return {
         code: "github-connector-unavailable",
         capability: "github-writeback",
         message: "The GitHub connector is not available to this runtime environment.",
-        nextAction:
-          "Attach the connector to the current project/environment, then retry setup validation.",
-      },
-    };
+        nextAction: "Reconnect the connector, then retry setup validation.",
+      };
   }
-
-  return {
-    status: "app-not-installed",
-    message,
-    issue: {
-      code: "github-app-not-installed",
-      capability: "github-writeback",
-      message:
-        "GitHub writeback could not resolve an app-scoped GitHub token. The GitHub App may need to be installed or authorized.",
-      nextAction:
-        "Complete the GitHub authorization challenge or ask a GitHub admin to install the app, then retry setup validation.",
-    },
-  };
 }
-
-function classifyInstallationError(
-  result: GitHubApiErrorResult,
-): {
-  status: SetupStatus["githubWriteback"]["preflight"]["status"];
-  message: string;
-  issue: SetupIssue;
-} {
-  if (result.status === 401 || result.status === 403) {
-    return {
-      status: "connector-unavailable",
-      message: result.message,
-      issue: {
-        code: "github-connector-unavailable",
-        capability: "github-writeback",
-        message: "The GitHub connector token could not access installation metadata.",
-        nextAction: "Reconnect the GitHub connector for this runtime, then retry setup validation.",
-      },
-    };
-  }
-
-  if (result.status === 404) {
-    return {
-      status: "app-not-installed",
-      message: result.message,
-      issue: {
-        code: "github-app-not-installed",
-        capability: "github-writeback",
-        message: "No GitHub App installation is visible for the resolved connector token.",
-        nextAction: "Ask a GitHub admin to install the app, then retry setup validation.",
-      },
-    };
-  }
-
-  return {
-    status: "connector-unavailable",
-    message: result.message,
-    issue: {
-      code: "github-connector-unavailable",
-      capability: "github-writeback",
-      message: "GitHub writeback setup could not be validated.",
-      nextAction: "Retry setup validation after checking the GitHub connector runtime state.",
-    },
-  };
-}
-
-type GitHubInstallationRepositoriesResponse = {
-  repositories: unknown[];
-};
-
-type GitHubRepositoryResponse = {
-  full_name: string;
-};
