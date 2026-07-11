@@ -92,7 +92,14 @@ try {
     { DOCS_AGENT_DATABASE_URL: databaseUrl },
   );
 
-  for (const table of ["__drizzle_migrations", "docs_signals", "workspace_setup"]) {
+  for (const table of [
+    "__drizzle_migrations",
+    "docs_signals",
+    "workspace_knowledge_events",
+    "workspace_knowledge_records",
+    "workspace_knowledge_sources",
+    "workspace_setup",
+  ]) {
     if (!tableList.split("\n").includes(table)) {
       throw new Error(`Isolated migration did not create ${table}.`);
     }
