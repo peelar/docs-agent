@@ -572,6 +572,27 @@ steps and trace links. Eve, Vercel, and OpenTelemetry own their separate
 retention policies. This index does not implement workflow replay,
 cancellation, or a tracing backend.
 
+## Approval Inbox
+
+Tool approval remains an Eve runtime policy. When Eve emits an approval-shaped
+`input.requested` event, an authored hook creates a minimal app projection tied
+to the product run and signal. It stores the request and call ids, safe action
+summary, destination, requester, expiry, safe publish input, and the opaque
+resume handle required by Eve. That handle is server-only and is removed after
+a successful decision; it never enters operator projections or audit events.
+
+The authenticated operator service re-reads the durable event stream before
+every decision. It rejects requests that are missing, expired, stale, or
+already answered, then locks the request and idempotency key before posting an
+`approve` or `deny` `inputResponses` answer to the original session. A failed
+resume restores the request to pending and appends a credential-free failed
+audit attempt. A successful submission clears the resume handle and records the
+authenticated operator plus reason.
+
+The inbox does not call `publish_working_repository_pr`, bypass `always()`, or
+manufacture approval state. Slack, Linear, terminal, and other channel-native
+responses continue to use Eve's same pending request contract.
+
 ## Docs Impact Decision Model
 
 Docs Agent uses a shared decision contract for signal triage, watched-release

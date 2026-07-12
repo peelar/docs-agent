@@ -142,8 +142,8 @@ docs change.
   source-repository, context-repository, or proactive integrations so behavior
   can be regression tested as tools and channels become more capable.
 - Keep the web control plane on the same typed setup, signal, memory, run-index,
-  and workflow services as the agent. Do not turn it into a raw database or
-  runtime state editor.
+  approval, and workflow services as the agent. Do not turn it into a raw
+  database or runtime state editor.
 
 ## Repository Workflow
 

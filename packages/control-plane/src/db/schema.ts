@@ -585,7 +585,65 @@ export const productRunTraceLinks = sqliteTable(
   ],
 );
 
+export const approvalRequests = sqliteTable(
+  "approval_requests",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    productRunId: text("product_run_id")
+      .notNull()
+      .references(() => productRuns.id, { onDelete: "cascade" }),
+    signalId: text("signal_id").references(() => docsSignals.id, { onDelete: "set null" }),
+    sessionId: text("session_id").notNull(),
+    runId: text("run_id").notNull(),
+    requestId: text("request_id").notNull(),
+    callId: text("call_id").notNull(),
+    toolName: text("tool_name").notNull(),
+    status: text("status").notNull(),
+    action: text("action").notNull(),
+    destination: text("destination"),
+    requester: text("requester").notNull(),
+    safeInput: text("safe_input", { mode: "json" }).$type<unknown>().notNull(),
+    resumeHandle: text("resume_handle"),
+    requestedAt: text("requested_at").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    decidedAt: text("decided_at"),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("approval_requests_identity_idx").on(table.workspaceId, table.requestId),
+    index("approval_requests_status_idx").on(table.workspaceId, table.status, table.requestedAt),
+    index("approval_requests_session_idx").on(table.workspaceId, table.sessionId, table.runId),
+  ],
+);
+
+export const approvalDecisions = sqliteTable(
+  "approval_decisions",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    approvalRequestId: text("approval_request_id")
+      .notNull()
+      .references(() => approvalRequests.id, { onDelete: "cascade" }),
+    idempotencyKey: text("idempotency_key").notNull(),
+    decision: text("decision").notNull(),
+    reason: text("reason").notNull(),
+    actorId: text("actor_id").notNull(),
+    actorLogin: text("actor_login").notNull(),
+    status: text("status").notNull(),
+    failureSummary: text("failure_summary"),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("approval_decisions_idempotency_idx").on(table.workspaceId, table.idempotencyKey),
+    index("approval_decisions_request_idx").on(table.approvalRequestId, table.createdAt),
+  ],
+);
+
 export const schema = {
+  approvalDecisions,
+  approvalRequests,
   chatSdkKeyValues,
   chatSdkListEntries,
   chatSdkLocks,

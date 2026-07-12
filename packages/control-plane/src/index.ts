@@ -173,3 +173,19 @@ export {
   type OperatorProductRunDetail,
   type OperatorProductRunListItem,
 } from "./product-runs.js";
+export {
+  approvalAuditActorSchema,
+  approvalDecisionAuditSchema,
+  approvalDecisionSchema,
+  approvalDetailSchema,
+  approvalDisplayStateSchema,
+  approvalListItemSchema,
+  approvalRequestStatusSchema,
+  ApprovalInboxError,
+  decideApproval,
+  decideApprovalInputSchema,
+  getApprovalDetail,
+  listApprovals,
+  type ApprovalDetail,
+  type ApprovalListItem,
+} from "./approval-inbox.js";

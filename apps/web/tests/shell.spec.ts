@@ -44,6 +44,11 @@ test("the shell navigates and adapts to the viewport", async ({ page }, testInfo
   await expect(page.getByRole("heading", { name: "Product runs", exact: true }))
     .toBeVisible();
 
+  await page.getByRole("link", { name: "Approvals", exact: true }).click();
+  await expect(page).toHaveURL(/\/approvals$/);
+  await expect(page.getByRole("link", { name: "Approvals" })).toHaveAttribute("aria-current", "page");
+  await expect(page.getByRole("heading", { name: "Approval inbox", exact: true })).toBeVisible();
+
   const sidebarBox = await page.locator("[data-shell-sidebar]").boundingBox();
   const mainBox = await page.locator("#main-content").boundingBox();
   expect(sidebarBox).not.toBeNull();

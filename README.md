@@ -86,6 +86,12 @@ reasoning, model output, or tool payloads into the product database. Run
 metadata expires after 30 days. Use
 `pnpm --filter docs-agent test:run-index:integration` to exercise the contract
 against a real local Eve session backed by a deterministic fixture model.
+The Approvals page finds Eve tool approvals across channels, shows the related
+report, diff, checks, repository, and exact side effect, then submits an
+authenticated approve or deny response to the original parked session. The app
+re-reads Eve and uses an idempotency key before every decision; it never runs
+the tool itself. Use `pnpm --filter docs-agent test:approval-integration` for
+the real local approve, deny, duplicate, and channel-native scenarios.
 
 Put local agent variables in `apps/agent/.env.local` and web-only variables in
 `apps/web/.env.local`. Both apps resolve local state through

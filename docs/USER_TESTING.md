@@ -565,6 +565,32 @@ and prove the product detail links to—but does not copy—the durable stream.
 `pnpm check` covers deterministic index behavior and desktop/mobile browser
 states.
 
+## Approval Inbox
+
+Open `/approvals` in an authenticated operator session while Eve has parked
+`publish_working_repository_pr` requests from at least two channels.
+
+1. Confirm list rows show the related signal, proposed action, target
+   repository, requester, age, and pending or expired state without exposing a
+   continuation token or provider credential.
+2. Open detail and review the current verification report, prepared diff,
+   repository checks, target repository, and exact safe publish input.
+3. Approve with a reason. Confirm the original Eve session resumes, writeback
+   executes once, the request becomes approved, and the audit record names the
+   authenticated operator. Retry the same idempotency key and confirm it is a
+   replay; use another key and confirm the answered request is rejected.
+4. Deny a separate request. Confirm the original session resumes without
+   executing writeback. Approve a third parked request through its native
+   channel and confirm the inbox does not interfere.
+5. Exercise stale, already-answered, expired, Eve-unavailable, and failed-resume
+   paths. None may execute the tool or discard a retryable pending request.
+6. Clear the web session and confirm both inbox pages and the decision API are
+   unavailable. Submit a browser-supplied actor and confirm it is rejected.
+
+Run `pnpm --filter docs-agent test:approval-integration` for the real local Eve
+approve, deny, duplicate, and channel-native scenarios. `pnpm check` covers the
+deterministic service contract and desktop/mobile browser states.
+
 ## Repository Docs Profile
 
 Fast repository setup with `configure_working_repository` and `prepareNow:
