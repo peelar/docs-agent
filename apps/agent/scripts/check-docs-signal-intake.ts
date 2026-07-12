@@ -191,6 +191,11 @@ try {
     assert.match(slack.replyGuidance[0] ?? "", /Slack thread/);
     assert.match(linear.replyGuidance[0] ?? "", /Linear Agent Activities/);
     assert.deepEqual(slack.replyGuidance.slice(1), linear.replyGuidance.slice(1));
+    if (scenario.expectedDecision === "needs-source-evidence") {
+      assert.match(slack.replyGuidance.join("\n"), /current docs were not verified/);
+    }
+    assert.match(slack.replyGuidance.join("\n"), /no patch was prepared/);
+    assert.match(slack.replyGuidance.join("\n"), /no pull request was published/);
 
     const slackEventContext = eventExternalContext(slack.signal.events[0]?.metadata);
     const linearEventContext = eventExternalContext(linear.signal.events[0]?.metadata);

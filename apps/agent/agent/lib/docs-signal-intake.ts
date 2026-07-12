@@ -147,6 +147,7 @@ export function buildDocsSignalReplyGuidance(input: {
   if (input.decision.decision === "needs-source-evidence") {
     guidance.push(
       "Ask for source, release, or maintainer-confirmed evidence before making public docs claims.",
+      "State that current docs were not verified because the required source evidence is missing.",
     );
   }
 
@@ -157,6 +158,7 @@ export function buildDocsSignalReplyGuidance(input: {
   if (input.verificationStatus.state === "blocked") {
     guidance.push(
       "Use setup mode to collect the working documentation repository before docs verification.",
+      "State that setup blocked current-docs verification.",
     );
   } else if (input.verificationStatus.required) {
     guidance.push(
@@ -165,7 +167,8 @@ export function buildDocsSignalReplyGuidance(input: {
   }
 
   guidance.push(
-    "Do not prepare a patch, publish, or open a draft PR without a later explicit approval-gated handoff.",
+    "State explicitly that no patch was prepared and no pull request was published.",
+    "Do not prepare a patch or publish without a later explicit approval-gated handoff.",
   );
 
   return guidance;

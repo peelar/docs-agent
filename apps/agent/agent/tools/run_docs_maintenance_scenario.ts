@@ -8,7 +8,7 @@ import {
 
 export default defineTool({
   description:
-    "Run the complete sandboxed docs-maintenance workflow for a provided working documentation repository scenario. Use this terminal workflow for repository materialization, docs impact analysis, patching, checks, and diff export instead of calling lower-level repo_* tools.",
+    "Load the docs-maintenance skill, then run the complete sandboxed workflow for a provided working documentation repository scenario. Use this terminal workflow for repository materialization, docs impact analysis, patching, checks, and diff export instead of calling lower-level repo_* tools.",
   inputSchema: runDocsMaintenanceScenarioInputSchema,
   outputSchema: docsMaintenanceWorkflowResultSchema,
   execute: runDocsMaintenanceScenario,

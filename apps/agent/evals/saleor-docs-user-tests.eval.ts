@@ -4,57 +4,80 @@ import { satisfies } from "eve/evals/expect";
 import { saleorDocsUserTestScenarios } from "./scenarios/saleor-docs-user-test-scenarios.js";
 import { renderScenarioPrompt } from "./scenarios/render.js";
 
-export default saleorDocsUserTestScenarios.map((scenario) =>
+export default [
+  ...saleorDocsUserTestScenarios.map((scenario) =>
+    defineEval({
+      description: scenario.title,
+      tags: ["saleor-docs", "user-test", scenario.expected.outcome],
+      timeoutMs: 900_000,
+      metadata: {
+        scenarioId: scenario.id,
+        workingRepository: scenario.repositoryInput.workingDocumentationRepository.source.url,
+        expectedOutcome: scenario.expected.outcome,
+        promptPreview: renderScenarioPrompt(scenario),
+      },
+      async test(t) {
+        await t.send(renderScenarioPrompt(scenario));
+
+        t.succeeded();
+        t.noFailedActions();
+        t.toolOrder(["configure_working_repository", "run_docs_maintenance_scenario"]);
+        t.check(
+          t.reply,
+          satisfies(
+            (reply) => matchesScenarioReply(reply, scenario),
+            `${scenario.id} final reply summarizes the documentation impact decision`,
+          ),
+        );
+        t.calledTool("configure_working_repository", {
+          input: (input) => matchesConfigureInput(input, scenario),
+          output: (output) => matchesConfiguredRepository(output, scenario),
+          count: 1,
+        });
+        t.calledTool("run_docs_maintenance_scenario", {
+          output: (output) => matchesScenarioOutput(output, scenario),
+          count: 1,
+        });
+        t.notCalledTool("bash");
+        t.notCalledTool("read_file");
+        t.notCalledTool("write_file");
+        t.notCalledTool("glob");
+        t.notCalledTool("grep");
+        t.notCalledTool("configure_github_writeback");
+        t.notCalledTool("get_setup_status");
+        t.notCalledTool("prepare_configured_working_repository");
+        t.notCalledTool("prepare_working_repository");
+        t.notCalledTool("repo_search");
+        t.notCalledTool("repo_read_file");
+        t.notCalledTool("repo_replace_text");
+        t.notCalledTool("repo_run_checks");
+        t.notCalledTool("repo_export_diff");
+        t.notCalledTool("publish_working_repository_pr");
+      },
+    }),
+  ),
   defineEval({
-    description: scenario.title,
-    tags: ["saleor-docs", "user-test", scenario.expected.outcome],
-    timeoutMs: 900_000,
+    description: "Documentation-impact intent loads maintenance guidance before repository work",
+    tags: ["saleor-docs", "skill-routing"],
+    timeoutMs: 300_000,
     metadata: {
-      scenarioId: scenario.id,
-      workingRepository: scenario.repositoryInput.workingDocumentationRepository.source.url,
-      expectedOutcome: scenario.expected.outcome,
-      promptPreview: renderScenarioPrompt(scenario),
+      expectedTools: ["load_skill"],
     },
     async test(t) {
-      await t.send(renderScenarioPrompt(scenario));
+      await t.send([
+        "I need to investigate whether a public API change requires a documentation update.",
+        "Start by loading the appropriate on-demand procedure, then tell me how you will proceed.",
+        "Do not call repository tools yet.",
+      ].join("\n"));
 
       t.succeeded();
       t.noFailedActions();
-      t.toolOrder(["configure_working_repository", "run_docs_maintenance_scenario"]);
-      t.check(
-        t.reply,
-        satisfies(
-          (reply) => matchesScenarioReply(reply, scenario),
-          `${scenario.id} final reply summarizes the documentation impact decision`,
-        ),
-      );
-      t.calledTool("configure_working_repository", {
-        input: (input) => matchesConfigureInput(input, scenario),
-        output: (output) => matchesConfiguredRepository(output, scenario),
-        count: 1,
-      });
-      t.calledTool("run_docs_maintenance_scenario", {
-        output: (output) => matchesScenarioOutput(output, scenario),
-        count: 1,
-      });
-      t.notCalledTool("bash");
-      t.notCalledTool("read_file");
-      t.notCalledTool("write_file");
-      t.notCalledTool("glob");
-      t.notCalledTool("grep");
-      t.notCalledTool("configure_github_writeback");
-      t.notCalledTool("get_setup_status");
-      t.notCalledTool("prepare_configured_working_repository");
-      t.notCalledTool("prepare_working_repository");
-      t.notCalledTool("repo_search");
-      t.notCalledTool("repo_read_file");
-      t.notCalledTool("repo_replace_text");
-      t.notCalledTool("repo_run_checks");
-      t.notCalledTool("repo_export_diff");
-      t.notCalledTool("publish_working_repository_pr");
+      t.loadedSkill("docs-maintenance", { count: 1 });
+      t.notCalledTool("configure_working_repository");
+      t.notCalledTool("run_docs_maintenance_scenario");
     },
   }),
-);
+];
 
 function matchesConfiguredRepository(
   output: unknown,

@@ -98,6 +98,29 @@ export default [
       );
     },
   }),
+  defineEval({
+    description: "Docs signal intent loads provider-neutral intake guidance before capture",
+    tags: ["docs-signals", "shared-intake", "skill-routing"],
+    timeoutMs: 300_000,
+    metadata: {
+      channel: "slack",
+      expectedTools: ["load_skill", "capture_slack_docs_signal"],
+    },
+    async test(t) {
+      await t.send(renderSlackIntentRoutingPrompt());
+
+      t.succeeded();
+      t.noFailedActions();
+      t.loadedSkill("docs-signal-intake", { count: 1 });
+      t.toolOrder(["load_skill", "capture_slack_docs_signal"]);
+      t.calledTool("capture_slack_docs_signal", {
+        input: (input) => matchesSlackCaptureInput(input),
+        output: (output) => matchesSlackCaptureOutput(output),
+        count: 1,
+      });
+      assertNoRepositoryOrWriteTools(t);
+    },
+  }),
 ];
 
 function renderSlackSetupBlockedPrompt(): string {
@@ -129,6 +152,18 @@ function renderSlackSetupBlockedPrompt(): string {
     "",
     "Reply in ordinary language with the current-docs verification need, whether setup blocked verification, and an explicit statement that no patch was prepared and no PR was published. Do not repeat raw Slack identifiers or internal decision labels.",
   ].join("\n");
+}
+
+function renderSlackIntentRoutingPrompt(): string {
+  return renderSlackSetupBlockedPrompt()
+    .replace(
+      "Run this as a Slack docs-signal workflow eval.\nCall capture_slack_docs_signal only.",
+      "Handle this Slack documentation concern with the appropriate intake workflow.",
+    )
+    .replace(
+      "Reply in ordinary language with the current-docs verification need, whether setup blocked verification, and an explicit statement that no patch was prepared and no PR was published.",
+      "Reply in ordinary language with what happened.",
+    );
 }
 
 function renderLinearSourceEvidencePrompt(): string {

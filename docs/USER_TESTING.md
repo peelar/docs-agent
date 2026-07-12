@@ -796,3 +796,30 @@ updates navigation and related content, adds a binary asset, copies, moves, and
 deletes files, inspects the draft across calls, runs repository build and diff
 checks, proves stale-base and traversal failures, verifies publish-tree entries,
 and abandons back to a clean checkout. It runs through `pnpm check`.
+
+## Instruction Context Boundaries
+
+Issue #32 moved universal rules into `instructions/principles.md` and
+situational repository and provider-intake procedures into load-on-demand
+skills. `identity.md`, dynamic setup, and dynamic workspace-memory instructions
+remain unchanged. `check-instruction-boundaries.ts` keeps the monolith absent,
+the identity byte-for-byte stable, the standing context below 220 words, and
+the three workflow skills present through `pnpm check`.
+
+The required live baseline was run before the refactor. `docs-signal-workflows`
+completed its Slack path and missed only the existing Linear final-reply gate.
+`saleor-docs-user-tests` and `watched-repositories` both stopped at the existing
+required GitHub validation boundary because this environment has no GitHub
+connector; neither reached repository execution.
+
+After the refactor, `docs-signal-workflows` passes all three scenarios and all
+45 gates, including a focused intent-level `docs-signal-intake` routing case.
+The focused `docs-maintenance` routing case passes all five gates. The watched
+workflow still loads `watched-repository-scan` before reaching the same missing
+GitHub connector boundary. Re-run the two repository-backed suites in an Eve
+environment with the GitHub connector configured before closing #32:
+
+```bash
+pnpm eval saleor-docs-user-tests --skip-report --verbose
+pnpm eval watched-repositories --skip-report --verbose
+```
