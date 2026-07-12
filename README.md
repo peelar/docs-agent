@@ -93,6 +93,15 @@ re-reads Eve and uses an idempotency key before every decision; it never runs
 the tool itself. Use `pnpm --filter docs-agent test:approval-integration` for
 the real local approve, deny, duplicate, and channel-native scenarios.
 
+Normal `pnpm eval` runs use an app-owned Eve reporter to record redacted suite
+and case summaries in the shared control-plane database. Live evals and
+deterministic validation use explicit different kinds; missing, skipped, flaky,
+failed, and passed outcomes remain distinct. The records contain no prompts,
+outputs, source context, reasoning, or credentials and expire after 30 days.
+`--skip-report` intentionally disables this reporter. Use
+`pnpm --filter docs-agent test:validation-reporter-integration` to run one real
+deterministic Eve eval against an isolated database and read the record back.
+
 Put local agent variables in `apps/agent/.env.local` and web-only variables in
 `apps/web/.env.local`. Both apps resolve local state through
 `@docs-agent/control-plane` and use `.docs-agent/docs-agent.sqlite` at the

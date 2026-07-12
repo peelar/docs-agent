@@ -307,13 +307,31 @@ already-answered, duplicate, unauthorized, and failed-resume paths stop
 visibly. Eve's `always()` policy and channel-native approvals remain unchanged;
 the web app never executes or replays the tool itself.
 
+### 13. Validation result recording
+
+Tracked by [#50](https://github.com/peelar/docs-agent/issues/50).
+
+The shared control-plane service records bounded validation runs and cases with
+stable ids, explicit `live-eval` or `deterministic-validation` kind, and
+distinct missing, skipped, flaky, failed, and passed outcomes. Normal Eve eval
+runs use a structured reporter callback; they do not parse terminal output.
+Every record stores its redaction version and a 30-day expiry time, and bounded
+cleanup deletes expired runs and cases.
+
+The reporter persists target, runtime identity, timing, safe assertion kinds,
+and redacted failure summaries. It omits prompts, outputs, source context,
+reasoning, event streams, tool payloads, and credentials. Assertion arguments
+and free-form labels are also omitted because they can repeat private expected
+output. Persistence failures reject the reporter callback visibly. The
+assurance UI remains separate work in #48 and must read this service rather
+than importing reporter or table code.
+
 ## Later Backlog
 
 The following work stays below the first delivery chain:
 
 - personality and participation settings after the default behavior is defined
   and covered by evals ([#46](https://github.com/peelar/docs-agent/issues/46));
-- durable, redacted eval and validation result recording ([#50](https://github.com/peelar/docs-agent/issues/50));
 - eval results and behavioral regression reporting backed by those records ([#48](https://github.com/peelar/docs-agent/issues/48));
 - schedules, notifications, usage, retention, and data-management controls.
 

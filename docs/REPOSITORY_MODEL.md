@@ -593,6 +593,24 @@ The inbox does not call `publish_working_repository_pr`, bypass `always()`, or
 manufacture approval state. Slack, Linear, terminal, and other channel-native
 responses continue to use Eve's same pending request contract.
 
+## Validation Results
+
+The app-owned validation index stores bounded assurance summaries, not a copy
+of Eve execution. Runs carry a stable id, suite, target, runtime identity,
+timing, redaction version, safe artifact references, expiry, and an explicit
+kind: `live-eval` or `deterministic-validation`. Cases carry stable ids, one of
+missing, skipped, flaky, failed, or passed, safe assertion-kind summaries, and
+an optional redacted failure summary.
+
+The Eve reporter consumes structured run and case lifecycle callbacks. It does
+not parse CLI text, and reporter persistence failures remain command failures.
+Prompts, outputs, private source context, reasoning, event streams, tool
+payloads, credentials, assertion arguments, and free-form assertion labels are
+not projected. Duplicate delivery updates the same run and case identity.
+Runs expire after 30 days and a bounded service deletes them with their cases.
+External reporters and Eve artifacts keep their own independent contracts and
+retention.
+
 ## Docs Impact Decision Model
 
 Docs Agent uses a shared decision contract for signal triage, watched-release

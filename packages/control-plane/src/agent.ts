@@ -8,6 +8,7 @@ export * from "./libsql-chat-state.js";
 export * from "./slack-thread-presence.js";
 export * from "./workspace-memory.js";
 export * from "./product-runs.js";
+export * from "./validation-results.js";
 export { failApprovalsForRunReference, markApprovalAnsweredByCall, recordApprovalBatch, recordApprovalBatchInputSchema } from "./approval-inbox.js";
 export { recordConnectorDeliveryVerification } from "./connector-handoffs.js";
 export * from "./repository-contract.js";

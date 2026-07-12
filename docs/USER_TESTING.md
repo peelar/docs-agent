@@ -591,6 +591,28 @@ Run `pnpm --filter docs-agent test:approval-integration` for the real local Eve
 approve, deny, duplicate, and channel-native scenarios. `pnpm check` covers the
 deterministic service contract and desktop/mobile browser states.
 
+## Validation Result Recording
+
+Run a normal eval without `--skip-report`, then inspect the app-owned database.
+Confirm the run records its suite, local or remote target, runtime model and
+revision when available, start/end time, duration, 30-day expiry, and final
+outcome. Cases should preserve passed, failed, soft-threshold/flaky, and skipped
+states separately. A started run that never completes must remain missing.
+
+Inspect the record as serialized JSON. It must not contain the eval prompt,
+model output, private source context, reasoning, event stream, tool payload,
+credential, assertion argument, or free-form assertion label. Failure excerpts
+must redact recognized tokens. Replay the same stable run and case ids and
+confirm no duplicate rows appear. Break database readiness and confirm the eval
+command fails rather than reporting successful persistence.
+
+Run `pnpm --filter docs-agent test:validation-reporter-integration` to execute
+one real deterministic Eve eval against a temporary database and read its
+record back. `pnpm check` covers schema, service, reporter mapping, all five
+outcomes, strict omission, redaction, idempotency, retention, bounded cleanup,
+and visible persistence failures. The browser does not run evals or arbitrary
+validation commands in this slice.
+
 ## Repository Docs Profile
 
 Fast repository setup with `configure_working_repository` and `prepareNow:

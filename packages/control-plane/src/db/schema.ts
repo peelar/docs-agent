@@ -641,9 +641,76 @@ export const approvalDecisions = sqliteTable(
   ],
 );
 
+export const validationRuns = sqliteTable(
+  "validation_runs",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    kind: text("kind").notNull(),
+    suite: text("suite").notNull(),
+    target: text("target").notNull(),
+    model: text("model"),
+    revision: text("revision"),
+    deployment: text("deployment"),
+    outcome: text("outcome").notNull(),
+    redactionVersion: integer("redaction_version").notNull(),
+    artifactReferences: text("artifact_references", { mode: "json" })
+      .$type<unknown>()
+      .notNull(),
+    startedAt: text("started_at").notNull(),
+    completedAt: text("completed_at"),
+    durationMs: integer("duration_ms"),
+    expiresAt: text("expires_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("validation_runs_kind_started_idx").on(
+      table.workspaceId,
+      table.kind,
+      table.startedAt,
+    ),
+    index("validation_runs_expiry_idx").on(table.workspaceId, table.expiresAt),
+  ],
+);
+
+export const validationCases = sqliteTable(
+  "validation_cases",
+  {
+    id: text("id").primaryKey(),
+    validationRunId: text("validation_run_id")
+      .notNull()
+      .references(() => validationRuns.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id").notNull(),
+    caseId: text("case_id").notNull(),
+    name: text("name").notNull(),
+    outcome: text("outcome").notNull(),
+    assertionSummaries: text("assertion_summaries", { mode: "json" })
+      .$type<unknown>()
+      .notNull(),
+    failureSummary: text("failure_summary"),
+    artifactReference: text("artifact_reference"),
+    startedAt: text("started_at").notNull(),
+    completedAt: text("completed_at"),
+    durationMs: integer("duration_ms"),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("validation_cases_identity_idx").on(
+      table.validationRunId,
+      table.caseId,
+    ),
+    index("validation_cases_outcome_idx").on(
+      table.validationRunId,
+      table.outcome,
+    ),
+  ],
+);
+
 export const schema = {
   approvalDecisions,
   approvalRequests,
+  validationCases,
+  validationRuns,
   chatSdkKeyValues,
   chatSdkListEntries,
   chatSdkLocks,

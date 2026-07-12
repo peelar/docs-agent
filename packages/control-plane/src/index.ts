@@ -3,6 +3,7 @@ import "server-only";
 export * from "./docs-follow-ups.js";
 export * from "./libsql-chat-state.js";
 export * from "./slack-thread-presence.js";
+export * from "./validation-results.js";
 
 export {
   DOCS_PROFILE_FORMAT_VERSION,

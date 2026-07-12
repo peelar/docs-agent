@@ -199,6 +199,8 @@ a domain projection over Eve execution, not a separate workflow engine.
 - The report distinguishes evidence-backed claims from uncertainty.
 - Scenario evals cover docs-needed, no-docs-needed, changelog-only, and
   maintainer-question scenarios.
+- Live eval and deterministic-validation summaries remain explicitly distinct,
+  redacted, idempotent, and available through the shared control-plane service.
 - A Docusaurus-style build or relevant docs check can be run and reported when
   the scenario provides one.
 - Disallowed repository actions, unsupported sources, sandbox setup failures,
