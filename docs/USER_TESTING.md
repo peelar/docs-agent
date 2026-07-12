@@ -823,3 +823,36 @@ environment with the GitHub connector configured before closing #32:
 pnpm eval saleor-docs-user-tests --skip-report --verbose
 pnpm eval watched-repositories --skip-report --verbose
 ```
+
+## Behavior Settings
+
+Open `/settings` as an authenticated operator. Confirm the page offers named
+choices for response depth, directness, warmth, pushback, uncertainty handling,
+Slack entry, and followed-thread continuation. There must be no prompt textarea
+or editable evidence, safety, provenance, sandbox, approval, mutation, or
+publishing rule.
+
+Change at least one personality choice and one participation choice. Confirm
+the preview explains the likely behavior without promising exact wording. Save
+the settings, reload the page, and confirm the choices persist with a new audit
+entry. A forced database failure must leave Save disabled or return a visible
+error; it must not pretend the change succeeded.
+
+For Slack entry, verify a disabled mention or DM path is rejected before Chat
+SDK persists or processes the message. For followed-thread continuation, verify
+`direct-only` stays silent for an unaddressed room question and `off` removes
+active presence without processing the ordinary reply. None of these choices
+may widen tool, repository, or publishing authority.
+
+The deterministic persistence, schema, instruction, and Slack adapter checks
+run through `pnpm check`. The live behavior suites were also run with:
+
+```sh
+pnpm eval behavior-settings --skip-report --verbose
+pnpm eval slack-participation --skip-report --verbose
+```
+
+Result on 2026-07-12: the three personality cases passed all nine gates, and the
+five Slack participation cases passed all fifteen gates. Desktop and mobile
+Playwright scenarios passed with no horizontal overflow or browser console
+errors.

@@ -23,15 +23,22 @@ const SUPPORTED_MESSAGE_SUBTYPES = new Set([
  * never parsed or passed to Chat SDK when the thread is not enrolled.
  */
 export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
+  private readonly admitEntryMessage?: (
+    entry: "mention" | "direct-message",
+  ) => Promise<boolean>;
   private readonly admitOrdinaryMessage?: (threadId: string) => Promise<boolean>;
 
   constructor(
     config: SlackAdapterConfig,
     options: {
+      admitEntryMessage?: (
+        entry: "mention" | "direct-message",
+      ) => Promise<boolean>;
       admitOrdinaryMessage?: (threadId: string) => Promise<boolean>;
     } = {},
   ) {
     super(config);
+    this.admitEntryMessage = options.admitEntryMessage;
     this.admitOrdinaryMessage = options.admitOrdinaryMessage;
   }
 
@@ -41,8 +48,24 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
   ): void {
     if (shouldIgnoreSlackMessage(event) || this.isMessageFromSelf(event)) return;
 
-    if (event.type === "app_mention" || event.channel_type === "im") {
-      this.forwardAcceptedMessage(event, options);
+    const entry = event.type === "app_mention"
+      ? "mention" as const
+      : event.channel_type === "im"
+        ? "direct-message" as const
+        : null;
+    if (entry !== null) {
+      if (this.admitEntryMessage === undefined) {
+        this.forwardAcceptedMessage(event, options);
+        return;
+      }
+      const task = this.forwardIfEntryAdmitted(entry, event, options);
+      if (options?.waitUntil) {
+        options.waitUntil(task);
+      } else {
+        void task.catch((error: unknown) => {
+          this.logger.error("Slack entry policy check failed", { entry, error });
+        });
+      }
       return;
     }
 
@@ -108,11 +131,24 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
     if (!(await this.isThreadSubscribed(threadId))) return;
     this.forwardAcceptedMessage(event, options);
   }
+
+  private async forwardIfEntryAdmitted(
+    entry: "mention" | "direct-message",
+    event: SlackEvent,
+    options?: WebhookOptions,
+  ): Promise<void> {
+    if (await this.admitEntryMessage!(entry)) {
+      this.forwardAcceptedMessage(event, options);
+    }
+  }
 }
 
 export function createSubscriptionFilteredSlackAdapter(
   config: SlackAdapterConfig,
   options: {
+    admitEntryMessage?: (
+      entry: "mention" | "direct-message",
+    ) => Promise<boolean>;
     admitOrdinaryMessage?: (threadId: string) => Promise<boolean>;
   } = {},
 ): SubscriptionFilteredSlackAdapter {

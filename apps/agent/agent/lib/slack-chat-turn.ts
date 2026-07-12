@@ -4,6 +4,12 @@ import type { ActionEvent, Message, MessageContext, Thread } from "chat";
 import type { UserContent } from "ai";
 
 import {
+  buildSlackContinuationPolicy,
+  DEFAULT_BEHAVIOR_SETTINGS,
+  type ParticipationSettings,
+} from "@docs-agent/control-plane/behavior-contract";
+
+import {
   discardStagedSlackSearchRequest,
   runWithStagedSlackSearchRequest,
 } from "./slack-context-retrieval.js";
@@ -57,20 +63,25 @@ export function registerSlackTurnHandlers(
   bot: SlackHandlerRegistrar,
   send: SlackTurnSender,
   presence: SlackPresenceLifecycle,
+  resolveParticipation: () => Promise<ParticipationSettings> = async () =>
+    DEFAULT_BEHAVIOR_SETTINGS.participation,
 ): void {
   bot.onNewMention(async (thread, message, context) => {
     await presence.verifyInbound();
-    const metadata = slackPresenceMetadata(thread, message);
-    await presence.enroll(metadata);
-    try {
-      await thread.subscribe();
-    } catch (error) {
-      await presence.end({
-        chatThreadId: thread.id,
-        status: "enrollment-failed",
-        reason: "chat-sdk-subscribe-failed",
-      });
-      throw error;
+    const participation = await resolveParticipation();
+    if (participation.slackContinuation !== "off") {
+      const metadata = slackPresenceMetadata(thread, message);
+      await presence.enroll(metadata);
+      try {
+        await thread.subscribe();
+      } catch (error) {
+        await presence.end({
+          chatThreadId: thread.id,
+          status: "enrollment-failed",
+          reason: "chat-sdk-subscribe-failed",
+        });
+        throw error;
+      }
     }
     await sendSlackTurn(send, thread, message, { skipped: context?.skipped });
   });
@@ -80,6 +91,17 @@ export function registerSlackTurnHandlers(
   });
   bot.onSubscribedMessage(async (thread, message, context) => {
     await presence.verifyInbound();
+    const participation = await resolveParticipation();
+    if (participation.slackContinuation === "off") {
+      discardStagedSlackSearchRequest(message.id);
+      await presence.end({
+        chatThreadId: thread.id,
+        status: "dismissed",
+        reason: "workspace-participation-disabled",
+      });
+      await thread.unsubscribe();
+      return;
+    }
     if (isSlackThreadDismissal(message.text)) {
       discardStagedSlackSearchRequest(message.id);
       await presence.end({
@@ -92,7 +114,10 @@ export function registerSlackTurnHandlers(
       return;
     }
     await sendSlackTurn(send, thread, message, {
-      observingFollowedThread: true,
+      followedThreadPolicy: buildSlackContinuationPolicy(
+        participation,
+        SLACK_SILENT_REPLY,
+      ) ?? undefined,
       skipped: context?.skipped,
     });
   });
@@ -103,7 +128,7 @@ export async function sendSlackTurn(
   thread: Thread,
   message: Message,
   options: {
-    observingFollowedThread?: boolean;
+    followedThreadPolicy?: string;
     skipped?: Message[];
   } = {},
 ): Promise<void> {
@@ -121,8 +146,8 @@ export async function sendSlackTurn(
       await send(
         {
           message: input,
-          ...(options.observingFollowedThread
-            ? { context: [SLACK_FOLLOWED_THREAD_POLICY] }
+          ...(options.followedThreadPolicy
+            ? { context: [options.followedThreadPolicy] }
             : {}),
         },
         {
@@ -331,9 +356,15 @@ function findLastIndex<T>(values: T[], predicate: (value: T) => boolean): number
   return -1;
 }
 
-export const SLACK_FOLLOWED_THREAD_POLICY = [
-  "You are observing a Slack thread that explicitly invited Paige to participate.",
-  "Reply when the latest message directly continues the exchange, addresses Paige, or asks a documentation, product, API, release, or support question Paige can usefully answer.",
-  "Use capture_slack_docs_signal when the conversation contains a plausible documentation concern, but do not create a signal for greetings, coordination, or unrelated chatter.",
-  `When no reply would help, finish with exactly ${SLACK_SILENT_REPLY} and no other text.`,
-].join(" ");
+export const SLACK_FOLLOWED_THREAD_POLICY = buildSlackContinuationPolicy(
+  DEFAULT_BEHAVIOR_SETTINGS.participation,
+  SLACK_SILENT_REPLY,
+)!;
+
+export const SLACK_DIRECT_ONLY_THREAD_POLICY = buildSlackContinuationPolicy(
+  {
+    ...DEFAULT_BEHAVIOR_SETTINGS.participation,
+    slackContinuation: "direct-only",
+  },
+  SLACK_SILENT_REPLY,
+)!;

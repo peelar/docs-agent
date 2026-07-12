@@ -22,12 +22,12 @@ required before #37 is complete. Connector installation handoffs are complete;
 workspace-memory review, product-level run history, and the centralized
 approval inbox are also complete. Durable eval and validation result recording
 and its read-only assurance UI are complete. Instruction-boundary cleanup is
-next.
+implemented and awaits repository-backed eval proof in a configured Eve
+environment. Structured personality and participation settings are complete.
 
 The first delivery remains the local read-only baseline. Production
-authentication, guided setup, connector handoffs, workspace-memory review, and
-run history and approvals now build on it. Personality and participation
-settings and eval reporting stay below it in the backlog.
+authentication, guided setup, connector handoffs, workspace-memory review, run
+history, approvals, assurance, and behavior settings now build on it.
 
 The operator surface builds on the existing agent workflow contract in
 `docs/WORKFLOWS.md`; it does not replace or redefine those runtime boundaries.
@@ -98,7 +98,7 @@ one coherent draft to the next human boundary.
 | Complete | #50 Record eval and validation results | Establishes a durable, redacted result source before the assurance UI. | #38 (complete) |
 | Complete | #48 Show eval results and behavioral regressions | Renders recorded assurance data without inventing browser-side execution. | #36, #37 implementation, #50 (complete) |
 | 19 | #32 Reduce always-on instruction bloat | Moves situational workflows into the right Eve context boundaries without changing behavior. | None |
-| 20 | #46 Add personality and participation settings | Tunes tested defaults without exposing raw prompts or widening authority. | #30, #31 (complete), #32, #37, #38 |
+| Complete | #46 Add personality and participation settings | Tunes tested defaults without exposing raw prompts or widening authority. | #30, #31, #32 implementation, #37 implementation, #38 (complete) |
 
 ## Later
 

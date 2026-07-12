@@ -36,7 +36,7 @@ assert.doesNotMatch(
 );
 assert.equal(wordCount(identity) + wordCount(principles) < 220, true);
 
-for (const dynamicInstruction of ["memory.ts", "setup.ts"]) {
+for (const dynamicInstruction of ["behavior.ts", "memory.ts", "setup.ts"]) {
   const source = await readFile(join(instructionsRoot, dynamicInstruction), "utf8");
   assert.match(source, /defineDynamic/);
   assert.match(source, /"turn\.started"/);

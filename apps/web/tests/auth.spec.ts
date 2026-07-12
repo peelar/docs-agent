@@ -41,6 +41,9 @@ test("unauthenticated pages redirect to sign in and protected operations reject"
   await page.goto("/runs");
   await expect(page).toHaveURL(/\/sign-in\?returnTo=%2Fruns$/);
 
+  await page.goto("/settings");
+  await expect(page).toHaveURL(/\/sign-in\?returnTo=%2Fsettings$/);
+
   const operation = await page.request.get("/api/operator/whoami");
   expect(operation.status()).toBe(401);
   await expect(operation.json()).resolves.toMatchObject({
@@ -55,7 +58,26 @@ test("unauthenticated pages redirect to sign in and protected operations reject"
   expect((await page.request.post("/api/operator/approvals/example/decision", {
     data: { decision: "approve", reason: "Unauthorized.", idempotencyKey: "unauthorized" },
   })).status()).toBe(401);
+  expect((await page.request.post("/api/operator/behavior-settings", {
+    data: { settings: defaultSettingsForUnauthorizedRequest() },
+  })).status()).toBe(401);
 });
+
+function defaultSettingsForUnauthorizedRequest() {
+  return {
+    personality: {
+      responseDepth: "adaptive",
+      directness: "balanced",
+      warmth: "warm",
+      pushback: "reader-advocate",
+      uncertaintyStyle: "ask-when-blocked",
+    },
+    participation: {
+      slackEntry: "mentions-and-dms",
+      slackContinuation: "relevant-only",
+    },
+  };
+}
 
 test("sign in uses GitHub OAuth state in an HttpOnly cookie", async ({ page }) => {
   await page.context().clearCookies();

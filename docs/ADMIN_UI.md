@@ -348,12 +348,31 @@ assertions, gate-to-soft changes, lower thresholds, regressions, improvements,
 new cases, and missing cases. The browser cannot select an incompatible run,
 edit an assertion, start an eval, or run a repository command.
 
+### 15. Personality and participation settings
+
+Tracked by [#46](https://github.com/peelar/docs-agent/issues/46).
+
+The authenticated Settings surface exposes named choices for response depth,
+directness, warmth, pushback, uncertainty handling, Slack entry, and followed-
+thread continuation. It does not expose a prompt field. The page previews the
+kind of change each choice makes while stating that the model's wording will
+still vary.
+
+The shared control-plane service validates the complete settings object,
+supplies the authenticated audit actor, and records each real change as an
+append-only event. Default personality choices add no duplicate standing
+instructions. Non-default choices produce only bounded dynamic modifiers.
+Slack entry policy is checked before Chat SDK admission, and continuation
+policy is checked again for each followed-thread message.
+
+These settings cannot edit permanent safety, evidence, provenance, sandbox, or
+approval rules. They cannot grant mutation or publishing authority. Invalid
+input and persistence failures stop visibly.
+
 ## Later Backlog
 
 The following work stays below the first delivery chain:
 
-- personality and participation settings after the default behavior is defined
-  and covered by evals ([#46](https://github.com/peelar/docs-agent/issues/46));
 - schedules, notifications, usage, retention, and data-management controls.
 
 Chat SDK persistence ([#33](https://github.com/peelar/docs-agent/issues/33)) and
@@ -375,8 +394,7 @@ folded into the web foundation.
 - A raw SQL, table, environment-variable, or workflow-state editor.
 - Building a complete tracing backend.
 - Silent connector installation or bypassing provider consent.
-- Changing agent personality or participation behavior through UI settings
-  before those defaults exist and have behavioral eval coverage.
+- Exposing raw prompts or editable safety and authority rules as settings.
 
 ## Success
 

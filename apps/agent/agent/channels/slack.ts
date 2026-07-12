@@ -10,6 +10,8 @@ import {
   endSlackThreadPresence,
   enrollSlackThreadPresence,
   recordConnectorDeliveryVerification,
+  readBehaviorSettings,
+  slackEntryAllows,
 } from "@docs-agent/control-plane/agent";
 import { chatSdkChannel } from "eve/channels/chat-sdk";
 
@@ -27,8 +29,20 @@ export const slackAdapter = createSubscriptionFilteredSlackAdapter({
   ...connectSlackAdapter(slackConnector),
   userName: "Paige",
 }, {
-  admitOrdinaryMessage: async (threadId) =>
-    (await continueSlackThreadPresence({ chatThreadId: threadId })).admitted,
+  admitEntryMessage: async (entry) =>
+    slackEntryAllows((await readBehaviorSettings()).settings.participation, entry),
+  admitOrdinaryMessage: async (threadId) => {
+    const participation = (await readBehaviorSettings()).settings.participation;
+    if (participation.slackContinuation === "off") {
+      await endSlackThreadPresence({
+        chatThreadId: threadId,
+        status: "dismissed",
+        reason: "workspace-participation-disabled",
+      });
+      return false;
+    }
+    return (await continueSlackThreadPresence({ chatThreadId: threadId })).admitted;
+  },
 });
 
 export const { bot, channel, send } = chatSdkChannel({
@@ -58,6 +72,6 @@ registerSlackTurnHandlers(bot, send, {
       provider: "slack",
       evidence: "slack-verified-webhook",
     }),
-});
+}, async () => (await readBehaviorSettings()).settings.participation);
 
 export default channel;

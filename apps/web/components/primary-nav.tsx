@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { Activity, Brain, ChartNoAxesCombined, CircleGauge, Inbox, ShieldCheck } from "lucide-react";
+import { Activity, Brain, ChartNoAxesCombined, CircleGauge, Inbox, ShieldCheck, SlidersHorizontal } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -13,6 +13,7 @@ const navigation = [
   { href: "/runs", label: "Runs", icon: Activity },
   { href: "/assurance", label: "Assurance", icon: ChartNoAxesCombined },
   { href: "/approvals", label: "Approvals", icon: ShieldCheck },
+  { href: "/settings", label: "Settings", icon: SlidersHorizontal },
 ] as const;
 
 export function PrimaryNav() {

@@ -4,8 +4,8 @@ import { join } from "node:path";
 
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
-
 import {
+  SLACK_DIRECT_ONLY_THREAD_POLICY,
   SLACK_FOLLOWED_THREAD_POLICY,
   SLACK_SILENT_REPLY,
 } from "../agent/lib/slack-chat-turn.js";
@@ -71,6 +71,25 @@ export default [
           input.threadTs === "1783808400.000100" &&
           input.publicDocsImpact === "substantive",
       });
+    },
+  }),
+  defineEval({
+    description: "Direct-only followed-thread variant ignores an unaddressed room question",
+    tags: ["slack-participation", "variant", "direct-only", "silent"],
+    timeoutMs: 180_000,
+    async test(t) {
+      await t.send([
+        SLACK_DIRECT_ONLY_THREAD_POLICY,
+        "Treat this as one accepted observer turn from an already-enrolled Slack thread.",
+        "Nobody addresses Paige or continues her last exchange. A human asks the room whether a permission-gated field should be documented.",
+      ].join("\n\n"));
+
+      t.succeeded();
+      t.usedNoTools();
+      t.check(t.reply, satisfies(
+        (reply) => String(reply).trim() === SLACK_SILENT_REPLY,
+        "direct-only continuation stays silent when Paige was not engaged",
+      ));
     },
   }),
 ];

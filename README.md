@@ -107,6 +107,13 @@ validation, keeps missing, skipped, flaky, failed, passed, and expired states
 distinct, and compares a run only with an earlier compatible baseline. It is a
 read-only evidence surface and cannot start evals or repository commands.
 
+The authenticated Settings page uses named personality and Slack participation
+choices instead of a raw prompt. Changes are validated, persisted, and audited
+through the shared control-plane service. They can tune voice and decide which
+supported Slack messages enter or continue a conversation, but they cannot
+change evidence rules, safety boundaries, tool authority, or approval-gated
+publishing.
+
 Put local agent variables in `apps/agent/.env.local` and web-only variables in
 `apps/web/.env.local`. Both apps resolve local state through
 `@docs-agent/control-plane` and use `.docs-agent/docs-agent.sqlite` at the

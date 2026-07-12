@@ -46,10 +46,11 @@ Sessions as durable docs signals. This does not make the agent a broad chat bot
 or ticketing assistant. The configured working documentation repository remains
 the only mutable target, and writeback remains approval gated.
 
-The next product expansion is an authenticated web control plane for the state
-the agent already owns. Its first job is to show setup readiness, the docs-signal
-work queue, and the provenance and lifecycle of each signal. Slack and Linear
-remain the places where documentation work starts.
+The authenticated web control plane shows setup readiness, the docs-signal work
+queue, provenance and lifecycle, memories, runs, approvals, assurance, and
+structured behavior settings. Slack and Linear remain the places where
+documentation work starts. Behavior settings can tune voice and participation,
+but cannot change evidence, safety, or publishing authority.
 
 ## Repository Model
 

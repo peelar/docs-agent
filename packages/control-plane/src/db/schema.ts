@@ -41,6 +41,42 @@ export const workspaceSetupEvents = sqliteTable(
   ],
 );
 
+export const workspaceBehaviorSettings = sqliteTable(
+  "workspace_behavior_settings",
+  {
+    workspaceId: text("workspace_id").primaryKey(),
+    version: integer("version").notNull(),
+    settings: text("settings", { mode: "json" }).$type<unknown>().notNull(),
+    updatedById: text("updated_by_id").notNull(),
+    updatedByLogin: text("updated_by_login").notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+    updatedAt: text("updated_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+);
+
+export const workspaceBehaviorSettingsEvents = sqliteTable(
+  "workspace_behavior_settings_events",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    actorId: text("actor_id").notNull(),
+    actorLogin: text("actor_login").notNull(),
+    previousSettings: text("previous_settings", { mode: "json" })
+      .$type<unknown>()
+      .notNull(),
+    nextSettings: text("next_settings", { mode: "json" })
+      .$type<unknown>()
+      .notNull(),
+    createdAt: text("created_at").notNull().default(sql`CURRENT_TIMESTAMP`),
+  },
+  (table) => [
+    index("workspace_behavior_settings_events_workspace_created_idx").on(
+      table.workspaceId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const connectorDeliveryVerifications = sqliteTable(
   "connector_delivery_verifications",
   {
@@ -733,6 +769,8 @@ export const schema = {
   workspaceMemoryEvents,
   workspaceMemoryRecords,
   workspaceMemorySources,
+  workspaceBehaviorSettings,
+  workspaceBehaviorSettingsEvents,
   workspaceSetup,
   workspaceSetupEvents,
 };

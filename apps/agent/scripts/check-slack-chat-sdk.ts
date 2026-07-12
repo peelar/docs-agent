@@ -17,8 +17,12 @@ class TestSlackAdapter extends SubscriptionFilteredSlackAdapter {
   subscriptionChecks: string[] = [];
   subscribed = false;
 
-  constructor() {
-    super({ botToken: "xoxb-test", webhookVerifier: () => true });
+  constructor(options: {
+    admitEntryMessage?: (
+      entry: "mention" | "direct-message",
+    ) => Promise<boolean>;
+  } = {}) {
+    super({ botToken: "xoxb-test", webhookVerifier: () => true }, options);
   }
 
   async emit(event: SlackEvent): Promise<void> {
@@ -73,6 +77,14 @@ assert.doesNotMatch(
   /action-token-must-not-persist/u,
   "request-scoped action tokens are removed before Chat SDK receives the event",
 );
+
+const entryFiltered = new TestSlackAdapter({
+  admitEntryMessage: async (entry) => entry === "mention",
+});
+await entryFiltered.emit(event({ type: "app_mention", text: "@Paige allowed" }));
+await entryFiltered.emit(event({ channel: "D123", channel_type: "im", text: "blocked" }));
+assert.equal(entryFiltered.forwarded.length, 1, "structured entry policy filters DMs before Chat SDK");
+assert.equal(entryFiltered.forwarded[0]?.type, "app_mention");
 
 await adapter.emit(event({ text: "unenrolled private content" }));
 assert.equal(adapter.forwarded.length, 2, "unenrolled channel content is not forwarded");
@@ -141,6 +153,38 @@ assert.match(JSON.stringify(registeredInputs[2]), /\[\[SILENT\]\]/u, "followed-t
 assert.equal(presenceEvents[0]?.action, "verify-inbound");
 assert.equal(presenceEvents[1]?.action, "enroll");
 assert.equal(presenceEvents[1]?.continuationToken, rootThread.id);
+
+const disabledHandlers: Record<string, (thread: Thread, message: Message) => Promise<void>> = {};
+let disabledSends = 0;
+let disabledSubscriptions = 0;
+const disabledPresenceEvents: Array<Record<string, unknown>> = [];
+registerSlackTurnHandlers(
+  {
+    onDirectMessage: (handler) => { disabledHandlers.dm = handler; },
+    onNewMention: (handler) => { disabledHandlers.mention = handler; },
+    onSubscribedMessage: (handler) => { disabledHandlers.subscribed = handler; },
+  },
+  async () => { disabledSends += 1; },
+  {
+    verifyInbound: async () => undefined,
+    enroll: async (input) => { disabledPresenceEvents.push({ action: "enroll", ...input }); },
+    end: async (input) => { disabledPresenceEvents.push({ action: "end", ...input }); },
+  },
+  async () => ({ slackEntry: "mentions-and-dms", slackContinuation: "off" }),
+);
+const disabledThread = {
+  ...rootThread,
+  subscribe: async () => { disabledSubscriptions += 1; },
+  unsubscribe: async () => { disabledSubscriptions -= 1; },
+} as unknown as Thread;
+await disabledHandlers.mention!(disabledThread, rootMessage);
+assert.equal(disabledSends, 1, "a mention still gets its direct response");
+assert.equal(disabledSubscriptions, 0, "continuation off does not enroll the thread");
+assert.equal(disabledPresenceEvents.length, 0);
+await disabledHandlers.subscribed!(disabledThread, rootMessage);
+assert.equal(disabledSends, 1, "a stale subscribed turn is not sent to Eve");
+assert.equal(disabledSubscriptions, -1, "the stale Chat SDK subscription is removed");
+assert.equal(disabledPresenceEvents[0]?.reason, "workspace-participation-disabled");
 
 await registered.subscribed!(rootThread, message("201.000", "Paige, stop following this thread.", false, "200.000"));
 assert.equal(registeredSendCalls, 3, "dismissal does not start an Eve turn");
