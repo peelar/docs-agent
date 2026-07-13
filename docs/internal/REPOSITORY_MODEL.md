@@ -262,8 +262,13 @@ separate thread-id subscription lookup. If neither an active effective watch nor
 an enrolled thread admits the event, it is discarded before Chat SDK parses its
 content or can run dedupe, history, queue, or Eve/model processing. A watch match
 is bound to the exact effective revision and does not itself create a Chat SDK
-conversation or Eve turn. Bot and self-authored messages, edits, deletes, and
-unsupported subtypes are discarded even earlier. Accepted mentions create a separate
+conversation or Eve turn. Only an original human channel message without a
+subtype can then be normalized. The adapter resolves its permalink after
+admission and emits a provider-neutral envelope with the watch revision,
+channel, actor, occurrence, thread, permalink, structured provenance, and
+ephemeral text. Slack-specific payload fields do not cross that boundary. Bot
+and self-authored messages, edits, deletes, and unsupported subtypes are
+discarded even earlier. Accepted mentions create a separate
 `slack_thread_presence` record and Chat SDK subscription for that thread. The
 record preserves the Slack workspace, channel, root timestamp, continuation
 token, inviter, activity, status, and expiry without becoming a docs signal.

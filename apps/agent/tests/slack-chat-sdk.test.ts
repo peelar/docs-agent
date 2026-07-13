@@ -3,7 +3,10 @@ import assert from "node:assert/strict";
 import type { SlackEvent } from "@chat-adapter/slack";
 import type { Message, Thread, WebhookOptions } from "chat";
 
-import type { WatchEventAdmission } from "@docs-agent/control-plane/agent";
+import type {
+  EphemeralWatchObservation,
+  WatchEventAdmission,
+} from "@docs-agent/control-plane/agent";
 
 import {
   buildSlackActionAuth,
@@ -16,6 +19,7 @@ import {
   SubscriptionFilteredSlackAdapter,
   type SlackWatchEventScope,
 } from "../agent/lib/subscription-filtered-slack-adapter";
+import type { SlackWatchObservationInput } from "../agent/lib/slack-watch-observation";
 import { test } from "vitest";
 
 test("slack chat sdk", async () => {
@@ -31,6 +35,9 @@ class TestSlackAdapter extends SubscriptionFilteredSlackAdapter {
     admitWatchEvent?: (
       scope: SlackWatchEventScope,
     ) => Promise<readonly WatchEventAdmission[]>;
+    normalizeWatchEvent?: (
+      input: SlackWatchObservationInput,
+    ) => EphemeralWatchObservation | Promise<EphemeralWatchObservation>;
   } = {}) {
     super({ botToken: "xoxb-test", webhookVerifier: () => true }, options);
   }
@@ -53,6 +60,10 @@ class TestSlackAdapter extends SubscriptionFilteredSlackAdapter {
   protected override async isThreadSubscribed(threadId: string): Promise<boolean> {
     this.subscriptionChecks.push(threadId);
     return this.subscribed;
+  }
+
+  protected override async resolveWatchMessagePermalink(): Promise<string> {
+    return "https://example.slack.com/archives/C123/p100000";
   }
 }
 
@@ -155,24 +166,55 @@ assert.deepEqual(
   "metadata-only watch lookup runs before the separate subscription path",
 );
 
+const normalizedInputs: SlackWatchObservationInput[] = [];
+const normalizingWatchAdapter = new TestSlackAdapter({
+  admitWatchEvent: async () => [{} as WatchEventAdmission],
+  normalizeWatchEvent: async (input) => {
+    normalizedInputs.push(input);
+    return {} as EphemeralWatchObservation;
+  },
+});
+await normalizingWatchAdapter.emit(event({ text: "normalize after admission" }));
+assert.equal(normalizedInputs.length, 1);
+assert.equal(normalizedInputs[0]?.event.text, "normalize after admission");
+assert.equal(
+  normalizedInputs[0]?.permalink,
+  "https://example.slack.com/archives/C123/p100000",
+);
+assert.equal(normalizedInputs[0]?.isSelf, false);
+
 await watchFiltered.emit(event({ type: "app_mention", text: "@Paige direct path" }));
 await watchFiltered.emit(event({ channel: "D123", channel_type: "im", text: "DM path" }));
 assert.equal(watchScopes.length, 1, "mentions and DMs do not enter watch lookup");
+
+watchFiltered.subscribed = true;
+await watchFiltered.emit(event({ subtype: "file_share", text: "followed attachment" }));
+assert.equal(watchScopes.length, 1, "unsupported watch subtypes skip watch lookup");
+assert.equal(
+  watchFiltered.forwarded.at(-1)?.text,
+  "followed attachment",
+  "supported followed-thread subtypes retain their existing conversation path",
+);
 
 const unavailableWatchState = new TestSlackAdapter({
   admitWatchEvent: async () => {
     throw new Error("watch state unavailable");
   },
 });
+unavailableWatchState.subscribed = true;
 await assert.rejects(
   () => unavailableWatchState.emit(event({ text: "must not be parsed" })),
   /watch state unavailable/,
 );
-assert.equal(unavailableWatchState.forwarded.length, 0);
+assert.equal(
+  unavailableWatchState.forwarded.length,
+  1,
+  "an independently enrolled thread retains its conversational admission",
+);
 assert.deepEqual(
   unavailableWatchState.subscriptionChecks,
-  [],
-  "watch failures stop before Chat SDK subscription state or content parsing",
+  ["slack:C123:100.000"],
+  "watch failure does not widen or disable the separate subscription lookup",
 );
 
 adapter.subscribed = true;

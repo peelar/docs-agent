@@ -22,6 +22,7 @@ import {
 } from "../lib/slack-chat-turn";
 import { createSubscriptionFilteredSlackAdapter } from "../lib/subscription-filtered-slack-adapter";
 import { resolveSlackWatchEventAdmissions } from "../lib/slack-watch-admission";
+import { normalizeSlackWatchObservation } from "../lib/slack-watch-observation";
 
 export { DEFAULT_SLACK_CONNECTOR, SLACK_CONNECTOR_ENV };
 
@@ -33,6 +34,7 @@ export const slackAdapter = createSubscriptionFilteredSlackAdapter({
   admitEntryMessage: async (entry) =>
     slackEntryAllows((await readBehaviorSettings()).settings.participation, entry),
   admitWatchEvent: resolveSlackWatchEventAdmissions,
+  normalizeWatchEvent: normalizeSlackWatchObservation,
   admitOrdinaryMessage: async (threadId) => {
     const participation = (await readBehaviorSettings()).settings.participation;
     if (participation.slackContinuation === "off") {

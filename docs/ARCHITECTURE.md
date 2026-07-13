@@ -211,6 +211,13 @@ resource, and event-type metadata only. The lookup returns the exact immutable
 effective revision for each matching active watch. It rejects paused, expired,
 missing, corrupt, or unauthorized state before raw provider content can enter
 Chat SDK history, parsing, queues, Eve sessions, or model context.
+For the Slack adapter, only original human channel messages without a subtype
+may cross that boundary. After exact admission, the adapter resolves a Slack
+permalink and reduces the provider payload to the provider-neutral ephemeral
+observation envelope. Bot or self-authored output, edits, deletes, DMs,
+mentions, and unsupported subtypes never become watch observations. The
+envelope is candidate context only and does not create a signal, memory,
+conversation, response, or Eve turn.
 
 ## Integration Boundaries
 

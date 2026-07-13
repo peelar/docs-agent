@@ -5,12 +5,20 @@ import {
 } from "@chat-adapter/slack";
 import type { WebhookOptions } from "chat";
 
-import type { WatchEventAdmission } from "@docs-agent/control-plane/agent";
+import type {
+  EphemeralWatchObservation,
+  WatchEventAdmission,
+} from "@docs-agent/control-plane/agent";
 
 import {
   redactSlackSearchSecrets,
   stageSlackSearchRequest,
 } from "./slack-context-retrieval";
+import {
+  isSlackWatchObservationCandidateMetadata,
+  isSupportedSlackWatchObservationEvent,
+  type SlackWatchObservationInput,
+} from "./slack-watch-observation";
 
 const SUPPORTED_MESSAGE_SUBTYPES = new Set([
   "file_share",
@@ -21,8 +29,9 @@ const SUPPORTED_MESSAGE_SUBTYPES = new Set([
 /**
  * Enforces the Slack content-admission boundary before Chat SDK core receives a
  * message. Mentions and DMs retain their existing entry path. An ordinary
- * channel message causes only a thread-id subscription lookup; its content is
- * never parsed or passed to Chat SDK when the thread is not enrolled.
+ * channel message exposes metadata to watch admission before any content read,
+ * then runs the separate thread-id subscription lookup. Rejected watch content
+ * is never normalized, and unenrolled content never reaches Chat SDK.
  */
 export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
   private readonly admitEntryMessage?: (
@@ -32,6 +41,9 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
   private readonly admitWatchEvent?: (
     scope: SlackWatchEventScope,
   ) => Promise<readonly WatchEventAdmission[]>;
+  private readonly normalizeWatchEvent?: (
+    input: SlackWatchObservationInput,
+  ) => EphemeralWatchObservation | Promise<EphemeralWatchObservation>;
 
   constructor(
     config: SlackAdapterConfig,
@@ -43,12 +55,16 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
       admitWatchEvent?: (
         scope: SlackWatchEventScope,
       ) => Promise<readonly WatchEventAdmission[]>;
+      normalizeWatchEvent?: (
+        input: SlackWatchObservationInput,
+      ) => EphemeralWatchObservation | Promise<EphemeralWatchObservation>;
     } = {},
   ) {
     super(config);
     this.admitEntryMessage = options.admitEntryMessage;
     this.admitOrdinaryMessage = options.admitOrdinaryMessage;
     this.admitWatchEvent = options.admitWatchEvent;
+    this.normalizeWatchEvent = options.normalizeWatchEvent;
   }
 
   protected override handleMessageEvent(
@@ -152,12 +168,59 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
     event: SlackEvent,
     options?: WebhookOptions,
   ): Promise<void> {
-    if (this.admitWatchEvent !== undefined) {
-      await this.admitWatchEvent(slackWatchEventScope(event));
+    let watchFailure: unknown;
+    try {
+      await this.normalizeIfWatchAdmitted(event);
+    } catch (error) {
+      watchFailure = error;
     }
     const threadId = slackThreadId(this, event);
-    if (!(await this.isThreadSubscribed(threadId))) return;
-    await this.forwardAcceptedMessage(event, options);
+    if (await this.isThreadSubscribed(threadId)) {
+      await this.forwardAcceptedMessage(event, options);
+    }
+    if (watchFailure !== undefined) throw watchFailure;
+  }
+
+  protected async resolveWatchMessagePermalink(
+    event: SlackEvent,
+  ): Promise<string> {
+    const response = await this.webClient.apiCall("chat.getPermalink", {
+      channel: event.channel,
+      message_ts: event.ts,
+    }) as { ok?: boolean; permalink?: unknown };
+    if (response.ok !== true || typeof response.permalink !== "string") {
+      throw new Error("Slack did not return a permalink for the admitted watch message.");
+    }
+    return response.permalink;
+  }
+
+  private async normalizeIfWatchAdmitted(event: SlackEvent): Promise<void> {
+    const isSelf = this.isMessageFromSelf(event);
+    if (
+      this.admitWatchEvent === undefined ||
+      !isSlackWatchObservationCandidateMetadata(event, isSelf)
+    ) return;
+
+    const admissions = await this.admitWatchEvent(slackWatchEventScope(event));
+    if (admissions.length === 0) return;
+    if (!isSupportedSlackWatchObservationEvent(event, isSelf)) return;
+    if (this.normalizeWatchEvent === undefined) {
+      throw new Error(
+        "Slack watch admission has no configured observation normalizer.",
+      );
+    }
+
+    const permalink = await this.resolveWatchMessagePermalink(event);
+    const receivedAt = new Date().toISOString();
+    await Promise.all(admissions.map((admission) =>
+      this.normalizeWatchEvent!({
+        event,
+        admission,
+        isSelf,
+        permalink,
+        receivedAt,
+      })
+    ));
   }
 
   private async forwardIfEntryAdmitted(
@@ -181,6 +244,9 @@ export function createSubscriptionFilteredSlackAdapter(
     admitWatchEvent?: (
       scope: SlackWatchEventScope,
     ) => Promise<readonly WatchEventAdmission[]>;
+    normalizeWatchEvent?: (
+      input: SlackWatchObservationInput,
+    ) => EphemeralWatchObservation | Promise<EphemeralWatchObservation>;
   } = {},
 ): SubscriptionFilteredSlackAdapter {
   return new SubscriptionFilteredSlackAdapter(config, options);
