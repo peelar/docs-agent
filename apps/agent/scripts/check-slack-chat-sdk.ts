@@ -263,15 +263,16 @@ const actionAuth = buildSlackActionAuth({
 assert.equal(actionAuth?.principalId, "slack:T123:U_APPROVER", "HITL resumes as the clicking Slack user");
 
 const slackChannelModule = await import("../agent/channels/slack");
-const route = slackChannelModule.channel.routes[0] as {
-  method?: string;
-  path?: string;
-  transport?: string;
-};
+const routes = slackChannelModule.channel.routes
+  .map((route) => ({ method: route.method, path: route.path, transport: route.transport }))
+  .sort((left, right) => String(left.method).localeCompare(String(right.method)));
 assert.deepEqual(
-  { method: route.method, path: route.path, transport: route.transport },
-  { method: "POST", path: "/eve/v1/slack", transport: "http" },
-  "the externally configured Slack route remains stable",
+  routes,
+  [
+    { method: "GET", path: "/eve/v1/slack", transport: "http" },
+    { method: "POST", path: "/eve/v1/slack", transport: "http" },
+  ],
+  "the externally configured Slack route supports verification and message delivery",
 );
 assert.equal(slackChannelModule.slackAdapter instanceof SubscriptionFilteredSlackAdapter, true);
 const botConcurrency = slackChannelModule.bot as unknown as {

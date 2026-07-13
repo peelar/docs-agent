@@ -19,6 +19,7 @@ minimumReleaseAgeExclude:
   - react-dom
   - rolldown
   - turbo
+  - tsx
   - workflow
 allowBuilds:
   esbuild: false
