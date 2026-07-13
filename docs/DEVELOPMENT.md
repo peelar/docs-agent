@@ -19,6 +19,9 @@ npx skills add peelar/docs-maintainer-agent --skill setup --agent codex --yes
 ```
 
 Start Paige with `pnpm dev`. The optional operator UI is `pnpm dev:web`.
+Reset every local database, credential, connector link, and Eve runtime artifact
+with `pnpm prune:local`; it stops Paige dev processes but never discards source
+changes.
 
 Before handing over code changes, run `pnpm check`. Install Playwright's browser
 once if prompted: `pnpm --filter @docs-agent/web exec playwright install chromium`.

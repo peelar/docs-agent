@@ -14,6 +14,7 @@
     "eval": "pnpm --filter docs-agent eval",
     "monorepo:smoke": "node scripts/check-monorepo.mjs",
     "paige": "pnpm --filter @docs-agent/control-plane paige",
+    "prune:local": "pnpm --filter @docs-agent/control-plane prune:local",
     "status:smoke": "node scripts/check-status-smoke.mjs",
     "start": "pnpm --filter docs-agent start",
     "test": "turbo run test",
