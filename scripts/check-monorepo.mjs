@@ -25,6 +25,9 @@ for (const expected of [
   "pnpm paige status",
   "pnpm paige configure",
   "humanRequired: true",
+  "vercel connect update <slack-uid>",
+  "./assets/paige/paige-magpie-master.png",
+  "non-empty `icon`",
 ]) {
   if (!workspaceSetupSkill.includes(expected)) {
     throw new Error(`Workspace setup skill is missing: ${expected}`);

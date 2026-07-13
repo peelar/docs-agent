@@ -373,10 +373,13 @@ function stage(
 
 function createConnectorAction(provider: ConnectorProvider) {
   const withTriggers = provider === "github" ? "" : " --triggers";
+  const withBranding = provider === "slack"
+    ? " --icon ./assets/paige/paige-magpie-master.png"
+    : "";
   return connectorHandoffActionSchema.parse({
     kind: "terminal",
     label: createConnectorLabel(provider),
-    command: `vercel connect create ${provider}${withTriggers}`,
+    command: `vercel connect create ${provider}${withTriggers}${withBranding}`,
     href: connectDashboardUrl,
     humanRequired: true,
   });

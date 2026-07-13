@@ -220,14 +220,16 @@ never renders credentials.
 For Slack, use an interactive terminal or the linked Vercel Connect dashboard:
 
 ```sh
-vercel connect create slack --triggers
+vercel connect create slack --triggers --icon ./assets/paige/paige-magpie-master.png
+vercel connect update <uid> --icon ./assets/paige/paige-magpie-master.png --format=json
 vercel connect detach <uid> --yes
 vercel connect attach <uid> --triggers --trigger-path /eve/v1/slack --yes
 ```
 
-Complete Slack workspace consent in the browser. Then send a real app mention
-or direct message and recheck. Token issuance alone verifies installation, not
-event subscription or trigger delivery.
+Confirm the branding result contains a non-empty `icon`, complete Slack
+workspace consent in the browser, then send a real app mention or direct
+message and recheck. Token issuance alone verifies installation, not event
+subscription or trigger delivery.
 
 For Linear, use the same supported flow at the Agent Session route:
 

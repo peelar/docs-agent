@@ -111,7 +111,7 @@ try {
   });
   assert.equal(
     missingSlack.find(({ id }) => id === "connector")?.action?.command,
-    "vercel connect create slack --triggers",
+    "vercel connect create slack --triggers --icon ./assets/paige/paige-magpie-master.png",
   );
   assert.equal(
     missingSlack.find(({ id }) => id === "installation")?.action,

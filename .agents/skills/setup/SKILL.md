@@ -63,12 +63,26 @@ proves it.
 3. Follow the first incomplete stage and exact action from `pnpm paige status`.
    Run its terminal commands. When an action says `humanRequired: true`, open
    or present the browser handoff and wait for the person to finish it.
-4. Keep returned connector UIDs. Persist the GitHub UID with workspace setup.
+4. When Slack is selected, brand its connector as soon as its UID is
+   discoverable. From the Paige checkout root, run this for both new and
+   existing connectors:
+
+   ```sh
+   vercel connect update <slack-uid> \
+     --icon ./assets/paige/paige-magpie-master.png \
+     --format=json
+   ```
+
+   Run it during every setup or Slack reconfiguration so the managed Slack app
+   stays aligned with the repository asset. Require a successful command and a
+   non-empty `icon` in its JSON result. If branding fails, report the exact
+   command to retry and do not call Slack setup complete.
+5. Keep returned connector UIDs. Persist the GitHub UID with workspace setup.
    When Slack or Linear uses a non-default UID, set only
    `DOCS_AGENT_SLACK_CONNECTOR` or `DOCS_AGENT_LINEAR_CONNECTOR` in
    `apps/agent/.env.local`; preserve every other entry and never display secret
    values.
-5. Attach selected channel triggers to `/eve/v1/slack` or `/eve/v1/linear` as
+6. Attach selected channel triggers to `/eve/v1/slack` or `/eve/v1/linear` as
    directed by readiness. Slack needs a real mention or direct message and
    Linear needs a real Agent Session event before trigger delivery is verified.
 
