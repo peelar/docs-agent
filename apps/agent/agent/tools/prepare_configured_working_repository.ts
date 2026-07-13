@@ -4,9 +4,9 @@ import { z } from "zod";
 import {
   repositoryActionRecordSchema,
   type RepositoryActionRecord,
-} from "../lib/repository-materialization.js";
-import { repositoryMaterializationSchema } from "../lib/repository-workflow-contract.js";
-import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle.js";
+} from "../lib/repository-materialization";
+import { repositoryMaterializationSchema } from "../lib/repository-workflow-contract";
+import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle";
 
 const outputSchema = z.object({
   materialization: repositoryMaterializationSchema,

@@ -3,18 +3,18 @@ import type { ToolContext } from "eve/tools";
 import type {
   ExternalContext,
   ResolvedRepositoryInput,
-} from "./repository-contract.js";
-import type { RepositoryActionRecord } from "./repository-materialization.js";
+} from "./repository-contract";
+import type { RepositoryActionRecord } from "./repository-materialization";
 import {
   readRepositoryFile,
   replaceRepositoryText,
   runRepositoryCheck,
   searchRepository,
-} from "./repository-operations.js";
+} from "./repository-operations";
 import type {
   DocumentationImpactReport,
   ScenarioKind,
-} from "./repository-workflow-contract.js";
+} from "./repository-workflow-contract";
 
 export function detectScenarioKind(
   scenarioText: string,

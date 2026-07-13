@@ -1,8 +1,8 @@
 import { sql } from "drizzle-orm";
 import { getTableConfig, type AnySQLiteTable } from "drizzle-orm/sqlite-core";
 
-import type { DocsAgentDatabase } from "./client.js";
-import { schema } from "./schema.js";
+import type { DocsAgentDatabase } from "./client.ts";
+import { schema } from "./schema.ts";
 
 export const DOCS_AGENT_SCHEMA_MIGRATION_COUNT = 14;
 export const DOCS_AGENT_SCHEMA_LATEST_MIGRATION_AT = 1783822738338;

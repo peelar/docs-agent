@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
 import {
   cleanupExpiredValidationRuns,
   completeValidationRun,
@@ -12,7 +12,7 @@ import {
   listValidationRuns,
   recordValidationCase,
   startValidationRun,
-} from "../src/validation-results.js";
+} from "../src/validation-results.ts";
 
 const root = await mkdtemp(join(tmpdir(), "docs-agent-validation-results-"));
 const originalUrl = process.env.DOCS_AGENT_DATABASE_URL;

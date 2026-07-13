@@ -6,7 +6,7 @@ import {
   WORKING_REPOSITORY_SANDBOX_NETWORK_ALLOWLIST,
   type WatchedRepository,
   type WorkingDocumentationRepository,
-} from "./repository-contract.js";
+} from "./repository-contract";
 
 export const repositoryActionRecordSchema = z.object({
   action: z.string(),

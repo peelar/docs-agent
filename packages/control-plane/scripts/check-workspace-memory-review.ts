@@ -3,19 +3,19 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
 import {
   getOperatorMemoryDetail,
   listOperatorMemories,
   mutateOperatorMemory,
   OperatorMemoryTransitionError,
-} from "../src/workspace-memory-review.js";
+} from "../src/workspace-memory-review.ts";
 import {
   markWorkspaceMemoryStale,
   promoteWorkspaceMemory,
   proposeWorkspaceMemory,
   retireWorkspaceMemory,
-} from "../src/workspace-memory.js";
+} from "../src/workspace-memory.ts";
 
 const tempRoot = await mkdtemp(join(tmpdir(), "docs-agent-memory-review-"));
 const originalDatabaseUrl = process.env.DOCS_AGENT_DATABASE_URL;

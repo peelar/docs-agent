@@ -4,10 +4,10 @@ import { z } from "zod";
 import {
   repositoryCheckNameSchema,
   repositoryCheckResultSchema,
-} from "../lib/repository-workflow-contract.js";
-import { runRepositoryCheck } from "../lib/repository-operations.js";
-import { saveRepositoryWorkflowState } from "../lib/repository-workflow-state.js";
-import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle.js";
+} from "../lib/repository-workflow-contract";
+import { runRepositoryCheck } from "../lib/repository-operations";
+import { saveRepositoryWorkflowState } from "../lib/repository-workflow-state";
+import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle";
 
 export default defineTool({
   description:

@@ -6,26 +6,26 @@ import {
   getDocsSignal,
   transitionDocsSignalLifecycle,
   type DocsSignalDetail,
-} from "./docs-signals.js";
+} from "./docs-signals";
 import {
   documentationImpactReportSchema,
   docsMaintenanceWorkflowResultSchema,
   repositoryCheckNameSchema,
   type DocsMaintenanceWorkflowResult,
   type RepositoryCheckName,
-} from "./repository-workflow-contract.js";
+} from "./repository-workflow-contract";
 import {
   exportRepositoryDiff,
   listChangedFiles,
   replaceRepositoryText,
   runRepositoryCheck,
-} from "./repository-operations.js";
-import type { RepositoryActionRecord } from "./repository-materialization.js";
-import { saveRepositoryWorkflowState } from "./repository-workflow-state.js";
+} from "./repository-operations";
+import type { RepositoryActionRecord } from "./repository-materialization";
+import { saveRepositoryWorkflowState } from "./repository-workflow-state";
 import {
   loadOrMaterializeRepositoryWorkflowState,
   reuseMaterializedWorkingRepository,
-} from "./working-repository-lifecycle.js";
+} from "./working-repository-lifecycle";
 
 const patchHandoffBaseSchema = z.object({
   signalId: z.string().trim().min(1),

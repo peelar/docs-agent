@@ -26,7 +26,7 @@ import {
   runGitHubWritebackPreflight,
   type GitHubWritebackPreflight,
 } from "@docs-agent/control-plane/github-preflight";
-import { resolveGitHubAppInstallationToken } from "./github-app-client.js";
+import { resolveGitHubAppInstallationToken } from "./github-app-client";
 
 export {
   DEFAULT_WORKSPACE_ID,

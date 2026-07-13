@@ -9,8 +9,8 @@ import {
   isSlackThreadDismissal,
   registerSlackTurnHandlers,
   sendSlackTurn,
-} from "../agent/lib/slack-chat-turn.js";
-import { SubscriptionFilteredSlackAdapter } from "../agent/lib/subscription-filtered-slack-adapter.js";
+} from "../agent/lib/slack-chat-turn";
+import { SubscriptionFilteredSlackAdapter } from "../agent/lib/subscription-filtered-slack-adapter";
 
 class TestSlackAdapter extends SubscriptionFilteredSlackAdapter {
   forwarded: SlackEvent[] = [];
@@ -238,7 +238,7 @@ const actionAuth = buildSlackActionAuth({
 } as never);
 assert.equal(actionAuth?.principalId, "slack:T123:U_APPROVER", "HITL resumes as the clicking Slack user");
 
-const slackChannelModule = await import("../agent/channels/slack.js");
+const slackChannelModule = await import("../agent/channels/slack");
 const route = slackChannelModule.channel.routes[0] as {
   method?: string;
   path?: string;

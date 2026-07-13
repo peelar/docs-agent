@@ -1,6 +1,6 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
 
-import { buildSetupInstructions, getSetupStatus } from "../lib/setup-state.js";
+import { buildSetupInstructions, getSetupStatus } from "../lib/setup-state";
 
 export default defineDynamic({
   events: {

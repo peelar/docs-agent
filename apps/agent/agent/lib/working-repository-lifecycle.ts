@@ -10,7 +10,7 @@ import {
   type ResolvedRepositoryInput,
   type ResolvedWorkingDocumentationRepository,
   type WorkingDocumentationRepository,
-} from "./repository-contract.js";
+} from "./repository-contract";
 import {
   assertRepositoryMaterializationAllowed,
   cloneRepositoryCheckout,
@@ -22,18 +22,18 @@ import {
   summarizeCommandFailure,
   type RepositoryActionRecord,
   workingRepositoryMaterializationPolicy,
-} from "./repository-materialization.js";
+} from "./repository-materialization";
 import {
   loadRepositoryWorkflowState,
   materializationInputForSetup,
   saveRepositoryWorkflowState,
-} from "./repository-workflow-state.js";
+} from "./repository-workflow-state";
 import type {
   DocsMaintenanceWorkflowResult,
   WorkflowState,
-} from "./repository-workflow-contract.js";
-import { requireSetupReady, saveWorkingRepositorySetup } from "./setup-state.js";
-import { ensureDocsProfile } from "./docs-profile.js";
+} from "./repository-workflow-contract";
+import { requireSetupReady, saveWorkingRepositorySetup } from "./setup-state";
+import { ensureDocsProfile } from "./docs-profile";
 
 const repositoryCacheMarkerSchema = z.object({
   version: z.literal(1),

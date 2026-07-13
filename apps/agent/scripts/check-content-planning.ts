@@ -5,11 +5,11 @@ import { tmpdir } from "node:os";
 import { dirname, join } from "node:path";
 import type { ToolContext } from "eve/tools";
 
-import { abandonAuthoringDraft, applyAuthoringDraft, inspectAuthoringDraft } from "../agent/lib/authoring-workspace.js";
-import { createContentPlan, inspectContentPlan, reviseContentPlan } from "../agent/lib/content-plan.js";
-import { createEditorialRecommendation } from "../agent/lib/editorial-recommendation.js";
-import type { ResolvedRepositoryInput } from "../agent/lib/repository-contract.js";
-import type { WorkflowState } from "../agent/lib/repository-workflow-contract.js";
+import { abandonAuthoringDraft, applyAuthoringDraft, inspectAuthoringDraft } from "../agent/lib/authoring-workspace";
+import { createContentPlan, inspectContentPlan, reviseContentPlan } from "../agent/lib/content-plan";
+import { createEditorialRecommendation } from "../agent/lib/editorial-recommendation";
+import type { ResolvedRepositoryInput } from "../agent/lib/repository-contract";
+import type { WorkflowState } from "../agent/lib/repository-workflow-contract";
 
 const root = await mkdtemp(join(tmpdir(), "docs-agent-content-plan-"));
 await mkdir(join(root, "docs"), { recursive: true });

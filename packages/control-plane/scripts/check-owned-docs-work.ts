@@ -3,9 +3,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
-import { createDocsSignal, getDocsSignal } from "../src/docs-signals.js";
-import { getOwnedDocsWork, startOwnedDocsWork, updateOwnedDocsWork } from "../src/owned-docs-work.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
+import { createDocsSignal, getDocsSignal } from "../src/docs-signals.ts";
+import { getOwnedDocsWork, startOwnedDocsWork, updateOwnedDocsWork } from "../src/owned-docs-work.ts";
 
 const tempRoot = await mkdtemp(join(tmpdir(), "docs-agent-owned-work-"));
 const originalDatabaseUrl = process.env.DOCS_AGENT_DATABASE_URL;
@@ -56,7 +56,7 @@ try {
   const resumedPause = await updateOwnedDocsWork({ signalId, expectedRevision: 6, operationKey: "resume-owned", action: "resume", summary: "Maintainer resumed the existing work." }, { ...runtime, runId: "eve-run-resume-2" });
   assert.equal(resumedPause.work.status, "active");
 
-  const draftReady = await updateOwnedDocsWork({ signalId, expectedRevision: 7, operationKey: "draft-ready", action: "record", activityKind: "milestone", milestone: "draft-ready", summary: "The complete draft is ready and repository checks pass.", references: { validationArtifactIds: ["validation-56"] }, artifacts: [{ kind: "authoring-draft", label: "Complete draft", metadata: { changedFiles: ["docs/migration.mdx", "sidebars.js"] } }, { kind: "validation-result", label: "Repository checks", metadata: { status: "passed" } }] }, { ...runtime, runId: "eve-run-draft" });
+  const draftReady = await updateOwnedDocsWork({ signalId, expectedRevision: 7, operationKey: "draft-ready", action: "record", activityKind: "milestone", milestone: "draft-ready", summary: "The complete draft is ready and repository checks pass.", references: { validationArtifactIds: ["validation-56"] }, artifacts: [{ kind: "authoring-draft", label: "Complete draft", metadata: { changedFiles: ["docs/migration.mdx", "sidebars.ts"] } }, { kind: "validation-result", label: "Repository checks", metadata: { status: "passed" } }] }, { ...runtime, runId: "eve-run-draft" });
   assert.equal(draftReady.work.status, "draft-ready");
   const approval = await updateOwnedDocsWork({ signalId, expectedRevision: 8, operationKey: "request-publication", action: "record", activityKind: "milestone", milestone: "approval-requested", summary: "The checked draft is ready; publication requires explicit approval.", references: { approvalRequestId: "approval-56" }, artifacts: [{ kind: "approval-request", label: "Publish draft PR", metadata: { approval: "required" } }] }, { ...runtime, runId: "eve-run-approval" });
   assert.equal(approval.work.status, "awaiting-approval");

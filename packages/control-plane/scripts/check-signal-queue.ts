@@ -5,12 +5,12 @@ import { join } from "node:path";
 
 import { createClient } from "@libsql/client";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
 import {
   createDocsSignal,
   listDocsSignalQueue,
   listDocsSignals,
-} from "../src/docs-signals.js";
+} from "../src/docs-signals.ts";
 
 const tempRoot = await mkdtemp(join(tmpdir(), "docs-agent-signal-queue-"));
 const databaseUrl = `file:${join(tempRoot, "queue.sqlite")}`;

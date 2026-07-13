@@ -4,7 +4,7 @@ import {
   prepareDocsSignalPatch,
   prepareDocsSignalPatchInputSchema,
   prepareDocsSignalPatchResultSchema,
-} from "../lib/docs-signal-patch-handoff.js";
+} from "../lib/docs-signal-patch-handoff";
 
 export default defineTool({
   description:

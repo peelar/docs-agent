@@ -9,8 +9,8 @@ import {
 } from "@docs-agent/control-plane/agent";
 import type { ToolContext } from "eve/tools";
 
-import type { ResolvedWorkingDocumentationRepository } from "./repository-contract.js";
-import type { DocsMaintenanceWorkflowResult } from "./repository-workflow-contract.js";
+import type { ResolvedWorkingDocumentationRepository } from "./repository-contract";
+import type { DocsMaintenanceWorkflowResult } from "./repository-workflow-contract";
 
 export type DocsProfileRefreshReason = "maintainer-correction" | "contradiction" | "manual-refresh";
 

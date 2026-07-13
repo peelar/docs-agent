@@ -4,7 +4,6 @@
     "build": {
       "dependsOn": ["^build"],
       "outputs": [
-        "dist/**",
         ".eve/**",
         ".next/**",
         "!.next/cache/**",

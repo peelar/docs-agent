@@ -19,8 +19,8 @@ import {
   buildSlackActionAuth,
   isSilentSlackReply,
   registerSlackTurnHandlers,
-} from "../lib/slack-chat-turn.js";
-import { createSubscriptionFilteredSlackAdapter } from "../lib/subscription-filtered-slack-adapter.js";
+} from "../lib/slack-chat-turn";
+import { createSubscriptionFilteredSlackAdapter } from "../lib/subscription-filtered-slack-adapter";
 
 export { DEFAULT_SLACK_CONNECTOR, SLACK_CONNECTOR_ENV };
 

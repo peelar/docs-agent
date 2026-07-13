@@ -2,7 +2,7 @@ import { defineSandbox, type SandboxNetworkPolicy } from "eve/sandbox";
 import { microsandbox } from "eve/sandbox/microsandbox";
 import { vercel } from "eve/sandbox/vercel";
 
-import { WORKING_REPOSITORY_SANDBOX_NETWORK_ALLOWLIST } from "./lib/repository-contract.js";
+import { WORKING_REPOSITORY_SANDBOX_NETWORK_ALLOWLIST } from "./lib/repository-contract";
 
 const workingRepositoryNetworkPolicy = {
   allow: [...WORKING_REPOSITORY_SANDBOX_NETWORK_ALLOWLIST],

@@ -4,7 +4,7 @@ import {
   docsMaintenanceWorkflowResultSchema,
   runDocsMaintenanceScenario,
   runDocsMaintenanceScenarioInputSchema,
-} from "../lib/repository-workflow.js";
+} from "../lib/repository-workflow";
 
 export default defineTool({
   description:

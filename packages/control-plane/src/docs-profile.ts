@@ -1,9 +1,9 @@
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { withDocsAgentDatabase } from "./db/client.js";
-import { docsProfiles } from "./db/schema.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
+import { withDocsAgentDatabase } from "./db/client.ts";
+import { docsProfiles } from "./db/schema.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
 
 export const DOCS_PROFILE_FORMAT_VERSION = 1;
 

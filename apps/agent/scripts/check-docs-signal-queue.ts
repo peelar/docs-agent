@@ -9,12 +9,12 @@ import {
   listDocsSignals,
   transitionDocsSignalLifecycle,
   updateDocsSignalLifecycle,
-} from "../agent/lib/docs-signals.js";
+} from "../agent/lib/docs-signals";
 import {
   migrateDocsAgentDatabase,
   withDocsAgentDatabase,
-} from "../agent/lib/db/client.js";
-import { docsSignals } from "../agent/lib/db/schema.js";
+} from "../agent/lib/db/client";
+import { docsSignals } from "../agent/lib/db/schema";
 
 delete process.env.DOCS_AGENT_DATABASE_URL;
 process.env.VERCEL = "1";

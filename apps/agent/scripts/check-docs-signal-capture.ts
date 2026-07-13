@@ -8,14 +8,14 @@ import { sql } from "drizzle-orm";
 import {
   migrateDocsAgentDatabase,
   withDocsAgentDatabase,
-} from "../agent/lib/db/client.js";
-import { captureLinearDocsSignal } from "../agent/lib/linear-docs-signal.js";
-import { captureSlackDocsSignal } from "../agent/lib/slack-docs-signal.js";
+} from "../agent/lib/db/client";
+import { captureLinearDocsSignal } from "../agent/lib/linear-docs-signal";
+import { captureSlackDocsSignal } from "../agent/lib/slack-docs-signal";
 import {
   createDocsSignal,
   getDocsSignal,
   transitionDocsSignalLifecycle,
-} from "../agent/lib/docs-signals.js";
+} from "../agent/lib/docs-signals";
 
 const tempRoot = await mkdtemp(join(tmpdir(), "docs-agent-signal-capture-"));
 process.env.DOCS_AGENT_DATABASE_URL = `file:${join(tempRoot, "signals.sqlite")}`;

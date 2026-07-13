@@ -7,9 +7,9 @@ import {
   inspectEditorialRecommendation,
   reviseEditorialRecommendation,
   reviseEditorialRecommendationInputSchema,
-} from "../lib/editorial-recommendation.js";
-import { editorialRecommendationSchema } from "../lib/repository-workflow-contract.js";
-import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle.js";
+} from "../lib/editorial-recommendation";
+import { editorialRecommendationSchema } from "../lib/repository-workflow-contract";
+import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle";
 
 const inputSchema = z.discriminatedUnion("mode", [
   createEditorialRecommendationInputSchema.extend({ mode: z.literal("create") }),

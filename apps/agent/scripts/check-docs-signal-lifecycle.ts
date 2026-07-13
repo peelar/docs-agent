@@ -3,7 +3,7 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../agent/lib/db/client.js";
+import { migrateDocsAgentDatabase } from "../agent/lib/db/client";
 import {
   assertDocsSignalTransitionAllowed,
   docsSignalStatuses,
@@ -12,7 +12,7 @@ import {
   DocsSignalTransitionError,
   type DocsSignalStatus,
   type DocsSignalTransitionAuthority,
-} from "../agent/lib/docs-signal-lifecycle.js";
+} from "../agent/lib/docs-signal-lifecycle";
 import {
   createDocsSignal,
   createDocsSignalInputSchema,
@@ -20,7 +20,7 @@ import {
   transitionDocsSignalLifecycle,
   updateDocsSignalLifecycle,
   updateDocsSignalLifecycleInputSchema,
-} from "../agent/lib/docs-signals.js";
+} from "../agent/lib/docs-signals";
 
 const expectedTransitions = [
   "intake:captured->captured",

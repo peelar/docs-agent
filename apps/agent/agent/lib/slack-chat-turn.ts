@@ -12,7 +12,7 @@ import {
 import {
   discardStagedSlackSearchRequest,
   runWithStagedSlackSearchRequest,
-} from "./slack-context-retrieval.js";
+} from "./slack-context-retrieval";
 
 export const SLACK_SILENT_REPLY = "[[SILENT]]";
 

@@ -2,8 +2,8 @@ import { defineTool } from "eve/tools";
 import { cachedDocsProfileSchema } from "@docs-agent/control-plane/agent";
 import { z } from "zod";
 
-import { ensureDocsProfile, loadTaskExamples } from "../lib/docs-profile.js";
-import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle.js";
+import { ensureDocsProfile, loadTaskExamples } from "../lib/docs-profile";
+import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle";
 
 const inputSchema = z.object({
   taskPaths: z.array(z.string().trim().min(1)).max(5).default([]),

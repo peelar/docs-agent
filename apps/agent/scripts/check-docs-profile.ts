@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { ToolContext } from "eve/tools";
 import { migrateDocsAgentDatabase } from "@docs-agent/control-plane/testing";
-import { ensureDocsProfile, loadTaskExamples } from "../agent/lib/docs-profile.js";
-import type { ResolvedWorkingDocumentationRepository } from "../agent/lib/repository-contract.js";
+import { ensureDocsProfile, loadTaskExamples } from "../agent/lib/docs-profile";
+import type { ResolvedWorkingDocumentationRepository } from "../agent/lib/repository-contract";
 
 const root = await mkdtemp(join(tmpdir(), "agent-docs-profile-"));
 const previous = process.env.DOCS_AGENT_DATABASE_URL;

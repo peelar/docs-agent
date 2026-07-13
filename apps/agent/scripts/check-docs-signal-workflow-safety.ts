@@ -8,16 +8,16 @@ process.env.DOCS_AGENT_DATABASE_URL = `file:${join(tempRoot, "signal-safety.sqli
 delete process.env.VERCEL;
 delete process.env.NODE_ENV;
 
-const { migrateDocsAgentDatabase } = await import("../agent/lib/db/client.js");
+const { migrateDocsAgentDatabase } = await import("../agent/lib/db/client");
 await migrateDocsAgentDatabase();
 
-const { captureSlackDocsSignal } = await import("../agent/lib/slack-docs-signal.js");
-const { captureLinearDocsSignal } = await import("../agent/lib/linear-docs-signal.js");
-const { getDocsSignal } = await import("../agent/lib/docs-signals.js");
+const { captureSlackDocsSignal } = await import("../agent/lib/slack-docs-signal");
+const { captureLinearDocsSignal } = await import("../agent/lib/linear-docs-signal");
+const { getDocsSignal } = await import("../agent/lib/docs-signals");
 const {
   SignalPatchHandoffError,
   assertSignalCanEnterPatchHandoff,
-} = await import("../agent/lib/docs-signal-patch-handoff.js");
+} = await import("../agent/lib/docs-signal-patch-handoff");
 
 const slackVerificationRequired = await captureSlackDocsSignal({
   teamId: "T_DOCS",

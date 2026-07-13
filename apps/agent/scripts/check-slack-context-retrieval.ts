@@ -12,8 +12,8 @@ import {
   runWithSlackSearchRequest,
   runWithStagedSlackSearchRequest,
   stageSlackSearchRequest,
-} from "../agent/lib/slack-context-retrieval.js";
-import { migrateDocsAgentDatabase } from "../agent/lib/db/client.js";
+} from "../agent/lib/slack-context-retrieval";
+import { migrateDocsAgentDatabase } from "../agent/lib/db/client";
 
 const root = await mkdtemp(join(tmpdir(), "docs-agent-slack-search-"));
 const databasePath = join(root, "search.sqlite");

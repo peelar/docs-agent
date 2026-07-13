@@ -8,7 +8,7 @@ import {
   workingDocumentationRepositorySchema,
   type WatchedRepository,
   type WorkingDocumentationRepository,
-} from "../agent/lib/repository-contract.js";
+} from "../agent/lib/repository-contract";
 import {
   assertRepositoryMaterializationAllowed,
   cloneRepositoryCheckout,
@@ -16,7 +16,7 @@ import {
   type RepositoryActionRecord,
   watchedRepositoryMaterializationPolicy,
   workingRepositoryMaterializationPolicy,
-} from "../agent/lib/repository-materialization.js";
+} from "../agent/lib/repository-materialization";
 
 class FakeSandbox {
   readonly commands: string[] = [];

@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
-import { invalidateDocsProfile, readReusableDocsProfile, saveDocsProfile } from "../src/docs-profile.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
+import { invalidateDocsProfile, readReusableDocsProfile, saveDocsProfile } from "../src/docs-profile.ts";
 
 const root = await mkdtemp(join(tmpdir(), "docs-profile-"));
 const previous = process.env.DOCS_AGENT_DATABASE_URL;

@@ -4,7 +4,7 @@ import {
   scanWatchedRepositories,
   scanWatchedRepositoriesInputSchema,
   scanWatchedRepositoriesResultSchema,
-} from "../lib/watched-repository-workflow.js";
+} from "../lib/watched-repository-workflow";
 
 export default defineTool({
   description:

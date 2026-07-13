@@ -6,7 +6,7 @@ import {
   preflightGitHubWritebackSetup,
   readSetupState,
   setupStatusSchema,
-} from "../lib/setup-state.js";
+} from "../lib/setup-state";
 
 export default defineTool({
   description:

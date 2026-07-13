@@ -3,14 +3,14 @@ import { randomUUID } from "node:crypto";
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.js";
+import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.ts";
 import {
   docsSignalArtifacts,
   docsSignalEvents,
   docsSignalOwnedWork,
   docsSignals,
-} from "./db/schema.js";
-import { docsSignalArtifactInputSchema } from "./docs-signals.js";
+} from "./db/schema.ts";
+import { docsSignalArtifactInputSchema } from "./docs-signals.ts";
 import {
   ownedDocsWorkConversationSchema,
   ownedDocsWorkOutcomeSchema,
@@ -18,10 +18,10 @@ import {
   ownedDocsWorkReferencesSchema,
   type OwnedDocsWorkRecord,
   type OwnedDocsWorkStatus,
-} from "./owned-docs-work-contract.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
-import { createProductRun } from "./product-runs.js";
-import { resolveEveRuntimeUrl } from "./provider-config.js";
+} from "./owned-docs-work-contract.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
+import { createProductRun } from "./product-runs.ts";
+import { resolveEveRuntimeUrl } from "./provider-config.ts";
 
 const nowIso = () => new Date().toISOString();
 const operationKeySchema = z.string().trim().min(1).max(500);

@@ -1,6 +1,6 @@
 import { z } from "zod";
 
-import { safeExternalUrl } from "./signal-detail.js";
+import { safeExternalUrl } from "./signal-detail.ts";
 import {
   getWorkspaceMemory,
   listWorkspaceMemoryRecords,
@@ -14,7 +14,7 @@ import {
   workspaceMemoryStatusSchema,
   type WorkspaceMemoryDetail,
   type WorkspaceMemoryRecord,
-} from "./workspace-memory.js";
+} from "./workspace-memory.ts";
 
 export const operatorMemoryDisplayStateSchema = z.enum([
   "proposed",

@@ -3,10 +3,10 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
-import { createDocsSignal, updateDocsSignalLifecycle } from "../src/docs-signals.js";
-import { getOperatorSignalDetail } from "../src/signal-detail.js";
-import { startOwnedDocsWork } from "../src/owned-docs-work.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
+import { createDocsSignal, updateDocsSignalLifecycle } from "../src/docs-signals.ts";
+import { getOperatorSignalDetail } from "../src/signal-detail.ts";
+import { startOwnedDocsWork } from "../src/owned-docs-work.ts";
 
 const tempRoot = await mkdtemp(join(tmpdir(), "docs-agent-signal-detail-"));
 const originalDatabaseUrl = process.env.DOCS_AGENT_DATABASE_URL;

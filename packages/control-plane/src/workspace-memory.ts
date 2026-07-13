@@ -3,13 +3,13 @@ import { randomUUID } from "node:crypto";
 import { and, desc, eq, inArray, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
-import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.js";
+import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.ts";
 import {
   workspaceMemoryEvents,
   workspaceMemoryRecords,
   workspaceMemorySources,
-} from "./db/schema.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
+} from "./db/schema.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
 
 const nowIso = () => new Date().toISOString();
 

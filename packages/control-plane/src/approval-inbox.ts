@@ -4,12 +4,12 @@ import { getVercelOidcToken } from "@vercel/oidc";
 import { and, asc, desc, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.js";
-import { approvalDecisions, approvalRequests, docsSignals } from "./db/schema.js";
-import { getOperatorSignalDetail, redactMetadata } from "./signal-detail.js";
-import { createProductRun } from "./product-runs.js";
-import { resolveEveRuntimeUrl } from "./provider-config.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
+import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.ts";
+import { approvalDecisions, approvalRequests, docsSignals } from "./db/schema.ts";
+import { getOperatorSignalDetail, redactMetadata } from "./signal-detail.ts";
+import { createProductRun } from "./product-runs.ts";
+import { resolveEveRuntimeUrl } from "./provider-config.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
 
 const APPROVAL_RETENTION_DAYS = 7;
 const text = z.string().trim().min(1);
@@ -79,7 +79,13 @@ export type ApprovalRuntime = {
 };
 
 export class ApprovalInboxError extends Error {
-  constructor(readonly code: "not-found" | "expired" | "already-answered" | "stale" | "runtime-unavailable" | "conflict", message: string) { super(message); this.name = "ApprovalInboxError"; }
+  readonly code: "not-found" | "expired" | "already-answered" | "stale" | "runtime-unavailable" | "conflict";
+
+  constructor(code: ApprovalInboxError["code"], message: string) {
+    super(message);
+    this.name = "ApprovalInboxError";
+    this.code = code;
+  }
 }
 
 export async function recordApprovalBatch(input: z.input<typeof recordApprovalBatchInputSchema>) {

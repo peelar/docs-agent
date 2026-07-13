@@ -4,7 +4,7 @@ import {
   markWorkspaceMemoryStale,
   markWorkspaceMemoryStaleInputSchema,
   workspaceMemoryDetailSchema,
-} from "../lib/workspace-memory.js";
+} from "../lib/workspace-memory";
 
 export default defineTool({
   description:

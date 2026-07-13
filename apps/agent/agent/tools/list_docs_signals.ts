@@ -4,7 +4,7 @@ import {
   listDocsSignals,
   listDocsSignalsInputSchema,
   listDocsSignalsResultSchema,
-} from "../lib/docs-signals.js";
+} from "../lib/docs-signals";
 
 export default defineTool({
   description:

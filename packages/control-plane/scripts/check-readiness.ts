@@ -7,7 +7,7 @@ import {
   type ReadinessItemId,
   type ReadinessObservation,
   type ReadinessState,
-} from "../src/readiness.js";
+} from "../src/readiness.ts";
 
 const checkedAt = new Date("2026-07-11T12:00:00.000Z");
 const stateCases: Array<{

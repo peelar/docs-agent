@@ -9,16 +9,16 @@ import {
   type AnySQLiteTable,
 } from "drizzle-orm/sqlite-core";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
 import {
   docsAgentMigrationsFolder,
   readDocsAgentMigrations,
-} from "../src/db/migrations.js";
-import { schema } from "../src/db/schema.js";
+} from "../src/db/migrations.ts";
+import { schema } from "../src/db/schema.ts";
 import {
   DOCS_AGENT_SCHEMA_LATEST_MIGRATION_AT,
   DOCS_AGENT_SCHEMA_MIGRATION_COUNT,
-} from "../src/db/schema-readiness.js";
+} from "../src/db/schema-readiness.ts";
 
 const migrationsFolder = docsAgentMigrationsFolder();
 const journal = JSON.parse(

@@ -5,21 +5,21 @@ import {
   docsSignalDetailSchema,
   getDocsSignal,
   transitionDocsSignalLifecycle,
-} from "./docs-signals.js";
-import { assertDocsSignalTransitionReady } from "./docs-signal-lifecycle.js";
+} from "./docs-signals";
+import { assertDocsSignalTransitionReady } from "./docs-signal-lifecycle";
 import {
   exportRepositoryDiff,
   listChangedFiles,
   readRepositoryFile,
   runRepositoryCheck,
   searchRepository,
-} from "./repository-operations.js";
-import { repositoryActionRecordSchema } from "./repository-materialization.js";
+} from "./repository-operations";
+import { repositoryActionRecordSchema } from "./repository-materialization";
 import {
   repositoryCheckResultSchema,
   repositoryMaterializationSchema,
-} from "./repository-workflow-contract.js";
-import { loadOrMaterializeRepositoryWorkflowState } from "./working-repository-lifecycle.js";
+} from "./repository-workflow-contract";
+import { loadOrMaterializeRepositoryWorkflowState } from "./working-repository-lifecycle";
 
 const currentDocsPageVerificationSchema = z.object({
   path: z.string(),

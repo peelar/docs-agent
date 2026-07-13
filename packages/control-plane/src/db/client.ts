@@ -6,9 +6,9 @@ import { mkdir } from "node:fs/promises";
 import { dirname, isAbsolute, join, resolve } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
-import { docsAgentMigrationsFolder } from "./migrations.js";
-import * as dbSchema from "./schema.js";
-import { assertDocsAgentDatabaseReady } from "./schema-readiness.js";
+import { docsAgentMigrationsFolder } from "./migrations.ts";
+import * as dbSchema from "./schema.ts";
+import { assertDocsAgentDatabaseReady } from "./schema-readiness.ts";
 
 export const DOCS_AGENT_DATABASE_URL_ENV = "DOCS_AGENT_DATABASE_URL";
 export const DOCS_AGENT_DATABASE_AUTH_TOKEN_ENV = "DOCS_AGENT_DATABASE_AUTH_TOKEN";

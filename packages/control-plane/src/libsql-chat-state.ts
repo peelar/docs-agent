@@ -7,14 +7,14 @@ import {
   acquireSharedDocsAgentDatabase,
   releaseSharedDocsAgentDatabase,
   type DocsAgentDatabase,
-} from "./db/client.js";
+} from "./db/client.ts";
 import {
   chatSdkKeyValues,
   chatSdkListEntries,
   chatSdkLocks,
   chatSdkQueueEntries,
   chatSdkSubscriptions,
-} from "./db/schema.js";
+} from "./db/schema.ts";
 
 const MAX_BUSY_RETRIES = 5;
 let stateOperationTail: Promise<void> = Promise.resolve();

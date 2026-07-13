@@ -2,7 +2,7 @@ import { getTokenResponse, type ConnectTokenResponse } from "@vercel/connect";
 import {
   GITHUB_CONNECTOR_ENV,
   resolveGitHubConnector,
-} from "./setup-state.js";
+} from "./setup-state.ts";
 
 export type { ConnectTokenResponse };
 export { GITHUB_CONNECTOR_ENV, resolveGitHubConnector };

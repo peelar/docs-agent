@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { and, eq, gt, lte } from "drizzle-orm";
 import { z } from "zod";
 
-import { withDocsAgentDatabase } from "./db/client.js";
-import { slackThreadPresences } from "./db/schema.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
+import { withDocsAgentDatabase } from "./db/client.ts";
+import { slackThreadPresences } from "./db/schema.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
 
 export const SLACK_THREAD_PRESENCE_TTL_MS = 7 * 24 * 60 * 60 * 1_000;
 

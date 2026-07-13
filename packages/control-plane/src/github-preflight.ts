@@ -7,11 +7,11 @@ import {
   resolveGitHubAppInstallationToken,
   type ConnectTokenResponse,
   type GitHubApiErrorResult,
-} from "./github-app-client.js";
+} from "./github-app-client.ts";
 import {
   resolveGitHubConnector,
   type SetupState,
-} from "./setup-state.js";
+} from "./setup-state.ts";
 
 export const githubWritebackPreflightSchema = z.object({
   status: z.enum([

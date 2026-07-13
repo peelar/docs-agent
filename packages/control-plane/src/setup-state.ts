@@ -7,14 +7,14 @@ import {
   docsAgentDatabaseLocation,
   withDocsAgentDatabase,
   type DocsAgentDatabase,
-} from "./db/client.js";
-import { workspaceSetup, workspaceSetupEvents } from "./db/schema.js";
+} from "./db/client.ts";
+import { workspaceSetup, workspaceSetupEvents } from "./db/schema.ts";
 import {
   repositoryInputSchema,
   type RepositoryInput,
   type WatchedRepository,
   type WorkingDocumentationRepository,
-} from "./repository-contract.js";
+} from "./repository-contract.ts";
 
 export const SETUP_STATE_VERSION = 1;
 export const DEFAULT_WORKSPACE_ID = "default";

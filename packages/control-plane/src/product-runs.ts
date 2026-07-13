@@ -3,14 +3,14 @@ import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray, lte } from "drizzle-orm";
 import { z } from "zod";
 
-import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.js";
+import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.ts";
 import {
   docsSignals,
   productRunSteps,
   productRunTraceLinks,
   productRuns,
-} from "./db/schema.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
+} from "./db/schema.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
 
 const RETENTION_DAYS = 30;
 const isoSchema = z.string().datetime({ offset: true });

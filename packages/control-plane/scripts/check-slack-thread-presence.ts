@@ -3,13 +3,13 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
 import {
   continueSlackThreadPresence,
   endSlackThreadPresence,
   enrollSlackThreadPresence,
   resolveSlackThreadPresenceForSignal,
-} from "../src/slack-thread-presence.js";
+} from "../src/slack-thread-presence.ts";
 
 const root = await mkdtemp(join(tmpdir(), "docs-agent-slack-presence-"));
 const originalUrl = process.env.DOCS_AGENT_DATABASE_URL;

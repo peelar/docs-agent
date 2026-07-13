@@ -9,8 +9,8 @@ import {
   migrateDocsAgentDatabase,
   resolveDocsAgentDatabaseConfig,
   withDocsAgentDatabase,
-} from "../agent/lib/db/client.js";
-import { workspaceSetup } from "../agent/lib/db/schema.js";
+} from "../agent/lib/db/client";
+import { workspaceSetup } from "../agent/lib/db/schema";
 
 assert.equal(
   resolveDocsAgentDatabaseConfig({}).localFilePath,
@@ -53,7 +53,7 @@ const {
   readSetupState,
   saveGitHubWritebackSetup,
   saveWorkingRepositorySetup,
-} = await import("../agent/lib/setup-state.js");
+} = await import("../agent/lib/setup-state");
 
 const repositoryInput = {
   workingDocumentationRepository: {

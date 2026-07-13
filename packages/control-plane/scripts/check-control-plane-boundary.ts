@@ -9,17 +9,17 @@ import {
   createDocsSignal,
   getDocsSignal,
   listDocsSignals,
-} from "../src/docs-signals.js";
+} from "../src/docs-signals.ts";
 import {
   migrateDocsAgentDatabase,
   resolveDocsAgentDatabaseConfig,
-} from "../src/db/client.js";
+} from "../src/db/client.ts";
 import {
   getSetupStatus,
   readPersistedSetupStatus,
   saveWorkingRepositorySetup,
-} from "../src/setup-state.js";
-import { repositoryInputSchema } from "../src/repository-contract.js";
+} from "../src/setup-state.ts";
+import { repositoryInputSchema } from "../src/repository-contract.ts";
 
 const packageRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const repositoryRoot = resolve(packageRoot, "../..");
@@ -111,9 +111,10 @@ try {
 
   const packageManifest = JSON.parse(
     await readFile(join(packageRoot, "package.json"), "utf8"),
-  ) as { exports?: Record<string, unknown> };
-  assert.equal(packageManifest.exports?.["./agent"], "./dist/agent.js");
-  assert.equal(packageManifest.exports?.["./testing"], "./dist/testing.js");
+  ) as { exports?: Record<string, unknown>; scripts?: Record<string, string> };
+  assert.equal(packageManifest.exports?.["./agent"], "./src/agent.ts");
+  assert.equal(packageManifest.exports?.["./testing"], "./src/testing.ts");
+  assert.equal(packageManifest.scripts?.build, undefined);
 
   const agentMemoryShim = await readFile(
     join(agentRoot, "agent", "lib", "workspace-memory.ts"),

@@ -5,14 +5,14 @@ import {
   docsSignalLinkKindSchema,
   docsSignalSourceKindSchema,
   getDocsSignal,
-} from "./docs-signals.js";
-import { docsSignalStatusSchema } from "./docs-signal-lifecycle.js";
+} from "./docs-signals.ts";
+import { docsSignalStatusSchema } from "./docs-signal-lifecycle.ts";
 import {
   ownedDocsWorkConversationSchema,
   ownedDocsWorkOutcomeSchema,
   ownedDocsWorkReferencesSchema,
   ownedDocsWorkStatusSchema,
-} from "./owned-docs-work-contract.js";
+} from "./owned-docs-work-contract.ts";
 
 const redactedMetadataSchema = z.record(z.string(), z.unknown());
 

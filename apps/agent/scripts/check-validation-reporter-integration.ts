@@ -7,7 +7,7 @@ import { fileURLToPath } from "node:url";
 
 import { getValidationRun } from "@docs-agent/control-plane/agent";
 
-import { migrateDocsAgentDatabase } from "../../../packages/control-plane/src/db/client.js";
+import { migrateDocsAgentDatabase } from "../../../packages/control-plane/src/db/client";
 
 const appRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const sourceFixtureRoot = join(appRoot, "fixtures", "validation-reporter-agent");

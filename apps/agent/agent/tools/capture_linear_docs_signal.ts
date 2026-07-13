@@ -4,7 +4,7 @@ import {
   captureLinearDocsSignal,
   captureLinearDocsSignalInputSchema,
   captureLinearDocsSignalResultSchema,
-} from "../lib/linear-docs-signal.js";
+} from "../lib/linear-docs-signal";
 
 export default defineTool({
   description:

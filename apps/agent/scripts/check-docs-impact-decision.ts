@@ -4,7 +4,7 @@ import {
   mapLegacyImpactDecision,
   planDocsImpactDecision,
   shouldVerifyCurrentDocs,
-} from "../agent/lib/docs-impact-decision.js";
+} from "../agent/lib/docs-impact-decision";
 
 const skipped = planDocsImpactDecision({
   signalSummary: "Internal staging rate limit changed during a load test.",

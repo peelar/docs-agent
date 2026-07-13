@@ -3,7 +3,7 @@ import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, inArray, type SQL } from "drizzle-orm";
 import { z } from "zod";
 
-import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.js";
+import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.ts";
 import {
   docsSignalArtifacts,
   docsSignalEvents,
@@ -12,18 +12,18 @@ import {
   docsSignalSources,
   docsSignals,
   slackThreadPresences,
-} from "./db/schema.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
+} from "./db/schema.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
 import {
   assertDocsSignalTransitionReady,
   DocsSignalTransitionError,
   docsSignalStatusSchema,
   type DocsSignalStatus,
   type DocsSignalTransitionAuthority,
-} from "./docs-signal-lifecycle.js";
-import { ownedDocsWorkRecordSchema } from "./owned-docs-work-contract.js";
+} from "./docs-signal-lifecycle.ts";
+import { ownedDocsWorkRecordSchema } from "./owned-docs-work-contract.ts";
 
-export { docsSignalStatusSchema, type DocsSignalStatus } from "./docs-signal-lifecycle.js";
+export { docsSignalStatusSchema, type DocsSignalStatus } from "./docs-signal-lifecycle.ts";
 
 const nowIso = () => new Date().toISOString();
 type DocsAgentDatabaseExecutor = Pick<

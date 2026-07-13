@@ -8,9 +8,9 @@ import {
   inspectAuthoringDraft,
   prepareAuthoringDraft,
   prepareAuthoringDraftInputSchema,
-} from "../lib/authoring-workspace.js";
-import { authoringDraftSchema, documentationImpactReportSchema } from "../lib/repository-workflow-contract.js";
-import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle.js";
+} from "../lib/authoring-workspace";
+import { authoringDraftSchema, documentationImpactReportSchema } from "../lib/repository-workflow-contract";
+import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle";
 
 const inputSchema = z.discriminatedUnion("mode", [
   applyAuthoringDraftInputSchema.extend({ mode: z.literal("apply") }),

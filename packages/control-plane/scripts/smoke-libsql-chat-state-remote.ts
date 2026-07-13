@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { randomUUID } from "node:crypto";
 
-import { LibSqlChatStateAdapter } from "../src/libsql-chat-state.js";
+import { LibSqlChatStateAdapter } from "../src/libsql-chat-state.ts";
 
 if (!process.env.DOCS_AGENT_DATABASE_URL?.startsWith("libsql://")) throw new Error("Set DOCS_AGENT_DATABASE_URL to a migrated remote libSQL/Turso database.");
 if (!process.env.DOCS_AGENT_DATABASE_AUTH_TOKEN) throw new Error("Set DOCS_AGENT_DATABASE_AUTH_TOKEN for the remote Turso database.");

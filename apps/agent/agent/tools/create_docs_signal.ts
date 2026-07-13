@@ -4,7 +4,7 @@ import {
   createDocsSignal,
   createDocsSignalInputSchema,
   createDocsSignalResultSchema,
-} from "../lib/docs-signals.js";
+} from "../lib/docs-signals";
 
 export default defineTool({
   description:

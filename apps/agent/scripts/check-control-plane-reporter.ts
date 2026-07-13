@@ -6,8 +6,8 @@ import { join } from "node:path";
 import { getValidationRun } from "@docs-agent/control-plane/agent";
 import type { EveEvalResult, EveEvalRunSummary, EveEvalTarget } from "eve/evals";
 
-import { ControlPlaneReporter } from "../evals/control-plane-reporter.js";
-import { migrateDocsAgentDatabase } from "../../../packages/control-plane/src/db/client.js";
+import { ControlPlaneReporter } from "../evals/control-plane-reporter";
+import { migrateDocsAgentDatabase } from "../../../packages/control-plane/src/db/client";
 
 const root = await mkdtemp(join(tmpdir(), "docs-agent-eval-reporter-"));
 const originalUrl = process.env.DOCS_AGENT_DATABASE_URL;

@@ -7,13 +7,13 @@ import {
   resolveGitHubAppInstallationToken,
   type GitHubApiResult,
   type GitHubRepositorySlug,
-} from "./github-app-client.js";
-import { repositoryInputSchema, type RepositoryInput } from "./repository-contract.js";
+} from "./github-app-client.ts";
+import { repositoryInputSchema, type RepositoryInput } from "./repository-contract.ts";
 import {
   readSetupState,
   resolveGitHubConnector,
   type SetupState,
-} from "./setup-state.js";
+} from "./setup-state.ts";
 
 export const workingRepositoryValidationSchema = z.object({
   repositoryUrl: z.string(),

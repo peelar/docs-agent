@@ -1,16 +1,16 @@
 import { z } from "zod";
 
-import { parseGitHubRepositoryUrl } from "./github-app-client.js";
+import { parseGitHubRepositoryUrl } from "./github-app-client.ts";
 import {
   runGitHubWritebackPreflight,
   type GitHubWritebackPreflight,
-} from "./github-preflight.js";
+} from "./github-preflight.ts";
 import {
   DEFAULT_WORKING_DOCUMENTATION_REPOSITORY_REF,
   repositoryInputSchema,
   type RepositoryInput,
-} from "./repository-contract.js";
-import { validateWorkingRepositoryAccess } from "./repository-validation.js";
+} from "./repository-contract.ts";
+import { validateWorkingRepositoryAccess } from "./repository-validation.ts";
 import {
   readSetupState,
   saveSetupState,
@@ -18,7 +18,7 @@ import {
   setupStateSchema,
   type SetupAuditActor,
   type SetupState,
-} from "./setup-state.js";
+} from "./setup-state.ts";
 
 const optionalText = z.preprocess(
   (value) => typeof value === "string" && value.trim() === "" ? undefined : value,

@@ -6,7 +6,7 @@ import { z } from "zod";
 import type {
   ResolvedWorkingDocumentationRepository,
   WorkingDocumentationRepository,
-} from "./repository-contract.js";
+} from "./repository-contract";
 import {
   joinSandboxPath,
   normalizeRepositoryUrl,
@@ -15,11 +15,11 @@ import {
   RepositoryPolicyError,
   summarizeCommandFailure,
   type RepositoryActionRecord,
-} from "./repository-materialization.js";
+} from "./repository-materialization";
 import type {
   RepositoryCheckName,
   RepositoryCheckResult,
-} from "./repository-workflow-contract.js";
+} from "./repository-workflow-contract";
 
 const installCacheMarkerSchema = z.object({
   version: z.literal(1),

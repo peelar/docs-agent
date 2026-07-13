@@ -1,42 +1,26 @@
 # Local Development
 
-Use Node 24.18.0 (see `.node-version`) and the pnpm version managed by
-Corepack. Paige needs no hand-written config or manual database migration.
+Use Node 24.18.0 (see `.node-version`) and open the cloned repository in Codex.
+Run:
 
-## Start Paige
-
-```sh
-corepack enable
-pnpm install
-pnpm --filter docs-agent dev
+```text
+$setup
 ```
 
-On the first run, enter `/model` in Eve and choose AI Gateway via Project
-(recommended) or provide a model key. Eve saves the local credential for later
-runs. Keep the agent running.
+The workspace skill installs dependencies, migrates the local database, asks
+only for missing workspace choices, validates repository access, and guides the
+browser consent that GitHub, Vercel, Slack, or Linear must receive from a
+person. It then reports readiness from Paige's canonical setup service.
 
-In a second terminal, start the operator app:
-
-```sh
-pnpm dev:web
-```
-
-Open the printed URL and use **Status** to configure the workspace. Enter the
-working documentation repository URL and the installed GitHub connector. Leave
-the ref as `main` and the docs root empty unless the repository needs different
-values. Watched repositories, Slack, and Linear are optional.
-
-Paige creates and migrates `.docs-agent/docs-agent.sqlite` automatically. Use
-`pnpm dev --no-ui` when the Eve terminal UI is not needed.
-
-## Validate Changes
-
-Install Playwright's browser once, then run the required repository gate:
+The skill ships in `.agents/skills/setup`. To install it before cloning Paige:
 
 ```sh
-pnpm --filter @docs-agent/web exec playwright install chromium
-pnpm check
+npx skills add peelar/docs-maintainer-agent --skill setup --agent codex --yes
 ```
 
-See [Deployment](./DEPLOYMENT.md) for production and [Team Context](./TEAM_CONTEXT.md)
-for Slack and Linear installation.
+Start Paige with `pnpm dev`. The optional operator UI is `pnpm dev:web`.
+
+Before handing over code changes, run `pnpm check`. Install Playwright's browser
+once if prompted: `pnpm --filter @docs-agent/web exec playwright install chromium`.
+
+See [Deployment](./DEPLOYMENT.md) for production-specific setup.

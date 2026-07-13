@@ -8,13 +8,13 @@ import {
 import { and, eq } from "drizzle-orm";
 import { z } from "zod";
 
-import { withDocsAgentDatabase } from "./db/client.js";
-import { connectorDeliveryVerifications } from "./db/schema.js";
+import { withDocsAgentDatabase } from "./db/client.ts";
+import { connectorDeliveryVerifications } from "./db/schema.ts";
 import {
   resolveLinearConnector,
   resolveSlackConnector,
-} from "./provider-config.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
+} from "./provider-config.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
 
 export const connectorProviderSchema = z.enum(["slack", "linear", "github"]);
 export const connectorStageIdSchema = z.enum([

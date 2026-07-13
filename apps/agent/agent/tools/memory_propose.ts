@@ -4,7 +4,7 @@ import {
   proposeWorkspaceMemory,
   proposeWorkspaceMemoryInputSchema,
   proposeWorkspaceMemoryResultSchema,
-} from "../lib/workspace-memory.js";
+} from "../lib/workspace-memory";
 
 export default defineTool({
   description:

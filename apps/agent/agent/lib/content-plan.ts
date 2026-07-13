@@ -2,14 +2,14 @@ import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
 
-import { saveRepositoryWorkflowState } from "./repository-workflow-state.js";
-import { recommendationMatchesTask } from "./editorial-recommendation.js";
+import { saveRepositoryWorkflowState } from "./repository-workflow-state";
+import { recommendationMatchesTask } from "./editorial-recommendation";
 import {
   contentPlanDecisionSchema,
   contentPlanEvidenceSchema,
   contentPlanSurfaceSchema,
   type WorkflowState,
-} from "./repository-workflow-contract.js";
+} from "./repository-workflow-contract";
 
 export const contentPlanDetailsSchema = z.object({
   sourceDecisionReference: z

@@ -12,8 +12,8 @@ import {
   saveBehaviorSettings,
   saveBehaviorSettingsInputSchema,
   slackEntryAllows,
-} from "../src/behavior-settings.js";
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
+} from "../src/behavior-settings.ts";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
 
 const tempRoot = await mkdtemp(join(tmpdir(), "docs-agent-behavior-settings-"));
 const originalDatabaseUrl = process.env.DOCS_AGENT_DATABASE_URL;

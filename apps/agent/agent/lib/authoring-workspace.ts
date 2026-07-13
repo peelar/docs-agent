@@ -13,11 +13,11 @@ import {
   runRepositoryCheck,
   writeRepositoryBinary,
   writeRepositoryText,
-} from "./repository-operations.js";
-import { saveRepositoryWorkflowState } from "./repository-workflow-state.js";
-import type { WorkflowState } from "./repository-workflow-contract.js";
-import { repositoryCheckNameSchema } from "./repository-workflow-contract.js";
-import { recommendationMatchesTask } from "./editorial-recommendation.js";
+} from "./repository-operations";
+import { saveRepositoryWorkflowState } from "./repository-workflow-state";
+import type { WorkflowState } from "./repository-workflow-contract";
+import { repositoryCheckNameSchema } from "./repository-workflow-contract";
+import { recommendationMatchesTask } from "./editorial-recommendation";
 
 const pathSchema = z.string().trim().min(1);
 export const authoringOperationSchema = z.discriminatedUnion("kind", [

@@ -4,7 +4,7 @@ import {
   retrieveSlackContext,
   retrieveSlackContextInputSchema,
   retrieveSlackContextResultSchema,
-} from "../lib/slack-context-retrieval.js";
+} from "../lib/slack-context-retrieval";
 
 export default defineTool({
   description:

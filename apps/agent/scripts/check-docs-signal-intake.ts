@@ -3,9 +3,9 @@ import { mkdtemp, readFile, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../agent/lib/db/client.js";
-import { captureLinearDocsSignal } from "../agent/lib/linear-docs-signal.js";
-import { captureSlackDocsSignal } from "../agent/lib/slack-docs-signal.js";
+import { migrateDocsAgentDatabase } from "../agent/lib/db/client";
+import { captureLinearDocsSignal } from "../agent/lib/linear-docs-signal";
+import { captureSlackDocsSignal } from "../agent/lib/slack-docs-signal";
 
 const scenarios = [
   {

@@ -4,7 +4,7 @@ import {
   verifyDocsSignalCurrentDocs,
   verifyDocsSignalCurrentDocsInputSchema,
   verifyDocsSignalCurrentDocsResultSchema,
-} from "../lib/docs-signal-verification.js";
+} from "../lib/docs-signal-verification";
 
 export default defineTool({
   description:

@@ -1,9 +1,9 @@
 import { z } from "zod";
 
-import { legacyImpactDecisionSchema } from "./docs-impact-decision.js";
-import { repositoryActionRecordSchema } from "./repository-materialization.js";
-import type { RepositoryActionRecord } from "./repository-materialization.js";
-import type { ResolvedRepositoryInput } from "./repository-contract.js";
+import { legacyImpactDecisionSchema } from "./docs-impact-decision";
+import { repositoryActionRecordSchema } from "./repository-materialization";
+import type { RepositoryActionRecord } from "./repository-materialization";
+import type { ResolvedRepositoryInput } from "./repository-contract";
 
 export const repositoryCheckNameSchema = z.enum([
   "install",

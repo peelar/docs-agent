@@ -1,5 +1,5 @@
 import { spawnSync } from "node:child_process";
-import { mkdtempSync, readFileSync, rmSync } from "node:fs";
+import { existsSync, mkdtempSync, readFileSync, readdirSync, rmSync } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
@@ -8,6 +8,60 @@ const repositoryRoot = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const agentRoot = join(repositoryRoot, "apps", "agent");
 const packageJson = JSON.parse(readFileSync(join(repositoryRoot, "package.json"), "utf8"));
 const turboJson = JSON.parse(readFileSync(join(repositoryRoot, "turbo.json"), "utf8"));
+
+const workspaceSetupSkillPath = join(
+  repositoryRoot,
+  ".agents",
+  "skills",
+  "setup",
+  "SKILL.md",
+);
+const workspaceSetupSkill = readFileSync(workspaceSetupSkillPath, "utf8");
+if (!/^---\nname: setup\ndescription: .+\n---\n/u.test(workspaceSetupSkill)) {
+  throw new Error("Workspace setup skill must have portable name and description frontmatter.");
+}
+for (const expected of [
+  "Speak as Paige",
+  "pnpm paige status",
+  "pnpm paige configure",
+  "humanRequired: true",
+]) {
+  if (!workspaceSetupSkill.includes(expected)) {
+    throw new Error(`Workspace setup skill is missing: ${expected}`);
+  }
+}
+if (existsSync(join(agentRoot, "agent", "skills", "setup"))) {
+  throw new Error("Setup belongs to the cloned workspace, not Paige's Eve runtime skills.");
+}
+if (!packageJson.scripts?.paige?.includes("@docs-agent/control-plane")) {
+  throw new Error("Root Paige command must use the shared control-plane setup service.");
+}
+
+const controlPlaneRoot = join(repositoryRoot, "packages", "control-plane");
+const typescriptSourceRoots = [
+  join(controlPlaneRoot, "src"),
+  join(controlPlaneRoot, "scripts"),
+  join(repositoryRoot, "apps", "agent", "agent"),
+  join(repositoryRoot, "apps", "agent", "evals"),
+  join(repositoryRoot, "apps", "agent", "scripts"),
+];
+
+for (const filePath of walkFiles(controlPlaneRoot)) {
+  if (filePath.endsWith(".js")) {
+    throw new Error(`Control-plane must remain TypeScript-only: ${filePath}`);
+  }
+}
+
+const relativeJavaScriptImport =
+  /(?:from\s+|import\s*\(\s*|import\s+)["']\.{1,2}\/[^"']+\.js["']/u;
+for (const sourceRoot of typescriptSourceRoots) {
+  for (const filePath of walkFiles(sourceRoot)) {
+    if (!/\.tsx?$/u.test(filePath)) continue;
+    if (relativeJavaScriptImport.test(readFileSync(filePath, "utf8"))) {
+      throw new Error(`TypeScript source must not use a relative .js import: ${filePath}`);
+    }
+  }
+}
 
 for (const script of ["dev", "build", "typecheck", "test", "check"]) {
   if (!packageJson.scripts?.[script]?.includes("turbo run")) {
@@ -150,4 +204,20 @@ function run(label, args, extraEnv = {}) {
   }
 
   return `${result.stdout ?? ""}${result.stderr ?? ""}`;
+}
+
+function walkFiles(root) {
+  const files = [];
+  for (const entry of readdirSync(root, { withFileTypes: true })) {
+    if (
+      entry.isDirectory() &&
+      [".eve", ".next", ".output", ".turbo", "node_modules", "test-results"].includes(entry.name)
+    ) {
+      continue;
+    }
+    const path = join(root, entry.name);
+    if (entry.isDirectory()) files.push(...walkFiles(path));
+    else if (entry.isFile()) files.push(path);
+  }
+  return files;
 }

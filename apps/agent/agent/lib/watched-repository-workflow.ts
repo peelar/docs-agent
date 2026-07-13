@@ -6,12 +6,12 @@ import {
   githubApiRequest,
   parseGitHubRepositoryUrl,
   resolveGitHubAppInstallationToken,
-} from "./github-app-client.js";
-import { searchRepository } from "./repository-operations.js";
+} from "./github-app-client";
+import { searchRepository } from "./repository-operations";
 import {
   type WatchedRepository,
   type WorkingDocumentationRepository,
-} from "./repository-contract.js";
+} from "./repository-contract";
 import {
   cloneRepositoryCheckout,
   quoteShellArgument as sh,
@@ -22,10 +22,10 @@ import {
   type RepositoryActionRecord,
   type WatchedRepositoryCheckoutAccess,
   watchedRepositoryMaterializationPolicy,
-} from "./repository-materialization.js";
-import { impactDecisionSchema } from "./repository-workflow-contract.js";
-import { requireSetupReady, resolveGitHubConnector } from "./setup-state.js";
-import { loadOrMaterializeRepositoryWorkflowState } from "./working-repository-lifecycle.js";
+} from "./repository-materialization";
+import { impactDecisionSchema } from "./repository-workflow-contract";
+import { requireSetupReady, resolveGitHubConnector } from "./setup-state";
+import { loadOrMaterializeRepositoryWorkflowState } from "./working-repository-lifecycle";
 
 const watchedRepositoryMaterializationSchema = z.object({
   repositoryId: z.string(),

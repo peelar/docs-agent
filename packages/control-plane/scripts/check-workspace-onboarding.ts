@@ -3,19 +3,19 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
-import { validateWorkingRepositoryAccess } from "../src/repository-validation.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
+import { validateWorkingRepositoryAccess } from "../src/repository-validation.ts";
 import {
   getSetupStatus,
   readPersistedSetupStatus,
   readSetupAuditEvents,
-} from "../src/setup-state.js";
+} from "../src/setup-state.ts";
 import {
   buildWorkspaceOnboardingState,
   saveValidatedWorkspaceOnboarding,
   validateWorkspaceOnboarding,
   WorkspaceOnboardingValidationError,
-} from "../src/workspace-onboarding.js";
+} from "../src/workspace-onboarding.ts";
 
 const tempRoot = await mkdtemp(join(tmpdir(), "docs-agent-onboarding-"));
 const originalDatabaseUrl = process.env.DOCS_AGENT_DATABASE_URL;

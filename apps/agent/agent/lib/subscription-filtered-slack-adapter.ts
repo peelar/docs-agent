@@ -8,7 +8,7 @@ import type { WebhookOptions } from "chat";
 import {
   redactSlackSearchSecrets,
   stageSlackSearchRequest,
-} from "./slack-context-retrieval.js";
+} from "./slack-context-retrieval";
 
 const SUPPORTED_MESSAGE_SUBTYPES = new Set([
   "file_share",

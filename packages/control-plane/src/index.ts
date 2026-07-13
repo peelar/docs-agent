@@ -1,10 +1,10 @@
 import "server-only";
 
-export * from "./docs-follow-ups.js";
-export * from "./libsql-chat-state.js";
-export * from "./slack-thread-presence.js";
-export * from "./validation-results.js";
-export * from "./behavior-settings.js";
+export * from "./docs-follow-ups.ts";
+export * from "./libsql-chat-state.ts";
+export * from "./slack-thread-presence.ts";
+export * from "./validation-results.ts";
+export * from "./behavior-settings.ts";
 
 export {
   DOCS_PROFILE_FORMAT_VERSION,
@@ -18,7 +18,7 @@ export {
   type CachedDocsProfile,
   type DocsProfile,
   type DocsProfileIdentity,
-} from "./docs-profile.js";
+} from "./docs-profile.ts";
 export {
   getDocsSignal,
   getDocsSignalInputSchema,
@@ -35,12 +35,12 @@ export {
   type DocsSignalDetail,
   type DocsSignalSourceKind,
   type ListDocsSignalsInput,
-} from "./docs-signals.js";
+} from "./docs-signals.ts";
 export {
   docsSignalStatuses,
   docsSignalStatusSchema,
   type DocsSignalStatus,
-} from "./docs-signal-lifecycle.js";
+} from "./docs-signal-lifecycle.ts";
 export {
   getOwnedDocsWork,
   ownedDocsWorkMilestoneSchema,
@@ -50,7 +50,7 @@ export {
   updateOwnedDocsWork,
   updateOwnedDocsWorkInputSchema,
   type OwnedDocsWorkRuntime,
-} from "./owned-docs-work.js";
+} from "./owned-docs-work.ts";
 export {
   ownedDocsWorkConversationSchema,
   ownedDocsWorkOutcomeSchema,
@@ -60,7 +60,7 @@ export {
   type OwnedDocsWorkRecord,
   type OwnedDocsWorkReferences,
   type OwnedDocsWorkStatus,
-} from "./owned-docs-work-contract.js";
+} from "./owned-docs-work-contract.ts";
 export {
   getSetupStatus,
   readSetupAuditEvents,
@@ -73,7 +73,7 @@ export {
   readPersistedSetupStatus,
   persistedSetupStatusSchema,
   type PersistedSetupStatus,
-} from "./setup-state.js";
+} from "./setup-state.ts";
 export {
   buildWorkspaceOnboardingState,
   readWorkspaceOnboardingDraft,
@@ -87,12 +87,12 @@ export {
   type WorkspaceOnboardingDraft,
   type WorkspaceOnboardingInput,
   type WorkspaceOnboardingValidation,
-} from "./workspace-onboarding.js";
+} from "./workspace-onboarding.ts";
 export {
   validateWorkingRepositoryAccess,
   workingRepositoryValidationSchema,
   type WorkingRepositoryValidation,
-} from "./repository-validation.js";
+} from "./repository-validation.ts";
 export {
   collectReadinessReport,
   getReadinessReport,
@@ -106,7 +106,7 @@ export {
   type ReadinessObservation,
   type ReadinessReport,
   type ReadinessState,
-} from "./readiness.js";
+} from "./readiness.ts";
 export {
   buildAppChannelStages,
   buildGitHubStages,
@@ -119,13 +119,13 @@ export {
   type AppChannelProbe,
   type ConnectorStage,
   type ConnectorStageState,
-} from "./connector-handoffs.js";
+} from "./connector-handoffs.ts";
 export {
   getOperatorSignalDetail,
   operatorSignalDetailSchema,
   redactMetadata,
   type OperatorSignalDetail,
-} from "./signal-detail.js";
+} from "./signal-detail.ts";
 export {
   getOperatorMemoryDetail,
   listOperatorMemories,
@@ -143,7 +143,7 @@ export {
   type OperatorMemoryListItem,
   type OperatorMemoryListResult,
   type OperatorMemoryMutationInput,
-} from "./workspace-memory-review.js";
+} from "./workspace-memory-review.ts";
 export {
   workspaceMemoryConfidenceSchema,
   workspaceMemoryFreshnessStateSchema,
@@ -152,7 +152,7 @@ export {
   type WorkspaceMemoryConfidence,
   type WorkspaceMemoryKind,
   type WorkspaceMemoryStatus,
-} from "./workspace-memory.js";
+} from "./workspace-memory.ts";
 export {
   cleanupExpiredProductRuns,
   createProductRun,
@@ -174,7 +174,7 @@ export {
   type CreateProductRunInput,
   type OperatorProductRunDetail,
   type OperatorProductRunListItem,
-} from "./product-runs.js";
+} from "./product-runs.ts";
 export {
   approvalAuditActorSchema,
   approvalDecisionAuditSchema,
@@ -190,4 +190,4 @@ export {
   listApprovals,
   type ApprovalDetail,
   type ApprovalListItem,
-} from "./approval-inbox.js";
+} from "./approval-inbox.ts";

@@ -12,15 +12,15 @@ import {
   saveBehaviorSettingsInputSchema,
   type BehaviorSettings,
   type BehaviorSettingsState,
-} from "./behavior-settings-contract.js";
-import { withDocsAgentDatabase } from "./db/client.js";
+} from "./behavior-settings-contract.ts";
+import { withDocsAgentDatabase } from "./db/client.ts";
 import {
   workspaceBehaviorSettings,
   workspaceBehaviorSettingsEvents,
-} from "./db/schema.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
+} from "./db/schema.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
 
-export * from "./behavior-settings-contract.js";
+export * from "./behavior-settings-contract.ts";
 
 export async function readBehaviorSettings(
   auditLimit = 10,

@@ -5,7 +5,7 @@ import {
   publishWorkingRepositoryPr,
   publishWorkingRepositoryPrInputSchema,
   publishWorkingRepositoryPrOutputSchema,
-} from "../lib/github-writeback.js";
+} from "../lib/github-writeback";
 
 export default defineTool({
   description:

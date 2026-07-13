@@ -3,9 +3,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
-import { createDocsSignal } from "../src/docs-signals.js";
-import { ApprovalInboxError, decideApproval, failApprovalsForRunReference, getApprovalDetail, listApprovals, markApprovalAnsweredByCall, recordApprovalBatch, type ApprovalRuntime } from "../src/approval-inbox.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
+import { createDocsSignal } from "../src/docs-signals.ts";
+import { ApprovalInboxError, decideApproval, failApprovalsForRunReference, getApprovalDetail, listApprovals, markApprovalAnsweredByCall, recordApprovalBatch, type ApprovalRuntime } from "../src/approval-inbox.ts";
 
 const root = await mkdtemp(join(tmpdir(), "docs-agent-approvals-"));
 const originalUrl = process.env.DOCS_AGENT_DATABASE_URL;

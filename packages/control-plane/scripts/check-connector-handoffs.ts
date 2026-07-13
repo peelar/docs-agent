@@ -15,8 +15,8 @@ import {
   classifyConnectSetupError,
   readConnectorDeliveryVerification,
   recordConnectorDeliveryVerification,
-} from "../src/connector-handoffs.js";
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
+} from "../src/connector-handoffs.ts";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
 
 const tempRoot = await mkdtemp(join(tmpdir(), "docs-agent-connector-handoffs-"));
 const originalDatabaseUrl = process.env.DOCS_AGENT_DATABASE_URL;

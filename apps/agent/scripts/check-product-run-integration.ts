@@ -9,7 +9,7 @@ import { fileURLToPath } from "node:url";
 import { createProductRun, getProductRunDetail, projectProductRunEvent } from "@docs-agent/control-plane/agent";
 import { Client } from "eve/client";
 
-import { migrateDocsAgentDatabase } from "../../../packages/control-plane/src/db/client.js";
+import { migrateDocsAgentDatabase } from "../../../packages/control-plane/src/db/client";
 
 const appRoot = dirname(dirname(fileURLToPath(import.meta.url)));
 const fixtureRoot = join(appRoot, "fixtures", "run-index-agent");

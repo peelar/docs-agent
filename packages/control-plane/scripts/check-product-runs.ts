@@ -3,8 +3,8 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
-import { createDocsSignal } from "../src/docs-signals.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
+import { createDocsSignal } from "../src/docs-signals.ts";
 import {
   cleanupExpiredProductRuns,
   createProductRun,
@@ -12,7 +12,7 @@ import {
   listProductRuns,
   projectProductRunEvent,
   projectProductRunEventByReference,
-} from "../src/product-runs.js";
+} from "../src/product-runs.ts";
 
 const root = await mkdtemp(join(tmpdir(), "docs-agent-product-runs-"));
 const originalUrl = process.env.DOCS_AGENT_DATABASE_URL;

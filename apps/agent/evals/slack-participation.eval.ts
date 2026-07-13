@@ -8,8 +8,8 @@ import {
   SLACK_DIRECT_ONLY_THREAD_POLICY,
   SLACK_FOLLOWED_THREAD_POLICY,
   SLACK_SILENT_REPLY,
-} from "../agent/lib/slack-chat-turn.js";
-import { migrateDocsAgentDatabase } from "../agent/lib/db/client.js";
+} from "../agent/lib/slack-chat-turn";
+import { migrateDocsAgentDatabase } from "../agent/lib/db/client";
 
 const evalDataDir = mkdtempSync(join(tmpdir(), "docs-agent-slack-participation-evals-"));
 process.env.DOCS_AGENT_DATABASE_URL = `file:${join(evalDataDir, "docs-agent.sqlite")}`;

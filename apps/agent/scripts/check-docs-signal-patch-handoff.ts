@@ -8,23 +8,23 @@ process.env.DOCS_AGENT_DATABASE_URL = `file:${join(tempRoot, "patch-handoff.sqli
 delete process.env.VERCEL;
 delete process.env.NODE_ENV;
 
-const { migrateDocsAgentDatabase } = await import("../agent/lib/db/client.js");
+const { migrateDocsAgentDatabase } = await import("../agent/lib/db/client");
 await migrateDocsAgentDatabase();
 
 const {
   createDocsSignal,
   docsSignalStatusSchema,
   transitionDocsSignalLifecycle,
-} = await import("../agent/lib/docs-signals.js");
+} = await import("../agent/lib/docs-signals");
 const {
   SignalPatchHandoffError,
   assertSignalCanEnterPatchHandoff,
   prepareDocsSignalPatchInputSchema,
-} = await import("../agent/lib/docs-signal-patch-handoff.js");
+} = await import("../agent/lib/docs-signal-patch-handoff");
 const {
   buildPullRequestBody,
   publishWorkingRepositoryPrInputSchema,
-} = await import("../agent/lib/github-writeback.js");
+} = await import("../agent/lib/github-writeback");
 
 const verified = await createDocsSignal({
   source: {

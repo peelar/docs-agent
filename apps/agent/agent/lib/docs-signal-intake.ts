@@ -6,14 +6,14 @@ import {
   shouldVerifyCurrentDocs,
   type DocsImpactDecisionRecord,
   type DocsImpactTriageInput,
-} from "./docs-impact-decision.js";
+} from "./docs-impact-decision";
 import {
   captureDocsSignal,
   createDocsSignalResultSchema,
   type CreateDocsSignalInput,
   type DocsSignalStatus,
-} from "./docs-signals.js";
-import { getSetupStatus } from "./setup-state.js";
+} from "./docs-signals";
+import { getSetupStatus } from "./setup-state";
 
 export const docsSignalVerificationStatusSchema = z.object({
   required: z.boolean(),

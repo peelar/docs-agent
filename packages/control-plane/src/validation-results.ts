@@ -1,9 +1,9 @@
 import { and, asc, desc, eq, inArray, lt, lte } from "drizzle-orm";
 import { z } from "zod";
 
-import { withDocsAgentDatabase } from "./db/client.js";
-import { validationCases, validationRuns } from "./db/schema.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
+import { withDocsAgentDatabase } from "./db/client.ts";
+import { validationCases, validationRuns } from "./db/schema.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
 
 const RETENTION_DAYS = 30;
 const REDACTION_VERSION = 1;

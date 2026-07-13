@@ -8,18 +8,18 @@ import {
   connectorStageSchema,
   readConnectorDeliveryVerification,
   type ConnectorStage,
-} from "./connector-handoffs.js";
-import { runGitHubWritebackPreflight } from "./github-preflight.js";
+} from "./connector-handoffs.ts";
+import { runGitHubWritebackPreflight } from "./github-preflight.ts";
 import {
   resolveEveRuntimeUrl,
   resolveLinearConnector,
   resolveSlackConnector,
-} from "./provider-config.js";
+} from "./provider-config.ts";
 import {
   getSetupStatus,
   readPersistedSetupStatus,
   readSetupState,
-} from "./setup-state.js";
+} from "./setup-state.ts";
 
 export const readinessStateSchema = z.enum([
   "configured",

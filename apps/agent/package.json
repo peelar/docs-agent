@@ -8,7 +8,7 @@
     "#evals/*": "./evals/*"
   },
   "scripts": {
-    "build": "pnpm --filter @docs-agent/control-plane build && pnpm --filter @docs-agent/control-plane db:migrate:deployment && eve build",
+    "build": "pnpm --filter @docs-agent/control-plane db:migrate:deployment && eve build",
     "check": "pnpm typecheck && pnpm test && pnpm build",
     "dev": "pnpm --filter @docs-agent/control-plane db:migrate && eve dev",
     "eval": "eve eval",

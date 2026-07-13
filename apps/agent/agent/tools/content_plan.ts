@@ -7,9 +7,9 @@ import {
   inspectContentPlan,
   reviseContentPlan,
   reviseContentPlanInputSchema,
-} from "../lib/content-plan.js";
-import { contentPlanSchema } from "../lib/repository-workflow-contract.js";
-import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle.js";
+} from "../lib/content-plan";
+import { contentPlanSchema } from "../lib/repository-workflow-contract";
+import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle";
 
 const inputSchema = z.discriminatedUnion("mode", [
   createContentPlanInputSchema.extend({ mode: z.literal("create") }),

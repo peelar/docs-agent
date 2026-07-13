@@ -6,7 +6,7 @@ import { tmpdir } from "node:os";
 delete process.env.DOCS_AGENT_DATABASE_URL;
 process.env.VERCEL = "1";
 
-const memory = await import("../agent/lib/workspace-memory.js");
+const memory = await import("../agent/lib/workspace-memory");
 
 await assert.rejects(
   () => memory.searchWorkspaceMemory(),
@@ -18,7 +18,7 @@ process.env.DOCS_AGENT_DATABASE_URL = `file:${join(tempRoot, "memory.sqlite")}`;
 delete process.env.VERCEL;
 delete process.env.NODE_ENV;
 const { migrateDocsAgentDatabase, withDocsAgentDatabase } = await import(
-  "../agent/lib/db/client.js"
+  "../agent/lib/db/client"
 );
 await migrateDocsAgentDatabase();
 
@@ -171,7 +171,7 @@ const activeSearchAfterRetire = await memory.searchWorkspaceMemory({
 });
 assert.equal(activeSearchAfterRetire.records.length, 0);
 
-const { workspaceMemoryRecords } = await import("../agent/lib/db/schema.js");
+const { workspaceMemoryRecords } = await import("../agent/lib/db/schema");
 await withDocsAgentDatabase(async (db) => {
   await db.insert(workspaceMemoryRecords).values({
     id: "invalid-memory-status",

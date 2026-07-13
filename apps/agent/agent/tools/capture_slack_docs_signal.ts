@@ -4,7 +4,7 @@ import {
   captureSlackDocsSignal,
   captureSlackDocsSignalInputSchema,
   captureSlackDocsSignalResultSchema,
-} from "../lib/slack-docs-signal.js";
+} from "../lib/slack-docs-signal";
 
 export default defineTool({
   description:

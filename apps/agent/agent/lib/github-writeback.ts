@@ -3,39 +3,39 @@ import { createHash } from "node:crypto";
 import type { ToolContext } from "eve/tools";
 import { z } from "zod";
 
-import type { WorkingDocumentationRepository } from "./repository-contract.js";
+import type { WorkingDocumentationRepository } from "./repository-contract";
 import {
   exportRepositoryDiff,
   listChangedFiles,
-} from "./repository-operations.js";
-import type { RepositoryActionRecord } from "./repository-materialization.js";
+} from "./repository-operations";
+import type { RepositoryActionRecord } from "./repository-materialization";
 import {
   repositoryCheckResultSchema,
   type DocsMaintenanceWorkflowResult,
-} from "./repository-workflow-contract.js";
+} from "./repository-workflow-contract";
 import {
   loadRepositoryWorkflowState,
   saveRepositoryWorkflowState,
-} from "./repository-workflow-state.js";
+} from "./repository-workflow-state";
 import {
   preflightGitHubWritebackSetup,
   requireSetupReady,
   resolveGitHubConnector,
   resolveGitHubWritebackToken,
   type SetupState,
-} from "./setup-state.js";
+} from "./setup-state";
 import {
   docsSignalDetailSchema,
   getDocsSignal,
   transitionDocsSignalLifecycle,
   type DocsSignalDetail,
-} from "./docs-signals.js";
+} from "./docs-signals";
 import {
   formatUnknownError,
   githubApiRequest,
   parseGitHubRepositoryUrl,
   type GitHubRepositorySlug,
-} from "./github-app-client.js";
+} from "./github-app-client";
 
 const branchNameSchema = z
   .string()

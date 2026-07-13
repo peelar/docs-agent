@@ -3,9 +3,9 @@ import { randomUUID } from "node:crypto";
 import { and, asc, desc, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 
-import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.js";
-import { docsFollowUpRuns, docsFollowUps, docsSignalEvents, docsSignals } from "./db/schema.js";
-import { DEFAULT_WORKSPACE_ID } from "./setup-state.js";
+import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.ts";
+import { docsFollowUpRuns, docsFollowUps, docsSignalEvents, docsSignals } from "./db/schema.ts";
+import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
 
 export const DOCS_FOLLOW_UP_SCHEDULE_ID = "daily-docs-follow-ups";
 export const DOCS_FOLLOW_UP_TIME_ZONE = "UTC";

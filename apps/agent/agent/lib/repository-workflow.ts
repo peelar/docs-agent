@@ -3,29 +3,29 @@ import type { ToolContext } from "eve/tools";
 import {
   detectScenarioKind,
   runScenarioFixture,
-} from "./docs-maintenance-scenarios.js";
+} from "./docs-maintenance-scenarios";
 import {
   exportRepositoryDiff,
   listChangedFiles,
-} from "./repository-operations.js";
+} from "./repository-operations";
 import {
   recordRepositoryAction,
   type RepositoryActionRecord,
-} from "./repository-materialization.js";
-import { saveRepositoryWorkflowState } from "./repository-workflow-state.js";
+} from "./repository-materialization";
+import { saveRepositoryWorkflowState } from "./repository-workflow-state";
 import type {
   DocsMaintenanceWorkflowResult,
   RunDocsMaintenanceScenarioInput,
-} from "./repository-workflow-contract.js";
+} from "./repository-workflow-contract";
 import {
   loadOrMaterializeRepositoryWorkflowState,
   reuseMaterializedWorkingRepository,
-} from "./working-repository-lifecycle.js";
+} from "./working-repository-lifecycle";
 
 export {
   repositoryActionRecordSchema,
   type RepositoryActionRecord,
-} from "./repository-materialization.js";
+} from "./repository-materialization";
 export {
   docsMaintenanceWorkflowResultSchema,
   documentationImpactReportSchema,
@@ -40,7 +40,7 @@ export {
   type RepositoryCheckResult,
   type RunDocsMaintenanceScenarioInput,
   type WorkflowState,
-} from "./repository-workflow-contract.js";
+} from "./repository-workflow-contract";
 export {
   exportRepositoryDiff,
   listChangedFiles,
@@ -48,18 +48,18 @@ export {
   replaceRepositoryText,
   runRepositoryCheck,
   searchRepository,
-} from "./repository-operations.js";
+} from "./repository-operations";
 export {
   loadRepositoryWorkflowState,
   saveConfiguredRepositoryInput,
   saveRepositoryWorkflowState,
-} from "./repository-workflow-state.js";
+} from "./repository-workflow-state";
 export {
   loadOrMaterializeRepositoryWorkflowState,
   materializeWorkingRepository,
   reuseMaterializedWorkingRepository,
   validateWorkingRepositorySetup,
-} from "./working-repository-lifecycle.js";
+} from "./working-repository-lifecycle";
 
 const RAW_SANDBOX_TOOLS_POLICY =
   "Repository work is executed through authored tools and the policy-aware repository workflow; raw Eve bash/read_file/write_file/glob/grep tools are disabled for this agent.";

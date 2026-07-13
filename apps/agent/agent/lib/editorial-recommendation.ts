@@ -2,11 +2,11 @@ import { randomUUID } from "node:crypto";
 
 import { z } from "zod";
 
-import { saveRepositoryWorkflowState } from "./repository-workflow-state.js";
+import { saveRepositoryWorkflowState } from "./repository-workflow-state";
 import {
   editorialInterventionSchema,
   type WorkflowState,
-} from "./repository-workflow-contract.js";
+} from "./repository-workflow-contract";
 
 const conciseText = z.string().trim().min(1).max(1_000);
 const referenceList = z.array(z.string().trim().min(1).max(500)).max(20);

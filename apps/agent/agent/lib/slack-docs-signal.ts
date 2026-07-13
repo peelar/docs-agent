@@ -6,16 +6,16 @@ import {
   docsImpactDecisionRecordSchema,
   docsImpactEvidenceSchema,
   docsImpactTriageInputSchema,
-} from "./docs-impact-decision.js";
+} from "./docs-impact-decision";
 import {
   buildDocsSignalReplyGuidance,
   captureProviderDocsSignal,
   docsSignalVerificationStatusSchema,
-} from "./docs-signal-intake.js";
+} from "./docs-signal-intake";
 import {
   docsSignalDetailSchema,
   docsSignalLinkInputSchema,
-} from "./docs-signals.js";
+} from "./docs-signals";
 
 const slackThreadMessageSchema = z.object({
   author: z.string().trim().min(1),

@@ -6,8 +6,8 @@ import {
   type RepositoryInput,
   type ResolvedRepositoryInput,
   type WorkingDocumentationRepository,
-} from "./repository-contract.js";
-import { normalizeRepositoryUrl } from "./repository-materialization.js";
+} from "./repository-contract";
+import { normalizeRepositoryUrl } from "./repository-materialization";
 import {
   docsMaintenanceWorkflowResultSchema,
   authoringDraftSchema,
@@ -15,8 +15,8 @@ import {
   editorialRecommendationSchema,
   repositoryMaterializationSchema,
   type WorkflowState,
-} from "./repository-workflow-contract.js";
-import { repositoryActionRecordSchema } from "./repository-materialization.js";
+} from "./repository-workflow-contract";
+import { repositoryActionRecordSchema } from "./repository-materialization";
 
 const repositoryWorkflowState = defineState<WorkflowState | null>(
   "docs-agent.repository-workflow-state",

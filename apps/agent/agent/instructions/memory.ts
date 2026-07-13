@@ -3,7 +3,7 @@ import { defineDynamic, defineInstructions } from "eve/instructions";
 import {
   buildWorkspaceMemoryInstructions,
   loadWorkspaceMemoryForInstructions,
-} from "../lib/workspace-memory.js";
+} from "../lib/workspace-memory";
 
 export default defineDynamic({
   events: {

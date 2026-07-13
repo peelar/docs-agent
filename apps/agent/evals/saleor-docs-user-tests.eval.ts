@@ -1,8 +1,8 @@
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
 
-import { saleorDocsUserTestScenarios } from "./scenarios/saleor-docs-user-test-scenarios.js";
-import { renderScenarioPrompt } from "./scenarios/render.js";
+import { saleorDocsUserTestScenarios } from "./scenarios/saleor-docs-user-test-scenarios";
+import { renderScenarioPrompt } from "./scenarios/render";
 
 export default [
   ...saleorDocsUserTestScenarios.map((scenario) =>

@@ -4,8 +4,8 @@ import { tmpdir } from "node:os";
 import { join } from "node:path";
 import type { QueueEntry } from "chat";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
-import { LibSqlChatStateAdapter } from "../src/libsql-chat-state.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
+import { LibSqlChatStateAdapter } from "../src/libsql-chat-state.ts";
 
 const root = await mkdtemp(join(tmpdir(), "docs-agent-chat-state-"));
 const originalUrl = process.env.DOCS_AGENT_DATABASE_URL;

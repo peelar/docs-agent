@@ -6,11 +6,11 @@ import { dirname, join } from "node:path";
 import type { ToolContext } from "eve/tools";
 import type { z } from "zod";
 
-import { abandonAuthoringDraft, applyAuthoringDraft } from "../agent/lib/authoring-workspace.js";
-import { createContentPlan } from "../agent/lib/content-plan.js";
-import { createEditorialRecommendation, reviseEditorialRecommendation } from "../agent/lib/editorial-recommendation.js";
-import type { ResolvedRepositoryInput } from "../agent/lib/repository-contract.js";
-import { editorialInterventionSchema, type WorkflowState } from "../agent/lib/repository-workflow-contract.js";
+import { abandonAuthoringDraft, applyAuthoringDraft } from "../agent/lib/authoring-workspace";
+import { createContentPlan } from "../agent/lib/content-plan";
+import { createEditorialRecommendation, reviseEditorialRecommendation } from "../agent/lib/editorial-recommendation";
+import type { ResolvedRepositoryInput } from "../agent/lib/repository-contract";
+import { editorialInterventionSchema, type WorkflowState } from "../agent/lib/repository-workflow-contract";
 
 const root = await mkdtemp(join(tmpdir(), "docs-agent-editorial-"));
 await mkdir(join(root, "docs"), { recursive: true });

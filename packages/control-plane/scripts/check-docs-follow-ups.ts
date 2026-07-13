@@ -3,9 +3,9 @@ import { mkdtemp, rm } from "node:fs/promises";
 import { tmpdir } from "node:os";
 import { join } from "node:path";
 
-import { migrateDocsAgentDatabase } from "../src/db/client.js";
-import { createDocsSignal, getDocsSignal } from "../src/docs-signals.js";
-import { DOCS_FOLLOW_UP_MAX_PER_RUN, DOCS_FOLLOW_UP_TIME_ZONE, cancelDocsFollowUp, createDocsFollowUp, getLatestDocsFollowUpRun, listDocsFollowUps, processDueDocsFollowUps } from "../src/docs-follow-ups.js";
+import { migrateDocsAgentDatabase } from "../src/db/client.ts";
+import { createDocsSignal, getDocsSignal } from "../src/docs-signals.ts";
+import { DOCS_FOLLOW_UP_MAX_PER_RUN, DOCS_FOLLOW_UP_TIME_ZONE, cancelDocsFollowUp, createDocsFollowUp, getLatestDocsFollowUpRun, listDocsFollowUps, processDueDocsFollowUps } from "../src/docs-follow-ups.ts";
 
 const root = await mkdtemp(join(tmpdir(), "docs-agent-follow-ups-"));
 const originalDatabaseUrl = process.env.DOCS_AGENT_DATABASE_URL;

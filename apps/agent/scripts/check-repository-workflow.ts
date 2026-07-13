@@ -4,13 +4,13 @@ import { readFile } from "node:fs/promises";
 import type { SandboxCommandResult } from "eve/sandbox";
 import type { ToolContext } from "eve/tools";
 
-import { runScenarioFixture } from "../agent/lib/docs-maintenance-scenarios.js";
-import * as operations from "../agent/lib/repository-operations.js";
-import { repositoryInputSchema } from "../agent/lib/repository-contract.js";
-import * as facade from "../agent/lib/repository-workflow.js";
-import * as contract from "../agent/lib/repository-workflow-contract.js";
-import * as state from "../agent/lib/repository-workflow-state.js";
-import * as lifecycle from "../agent/lib/working-repository-lifecycle.js";
+import { runScenarioFixture } from "../agent/lib/docs-maintenance-scenarios";
+import * as operations from "../agent/lib/repository-operations";
+import { repositoryInputSchema } from "../agent/lib/repository-contract";
+import * as facade from "../agent/lib/repository-workflow";
+import * as contract from "../agent/lib/repository-workflow-contract";
+import * as state from "../agent/lib/repository-workflow-state";
+import * as lifecycle from "../agent/lib/working-repository-lifecycle";
 
 class FakeSandbox {
   readonly commands: string[] = [];
@@ -80,7 +80,7 @@ const scenarioSource = await readFile(
   new URL("../agent/lib/docs-maintenance-scenarios.ts", import.meta.url),
   "utf8",
 );
-assert.match(scenarioSource, /from "\.\/repository-operations\.js"/);
+assert.match(scenarioSource, /from "\.\/repository-operations"/);
 assert.equal(scenarioSource.includes("ctx.getSandbox()"), false);
 
 const lifecycleSource = await readFile(

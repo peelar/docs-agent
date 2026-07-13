@@ -1,4 +1,4 @@
-import type { UserTestScenario } from "./schema.js";
+import type { UserTestScenario } from "./schema";
 
 const saleorDocsWorkingRepository: UserTestScenario["repositoryInput"]["workingDocumentationRepository"] = {
   source: {
