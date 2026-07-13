@@ -17,6 +17,29 @@ Markdown or MDX patch, a changelog entry, no documentation change, or a question
 for a maintainer. Patches are prepared and checked in an isolated repository
 workspace, and publishing remains behind explicit approval.
 
+## Get Started
+
+The [`setup` skill](./.agents/skills/setup/SKILL.md) is the go-to way to start
+with this repository. In Codex, run `$setup`. It installs Paige, connects your
+documentation repository and integrations, and checks that everything is ready.
+
+For manual local setup, use Node 24.18.0.
+
+```sh
+pnpm install
+pnpm eval --list
+pnpm dev
+```
+
+`pnpm dev` starts the Eve app and operator app together. Use
+`pnpm dev:agent --no-ui` or `pnpm dev:web` to run one app by itself.
+Portless keeps their local addresses stable while assigning internal ports:
+
+| App | Local address |
+| --- | --- |
+| Operator UI | <http://paige.localhost:1355> |
+| Eve agent | <http://agent.paige.localhost:1355> |
+
 ## How It Works
 
 ```text
@@ -44,27 +67,6 @@ Slack · Linear · Releases · Repositories
 | Durable state | Drizzle with local SQLite or a deployed libSQL-compatible database |
 | Writeback | Small checked diff, followed by an explicitly approved branch and draft PR |
 | Regression proof | Live Eve evals covering patches, no-change decisions, signals, safety, and conversation |
-
-## Run Locally
-
-Use Node 24.18.0.
-
-```sh
-pnpm install
-pnpm --filter @docs-agent/web exec playwright install chromium
-pnpm check
-pnpm eval --list
-pnpm dev
-```
-
-`pnpm dev` starts the Eve app and operator app together. Use
-`pnpm dev:agent --no-ui` or `pnpm dev:web` to run one app by itself.
-Portless keeps their local addresses stable while assigning internal ports:
-
-| App | Local address |
-| --- | --- |
-| Operator UI | <http://paige.localhost:1355> |
-| Eve agent | <http://agent.paige.localhost:1355> |
 
 ## Guides
 
