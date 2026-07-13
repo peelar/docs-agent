@@ -6,6 +6,7 @@ import type { Message, Thread, WebhookOptions } from "chat";
 import type {
   EphemeralWatchObservation,
   WatchEventAdmission,
+  WatchObservationAssemblyResult,
   WatchObservationClaimResult,
 } from "@docs-agent/control-plane/agent";
 
@@ -18,6 +19,7 @@ import {
 } from "../agent/lib/slack-chat-turn";
 import {
   SubscriptionFilteredSlackAdapter,
+  type AssembleClaimedWatchObservationInput,
   type ClaimNormalizedWatchObservationInput,
   type SlackWatchEventScope,
 } from "../agent/lib/subscription-filtered-slack-adapter";
@@ -43,6 +45,9 @@ class TestSlackAdapter extends SubscriptionFilteredSlackAdapter {
     claimWatchObservation?: (
       input: ClaimNormalizedWatchObservationInput,
     ) => Promise<WatchObservationClaimResult>;
+    assembleWatchObservation?: (
+      input: AssembleClaimedWatchObservationInput,
+    ) => Promise<WatchObservationAssemblyResult>;
   } = {}) {
     super({ botToken: "xoxb-test", webhookVerifier: () => true }, options);
   }
@@ -173,7 +178,9 @@ assert.deepEqual(
 
 const normalizedInputs: SlackWatchObservationInput[] = [];
 const claimedInputs: ClaimNormalizedWatchObservationInput[] = [];
+const assembledInputs: AssembleClaimedWatchObservationInput[] = [];
 const normalizedObservation = {} as EphemeralWatchObservation;
+const claimResult = {} as WatchObservationClaimResult;
 const normalizingWatchAdapter = new TestSlackAdapter({
   admitWatchEvent: async () => [{} as WatchEventAdmission],
   normalizeWatchEvent: async (input) => {
@@ -182,7 +189,11 @@ const normalizingWatchAdapter = new TestSlackAdapter({
   },
   claimWatchObservation: async (input) => {
     claimedInputs.push(input);
-    return {} as WatchObservationClaimResult;
+    return claimResult;
+  },
+  assembleWatchObservation: async (input) => {
+    assembledInputs.push(input);
+    return {} as WatchObservationAssemblyResult;
   },
 });
 await normalizingWatchAdapter.emit(event({ text: "normalize after admission" }));
@@ -196,6 +207,9 @@ assert.equal(normalizedInputs[0]?.isSelf, false);
 assert.equal(claimedInputs.length, 1);
 assert.equal(claimedInputs[0]?.admission, normalizedInputs[0]?.admission);
 assert.equal(claimedInputs[0]?.observation, normalizedObservation);
+assert.equal(assembledInputs.length, 1);
+assert.equal(assembledInputs[0]?.claimResult, claimResult);
+assert.equal(assembledInputs[0]?.observation, normalizedObservation);
 
 await watchFiltered.emit(event({ type: "app_mention", text: "@Paige direct path" }));
 await watchFiltered.emit(event({ channel: "D123", channel_type: "im", text: "DM path" }));

@@ -6,6 +6,7 @@ import {
 } from "@docs-agent/control-plane/provider-config";
 import { createLibSqlChatStateAdapter } from "@docs-agent/control-plane/agent";
 import {
+  assembleClaimedWatchObservation,
   claimWatchObservation,
   continueSlackThreadPresence,
   endSlackThreadPresence,
@@ -43,6 +44,12 @@ export const slackAdapter = createSubscriptionFilteredSlackAdapter({
       effectiveRevisionId: observation.effectiveRevisionId,
       source: observation.source,
       providerEventId: observation.provenance.providerEventId,
+    }),
+  assembleWatchObservation: ({ admission, claimResult, observation }) =>
+    assembleClaimedWatchObservation({
+      workspaceId: admission.workspaceId,
+      claimResult,
+      observation,
     }),
   admitOrdinaryMessage: async (threadId) => {
     const participation = (await readBehaviorSettings()).settings.participation;

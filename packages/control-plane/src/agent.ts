@@ -19,6 +19,7 @@ export { docsAgentDatabaseLocation } from "./db/client.ts";
 export * from "./watch-event-admission.ts";
 export * from "./watch-observation.ts";
 export * from "./watch-observation-claims.ts";
+export * from "./watch-observation-windows.ts";
 export {
   WATCH_CAPABILITY_REGISTRY_VERSION,
   type WatchCapabilityRegistry,

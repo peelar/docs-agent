@@ -227,6 +227,17 @@ the existing status. The checkpoint contains no message content, prompt,
 secret, permalink, or actor. Failed processing remains failed until an explicit
 compare-and-set retry advances the bounded attempt counter.
 
+After a first claim, `per_event` evaluation produces one ephemeral handoff and
+does not persist its content. `windowed` evaluation may persist only normalized
+observations in one collecting `watch_observation_windows` row, capped by the
+effective revision's duration, observation count, aggregate character limit,
+and raw-retention period. Handoff or retention expiry atomically removes the
+raw observations and leaves claim ids, counts, source scope, state, and
+timestamps. A pause, policy expiry, or effective-revision replacement closes
+the old collecting window without admitting another event. Trigger and
+delivery modes do not change these evaluation boundaries, and window closure
+does not introduce another scheduler.
+
 ## Integration Boundaries
 
 - Database: control-plane services hide Drizzle/libSQL details from apps and

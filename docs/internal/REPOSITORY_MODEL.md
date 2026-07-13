@@ -236,7 +236,9 @@ second workflow engine. Its durable record is split by responsibility:
 - `watch_lifecycle_events` owns append-only creation, approval, pause, resume,
   expiry, and deletion audit;
 - `watch_observation_claims` owns the minimal content-free idempotency state for
-  one effective revision, provider resource, and provider event occurrence.
+  one effective revision, provider resource, and provider event occurrence;
+- `watch_observation_windows` owns one bounded collecting window per effective
+  revision and clears its normalized raw observations on handoff or expiry.
 
 Deletion removes proposal and effective policy content but retains the watch
 identity and lifecycle audit tombstone. Natural-language goal edits and
@@ -284,6 +286,17 @@ token, inviter, activity, status, and expiry without becoming a docs signal.
 Ordinary admitted messages refresh a seven-day inactivity window and resume the
 same Eve thread; one-second durable burst debouncing combines short reply bursts
 into one observer turn.
+
+The first durable claim then enters evaluation independently from trigger and
+delivery timing. `per_event` produces one in-memory provider-neutral handoff
+without storing content. `windowed` holds normalized observations only until
+the effective duration, observation-count, aggregate-character, and raw-
+retention bounds require handoff or expiry. The collecting row survives a
+process restart, but handoff atomically clears its raw observations and retains
+only claim references, source scope, counts, state, and timestamps. Pause,
+policy expiry, or effective-revision replacement clears the old collecting
+window and rejects another join. Due-window flushing is a service boundary for
+the existing runtime to call; it is not a second scheduler.
 
 Accepted turns retain Slack actor auth, incremental context since Paige's last
 reply, thread delivery, and HITL user identity. Followed-thread observer turns

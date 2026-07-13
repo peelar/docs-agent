@@ -231,6 +231,46 @@ export const watchObservationClaims = sqliteTable(
   ],
 );
 
+export const watchObservationWindows = sqliteTable(
+  "watch_observation_windows",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    watchId: text("watch_id")
+      .notNull()
+      .references(() => policyBoundWatches.id, { onDelete: "cascade" }),
+    effectiveRevisionId: text("effective_revision_id")
+      .notNull()
+      .references(() => watchEffectiveRevisions.id, { onDelete: "restrict" }),
+    provider: text("provider").notNull(),
+    resourceType: text("resource_type").notNull(),
+    resourceId: text("resource_id").notNull(),
+    status: text("status").notNull(),
+    revision: integer("revision").notNull().default(1),
+    claimIds: text("claim_ids", { mode: "json" }).$type<string[]>().notNull(),
+    rawObservations: text("raw_observations", { mode: "json" }).$type<unknown[]>(),
+    observationCount: integer("observation_count").notNull(),
+    characterCount: integer("character_count").notNull(),
+    openedAt: text("opened_at").notNull(),
+    closesAt: text("closes_at").notNull(),
+    rawExpiresAt: text("raw_expires_at").notNull(),
+    handedOffAt: text("handed_off_at"),
+    expiredAt: text("expired_at"),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("watch_observation_windows_collecting_idx")
+      .on(table.workspaceId, table.effectiveRevisionId)
+      .where(sql`${table.status} = 'collecting'`),
+    index("watch_observation_windows_due_idx").on(
+      table.workspaceId,
+      table.status,
+      table.closesAt,
+      table.rawExpiresAt,
+    ),
+  ],
+);
+
 export const connectorDeliveryVerifications = sqliteTable(
   "connector_delivery_verifications",
   {
@@ -924,6 +964,7 @@ export const schema = {
   watchEffectiveRevisions,
   watchLifecycleEvents,
   watchObservationClaims,
+  watchObservationWindows,
   workspaceMemoryEvents,
   workspaceMemoryRecords,
   workspaceMemorySources,
