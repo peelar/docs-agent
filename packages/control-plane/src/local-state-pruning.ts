@@ -1,5 +1,5 @@
 import { execFileSync } from "node:child_process";
-import { existsSync, readlinkSync, readdirSync } from "node:fs";
+import { readlinkSync, readdirSync } from "node:fs";
 import { readdir, rm } from "node:fs/promises";
 import { relative, resolve, sep } from "node:path";
 
@@ -20,14 +20,6 @@ export type StoppedDevProcess = {
 export type LocalStatePruneResult = {
   removedPaths: string[];
   stoppedDevProcesses: StoppedDevProcess[];
-};
-
-export type LocalGitState = {
-  clean: boolean;
-  ahead: number;
-  behind: number;
-  stashCount: number;
-  activeOperations: string[];
 };
 
 export async function pruneLocalState(input: {
@@ -60,36 +52,6 @@ export async function findLocalStatePaths(repositoryRoot: string): Promise<strin
   const paths: string[] = [];
   await collectLocalStateUnder(root, root, paths);
   return paths.sort();
-}
-
-export function inspectLocalGitState(repositoryRoot: string): LocalGitState {
-  const root = resolve(repositoryRoot);
-  const status = commandOutput("git", ["status", "--porcelain=v2", "--branch"], root);
-  const branchLine = status.split("\n").find((line) => line.startsWith("# branch.ab "));
-  const branchMatch = branchLine?.match(/\+(\d+) -(\d+)/u);
-  const activeOperations = [
-    ["MERGE_HEAD", "merge"],
-    ["CHERRY_PICK_HEAD", "cherry-pick"],
-    ["REVERT_HEAD", "revert"],
-    ["BISECT_LOG", "bisect"],
-    ["rebase-apply", "rebase"],
-    ["rebase-merge", "rebase"],
-    ["sequencer", "sequencer"],
-    ["index.lock", "index-lock"],
-  ]
-    .filter(([marker]) => existsSync(resolve(root, ".git", marker!)))
-    .map(([, operation]) => operation!);
-
-  return {
-    clean: status.split("\n").every((line) => line === "" || line.startsWith("#")),
-    ahead: Number(branchMatch?.[1] ?? 0),
-    behind: Number(branchMatch?.[2] ?? 0),
-    stashCount: commandOutput("git", ["stash", "list"], root)
-      .split("\n")
-      .filter(Boolean)
-      .length,
-    activeOperations: [...new Set(activeOperations)],
-  };
 }
 
 export function isPaigeDevCommand(command: string): boolean {
