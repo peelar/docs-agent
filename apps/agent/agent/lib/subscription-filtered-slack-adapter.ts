@@ -87,23 +87,39 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
 
   protected forwardAcceptedMessage(
     event: SlackEvent,
-    options?: WebhookOptions,
-  ): void {
+    _options?: WebhookOptions,
+  ): Promise<void> {
     stageSlackSearchRequest(
       event,
       (method, body) => this.webClient.apiCall(method, body),
     );
-    this.forwardAcceptedMessageToChatSdk(
+    return this.forwardAcceptedMessageToChatSdk(
       redactSlackSearchSecrets(event),
-      options,
     );
   }
 
-  protected forwardAcceptedMessageToChatSdk(
+  protected async forwardAcceptedMessageToChatSdk(
     event: SlackEvent,
-    options?: WebhookOptions,
-  ): void {
-    super.handleMessageEvent(event, options);
+  ): Promise<void> {
+    if (!this.chat) {
+      throw new Error("Slack message cannot be processed before Chat SDK initialization.");
+    }
+    if (!event.channel || !event.ts) return;
+
+    const isDirectMessage = event.channel_type === "im";
+    const threadId = this.encodeThreadId({
+      channel: event.channel,
+      threadTs: isDirectMessage
+        ? event.thread_ts ?? ""
+        : event.thread_ts ?? event.ts,
+    });
+    const isMention = event.type === "app_mention";
+
+    await this.chat.processMessage(this, threadId, async () => {
+      const message = await this.parseSlackMessage(event, threadId);
+      if (isMention) message.isMention = true;
+      return message;
+    });
   }
 
   protected async isThreadSubscribed(threadId: string): Promise<boolean> {
@@ -129,7 +145,7 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
   ): Promise<void> {
     const threadId = slackThreadId(this, event);
     if (!(await this.isThreadSubscribed(threadId))) return;
-    this.forwardAcceptedMessage(event, options);
+    await this.forwardAcceptedMessage(event, options);
   }
 
   private async forwardIfEntryAdmitted(
@@ -138,7 +154,7 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
     options?: WebhookOptions,
   ): Promise<void> {
     if (await this.admitEntryMessage!(entry)) {
-      this.forwardAcceptedMessage(event, options);
+      await this.forwardAcceptedMessage(event, options);
     }
   }
 }

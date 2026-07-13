@@ -36,13 +36,25 @@ class TestSlackAdapter extends SubscriptionFilteredSlackAdapter {
     this._botUserId = userId;
   }
 
-  protected override forwardAcceptedMessageToChatSdk(event: SlackEvent): void {
+  protected override async forwardAcceptedMessageToChatSdk(event: SlackEvent): Promise<void> {
     this.forwarded.push(event);
   }
 
   protected override async isThreadSubscribed(threadId: string): Promise<boolean> {
     this.subscriptionChecks.push(threadId);
     return this.subscribed;
+  }
+}
+
+class AsyncForwardingTestSlackAdapter extends TestSlackAdapter {
+  completed = false;
+
+  protected override async forwardAcceptedMessageToChatSdk(
+    event: SlackEvent,
+  ): Promise<void> {
+    await new Promise((resolve) => setTimeout(resolve, 0));
+    await super.forwardAcceptedMessageToChatSdk(event);
+    this.completed = true;
   }
 }
 
@@ -85,6 +97,18 @@ await entryFiltered.emit(event({ type: "app_mention", text: "@Paige allowed" }))
 await entryFiltered.emit(event({ channel: "D123", channel_type: "im", text: "blocked" }));
 assert.equal(entryFiltered.forwarded.length, 1, "structured entry policy filters DMs before Chat SDK");
 assert.equal(entryFiltered.forwarded[0]?.type, "app_mention");
+
+const asyncForwarding = new AsyncForwardingTestSlackAdapter({
+  admitEntryMessage: async () => true,
+});
+await asyncForwarding.emit(
+  event({ type: "app_mention", text: "@Paige await me" }),
+);
+assert.equal(
+  asyncForwarding.completed,
+  true,
+  "entry admission keeps Chat SDK processing inside the registered waitUntil task",
+);
 
 await adapter.emit(event({ text: "unenrolled private content" }));
 assert.equal(adapter.forwarded.length, 2, "unenrolled channel content is not forwarded");
