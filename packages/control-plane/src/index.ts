@@ -11,6 +11,7 @@ export * from "./watch-policy-changes.ts";
 export * from "./watch-lifecycle.ts";
 export * from "./watch-service-readiness.ts";
 export * from "./watch-readiness.ts";
+export * from "./watch-observation.ts";
 
 export {
   DOCS_PROFILE_FORMAT_VERSION,
