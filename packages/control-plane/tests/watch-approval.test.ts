@@ -21,18 +21,16 @@ import {
 } from "../src/db/client.ts";
 import { watchPolicyRevisions } from "../src/db/schema.ts";
 import { WatchPolicyValidationError } from "../src/watch-policy-preview.ts";
+import {
+  prepareWatchWorkspace,
+  READY_WATCH_CAPABILITY_REGISTRY,
+  READY_WATCH_SERVICE_CONTEXT,
+} from "./watch-test-fixtures.ts";
 
 const NOW = new Date("2026-07-13T20:00:00.000Z");
 const APPROVAL_CONTEXT: WatchApprovalContext = {
   operator: { id: "operator-66", githubLogin: "docs-owner" },
-  availableCapabilities: [
-    "knowledge.read",
-    "repository.read",
-    "docs_work.manage",
-    "draft.edit",
-    "follow_up.schedule",
-    "provider.deliver",
-  ],
+  capabilityRegistry: READY_WATCH_CAPABILITY_REGISTRY,
   now: NOW,
 };
 
@@ -41,9 +39,12 @@ test("watch approval freezes one immutable effective revision", async () => {
     const proposed = await createProposedWatch({
       policy: validPolicy(),
       actor: { id: "author-66", githubLogin: "watch-author" },
-    });
+    }, READY_WATCH_SERVICE_CONTEXT);
     await assert.rejects(
-      () => getActivePolicyBoundWatch({ id: proposed.id }),
+      () => getActivePolicyBoundWatch(
+        { id: proposed.id },
+        { ...READY_WATCH_SERVICE_CONTEXT, now: NOW },
+      ),
       /is not active/,
     );
 
@@ -69,7 +70,10 @@ test("watch approval freezes one immutable effective revision", async () => {
       githubLogin: "docs-owner",
     });
 
-    const activeRead = await getActivePolicyBoundWatch({ id: proposed.id });
+    const activeRead = await getActivePolicyBoundWatch(
+      { id: proposed.id },
+      { ...READY_WATCH_SERVICE_CONTEXT, now: NOW },
+    );
     assert.equal(
       activeRead.effectiveRevision.id,
       approved.watch.effectiveRevision.id,
@@ -99,7 +103,10 @@ test("watch approval freezes one immutable effective revision", async () => {
         .set({ policy: changedProposal })
         .where(eq(watchPolicyRevisions.id, proposed.latestProposal.id));
     });
-    const afterProposalMutation = await getActivePolicyBoundWatch({ id: proposed.id });
+    const afterProposalMutation = await getActivePolicyBoundWatch(
+      { id: proposed.id },
+      { ...READY_WATCH_SERVICE_CONTEXT, now: NOW },
+    );
     assert.deepEqual(
       afterProposalMutation.effectiveRevision.policy,
       validPolicy(),
@@ -114,7 +121,7 @@ test("watch approval fails closed for missing, stale, invalid, or unavailable st
     const proposed = await createProposedWatch({
       policy: validPolicy(),
       actor: { id: "author-66", githubLogin: "watch-author" },
-    });
+    }, READY_WATCH_SERVICE_CONTEXT);
     const baseInput = {
       watchId: proposed.id,
       proposalRevisionId: proposed.latestProposal.id,
@@ -139,7 +146,10 @@ test("watch approval fails closed for missing, stale, invalid, or unavailable st
       }, APPROVAL_CONTEXT),
       /proposal changed concurrently/,
     );
-    assert.equal((await getPolicyBoundWatch({ id: proposed.id })).lifecycleState, "proposed");
+    assert.equal((await getPolicyBoundWatch(
+      { id: proposed.id },
+      READY_WATCH_SERVICE_CONTEXT,
+    )).lifecycleState, "proposed");
 
     await assert.rejects(
       () => approveWatchProposal({
@@ -150,7 +160,10 @@ test("watch approval fails closed for missing, stale, invalid, or unavailable st
       } as never, APPROVAL_CONTEXT),
       /invalid input/i,
     );
-    assert.equal((await getPolicyBoundWatch({ id: proposed.id })).lifecycleState, "proposed");
+    assert.equal((await getPolicyBoundWatch(
+      { id: proposed.id },
+      READY_WATCH_SERVICE_CONTEXT,
+    )).lifecycleState, "proposed");
 
     const invalid = await createProposedWatch({
       policy: {
@@ -159,7 +172,7 @@ test("watch approval fails closed for missing, stale, invalid, or unavailable st
         capabilityGrants: ["provider.deliver"],
       },
       actor: { id: "author-invalid", githubLogin: "watch-author" },
-    });
+    }, READY_WATCH_SERVICE_CONTEXT);
     await assert.rejects(
       () => approveWatchProposal({
         watchId: invalid.id,
@@ -170,7 +183,10 @@ test("watch approval fails closed for missing, stale, invalid, or unavailable st
       }, APPROVAL_CONTEXT),
       WatchPolicyValidationError,
     );
-    assert.equal((await getPolicyBoundWatch({ id: invalid.id })).lifecycleState, "proposed");
+    assert.equal((await getPolicyBoundWatch(
+      { id: invalid.id },
+      READY_WATCH_SERVICE_CONTEXT,
+    )).lifecycleState, "proposed");
 
     const readyDatabaseUrl = process.env.DOCS_AGENT_DATABASE_URL;
     process.env.DOCS_AGENT_DATABASE_URL = `file:${join(tempRoot, "unmigrated.sqlite")}`;
@@ -179,7 +195,10 @@ test("watch approval fails closed for missing, stale, invalid, or unavailable st
       /database schema is not ready/i,
     );
     process.env.DOCS_AGENT_DATABASE_URL = readyDatabaseUrl;
-    assert.equal((await getPolicyBoundWatch({ id: proposed.id })).lifecycleState, "proposed");
+    assert.equal((await getPolicyBoundWatch(
+      { id: proposed.id },
+      READY_WATCH_SERVICE_CONTEXT,
+    )).lifecycleState, "proposed");
   });
 });
 
@@ -232,6 +251,7 @@ async function withTemporaryDatabase(
   delete process.env.NODE_ENV;
   try {
     await migrateDocsAgentDatabase();
+    await prepareWatchWorkspace();
     await run(tempRoot);
   } finally {
     restoreEnvironment("DOCS_AGENT_DATABASE_URL", originalDatabaseUrl);

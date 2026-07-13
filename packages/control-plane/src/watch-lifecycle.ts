@@ -21,25 +21,29 @@ import {
   policyBoundWatchListItemSchema,
   proposedWatchPolicySchema,
   watchActorSchema,
-  watchCapabilityFamilySchema,
   watchLifecycleEventSchema,
   type MutateWatchLifecycleResult,
   type PolicyBoundWatchListItem,
   type WatchLifecycleEvent,
 } from "./watch-contract.ts";
 import { previewWatchPolicy } from "./watch-policy-preview.ts";
+import {
+  availableWatchCapabilities,
+  requireWatchServiceReady,
+  type WatchServiceContext,
+} from "./watch-service-readiness.ts";
 
-export type WatchLifecycleContext = {
+export type WatchLifecycleContext = WatchServiceContext & {
   operator: z.input<typeof watchActorSchema>;
-  availableCapabilities: z.input<typeof watchCapabilityFamilySchema>[];
-  now?: Date;
 };
 
 export async function listPolicyBoundWatches(
   input: z.input<typeof listPolicyBoundWatchesInputSchema> = {},
+  context: WatchServiceContext,
 ): Promise<PolicyBoundWatchListItem[]> {
   const parsed = listPolicyBoundWatchesInputSchema.parse(input);
-  const now = parsed.now ?? new Date().toISOString();
+  const readyContext = await requireWatchServiceReady(context);
+  const now = parsed.now ?? (readyContext.now ?? new Date()).toISOString();
 
   return withDocsAgentDatabase(async (db) => {
     const conditions = [eq(policyBoundWatches.workspaceId, DEFAULT_WORKSPACE_ID)];
@@ -53,7 +57,14 @@ export async function listPolicyBoundWatches(
       .orderBy(desc(policyBoundWatches.updatedAt), asc(policyBoundWatches.id))
       .limit(parsed.limit);
 
-    return Promise.all(rows.map(({ id }) => readWatchListItem(db, id, now)));
+    return Promise.all(rows.map(({ id }) =>
+      readWatchListItem(
+        db,
+        id,
+        now,
+        availableWatchCapabilities(readyContext),
+      )
+    ));
   });
 }
 
@@ -62,12 +73,12 @@ export async function mutateWatchLifecycle(
   context: WatchLifecycleContext,
 ): Promise<MutateWatchLifecycleResult> {
   const parsed = mutateWatchLifecycleInputSchema.parse(input);
-  const parsedContext = z.object({
-    operator: watchActorSchema,
-    availableCapabilities: z.array(watchCapabilityFamilySchema),
-    now: z.date().optional(),
-  }).strict().parse(context);
-  const occurredAt = (parsedContext.now ?? new Date()).toISOString();
+  const readyContext = await requireWatchServiceReady({
+    capabilityRegistry: context.capabilityRegistry,
+    now: context.now,
+  });
+  const operator = watchActorSchema.parse(context.operator);
+  const occurredAt = (readyContext.now ?? new Date()).toISOString();
 
   const transition = await withDocsAgentDatabase(async (db) =>
     db.transaction(async (tx) => {
@@ -100,8 +111,8 @@ export async function mutateWatchLifecycle(
       }
 
       const nextState = await resolveTransition(tx, watch, parsed.action, {
-        availableCapabilities: parsedContext.availableCapabilities,
-        now: parsedContext.now,
+        availableCapabilities: availableWatchCapabilities(readyContext),
+        now: readyContext.now,
       });
       const nextRevision = watch.stateRevision + 1;
       const nextEffectiveRevisionId = parsed.action === "delete"
@@ -131,7 +142,7 @@ export async function mutateWatchLifecycle(
         watchId: parsed.watchId,
         operationKey: parsed.operationKey,
         action: parsed.action,
-        actor: parsedContext.operator,
+        actor: operator,
         previousState: watch.lifecycleState,
         nextState,
         reason: parsed.reason,
@@ -179,20 +190,26 @@ export async function mutateWatchLifecycle(
     watch: await getPolicyBoundWatchLifecycleItem({
       watchId: parsed.watchId,
       now: occurredAt,
-    }),
+    }, readyContext),
   });
 }
 
 export async function getPolicyBoundWatchLifecycleItem(input: {
   watchId: string;
   now?: string;
-}): Promise<PolicyBoundWatchListItem> {
+}, context: WatchServiceContext): Promise<PolicyBoundWatchListItem> {
   const parsed = z.object({
     watchId: z.string().uuid(),
     now: z.string().datetime({ offset: true }).optional(),
   }).strict().parse(input);
+  const readyContext = await requireWatchServiceReady(context);
   return withDocsAgentDatabase((db) =>
-    readWatchListItem(db, parsed.watchId, parsed.now ?? new Date().toISOString())
+    readWatchListItem(
+      db,
+      parsed.watchId,
+      parsed.now ?? (readyContext.now ?? new Date()).toISOString(),
+      availableWatchCapabilities(readyContext),
+    )
   );
 }
 
@@ -223,7 +240,7 @@ async function resolveTransition(
   watch: NonNullable<Awaited<ReturnType<typeof readWatchIdentity>>>,
   action: z.output<typeof mutateWatchLifecycleInputSchema>["action"],
   context: {
-    availableCapabilities: z.output<typeof watchCapabilityFamilySchema>[];
+    availableCapabilities: WatchServiceContext["capabilityRegistry"]["availableCapabilities"];
     now?: Date;
   },
 ) {
@@ -324,6 +341,7 @@ async function readWatchListItem(
   db: Executor,
   watchId: string,
   now: string,
+  availableCapabilities: WatchServiceContext["capabilityRegistry"]["availableCapabilities"],
 ): Promise<PolicyBoundWatchListItem> {
   const watch = await readWatchIdentity(db, watchId);
   if (watch === undefined) {
@@ -335,6 +353,25 @@ async function readWatchListItem(
   const policyRetained = watch.lifecycleState !== "deleted" && (
     watch.effectiveRevisionId !== null || await hasProposedPolicy(db, watch.id)
   );
+  if (
+    (watch.lifecycleState === "active" || watch.lifecycleState === "paused") &&
+    watch.effectiveRevisionId !== null &&
+    expiresAt !== null &&
+    new Date(expiresAt).getTime() > new Date(now).getTime()
+  ) {
+    const effective = await readEffectiveRevision(db, watch.effectiveRevisionId);
+    if (effective === undefined) {
+      throw new Error("The watch effective revision is unavailable.");
+    }
+    previewWatchPolicy({
+      contractVersion: effective.contractVersion,
+      lifecycleState: "proposed",
+      policy: effective.policy,
+    }, {
+      availableCapabilities,
+      now: new Date(now),
+    });
+  }
   return policyBoundWatchListItemSchema.parse({
     id: watch.id,
     workspaceId: watch.workspaceId,

@@ -158,6 +158,8 @@ try {
 
   const publicEntry = await readFile(join(packageRoot, "src", "index.ts"), "utf8");
   assert.match(publicEntry, /import "server-only"/);
+  assert.match(publicEntry, /watch-readiness/);
+  assert.match(publicEntry, /watch-service-readiness/);
   assert.equal(publicEntry.includes("db/client"), false);
   assert.equal(publicEntry.includes("db/schema"), false);
 } finally {

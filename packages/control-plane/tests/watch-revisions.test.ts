@@ -21,19 +21,17 @@ import {
 } from "../src/db/client.ts";
 import { listWatchLifecycleEvents } from "../src/watch-lifecycle.ts";
 import type { ProposedWatchPolicy } from "../src/watch-contract.ts";
+import {
+  prepareWatchWorkspace,
+  READY_WATCH_CAPABILITY_REGISTRY,
+  READY_WATCH_SERVICE_CONTEXT,
+} from "./watch-test-fixtures.ts";
 
 const NOW = new Date("2026-07-13T20:00:00.000Z");
 const OPERATOR = { id: "operator-68", githubLogin: "docs-owner" };
 const APPROVAL_CONTEXT: WatchApprovalContext = {
   operator: OPERATOR,
-  availableCapabilities: [
-    "knowledge.read",
-    "repository.read",
-    "docs_work.manage",
-    "draft.edit",
-    "follow_up.schedule",
-    "provider.deliver",
-  ],
+  capabilityRegistry: READY_WATCH_CAPABILITY_REGISTRY,
   now: NOW,
 };
 
@@ -42,7 +40,7 @@ test("goal edits remain proposed until approved and preserve in-flight revisions
     const initial = await createProposedWatch({
       policy: validPolicy(),
       actor: { id: "author-68", githubLogin: "watch-author" },
-    });
+    }, READY_WATCH_SERVICE_CONTEXT);
     assert.equal(initial.latestProposal.changeClassification, null);
     const firstApproval = await approveWatchProposal({
       watchId: initial.id,
@@ -61,7 +59,11 @@ test("goal edits remain proposed until approved and preserve in-flight revisions
       watchId: initial.id,
       expectedProposalRevision: 1,
       policy: editedPolicy,
-    }, { operator: OPERATOR, now: new Date("2026-07-13T20:01:00.000Z") });
+    }, {
+      ...READY_WATCH_SERVICE_CONTEXT,
+      operator: OPERATOR,
+      now: new Date("2026-07-13T20:01:00.000Z"),
+    });
 
     assert.equal(edited.watch.latestProposal.revision, 2);
     assert.deepEqual(edited.watch.latestProposal.changeClassification, edited.classification);
@@ -72,7 +74,7 @@ test("goal edits remain proposed until approved and preserve in-flight revisions
     );
     const beforeApproval = await getActivePolicyBoundWatch(
       { id: initial.id },
-      { now: NOW },
+      { ...READY_WATCH_SERVICE_CONTEXT, now: NOW },
     );
     assert.equal(beforeApproval.effectiveRevision.id, firstEffectiveId);
     assert.deepEqual(beforeApproval.effectiveRevision.policy, validPolicy());
@@ -90,7 +92,7 @@ test("goal edits remain proposed until approved and preserve in-flight revisions
     const inFlight = await getEffectiveWatchRevision({
       watchId: initial.id,
       effectiveRevisionId: firstEffectiveId,
-    });
+    }, READY_WATCH_SERVICE_CONTEXT);
     assert.deepEqual(inFlight.policy, validPolicy());
     assert.equal(inFlight.id, firstEffectiveId);
     assert.equal(await effectiveRevisionCount(), 2);
@@ -120,12 +122,19 @@ test("narrowing edits are audited without mutating approved policy", async () =>
       watchId: initial.id,
       expectedProposalRevision: 1,
       policy: narrowedPolicy,
-    }, { operator: OPERATOR, now: new Date("2026-07-13T20:02:00.000Z") });
+    }, {
+      ...READY_WATCH_SERVICE_CONTEXT,
+      operator: OPERATOR,
+      now: new Date("2026-07-13T20:02:00.000Z"),
+    });
     assert.equal(edited.classification.hasAuthorityExpansion, false);
     assert.equal(edited.classification.hasAuthorityNarrowing, true);
     assert.equal(edited.watch.latestProposal.createdBy.id, OPERATOR.id);
     assert.deepEqual(
-      (await getActivePolicyBoundWatch({ id: initial.id }, { now: NOW }))
+      (await getActivePolicyBoundWatch(
+        { id: initial.id },
+        { ...READY_WATCH_SERVICE_CONTEXT, now: NOW },
+      ))
         .effectiveRevision.policy,
       approvedPolicy,
     );
@@ -135,10 +144,13 @@ test("narrowing edits are audited without mutating approved policy", async () =>
         watchId: initial.id,
         expectedProposalRevision: 1,
         policy: { ...narrowedPolicy, goal: "A stale edit." },
-      }, { operator: OPERATOR, now: NOW }),
+      }, { ...READY_WATCH_SERVICE_CONTEXT, operator: OPERATOR, now: NOW }),
       /proposal changed concurrently/,
     );
-    assert.equal((await getPolicyBoundWatch({ id: initial.id })).latestProposal.revision, 2);
+    assert.equal((await getPolicyBoundWatch(
+      { id: initial.id },
+      READY_WATCH_SERVICE_CONTEXT,
+    )).latestProposal.revision, 2);
   });
 });
 
@@ -150,19 +162,33 @@ test("concurrent edits produce one next revision and leave admission on the appr
         watchId: initial.id,
         expectedProposalRevision: 1,
         policy: { ...initial.effectiveRevision.policy, goal: "Concurrent goal A." },
-      }, { operator: OPERATOR, now: new Date("2026-07-13T20:03:00.000Z") }),
+      }, {
+        ...READY_WATCH_SERVICE_CONTEXT,
+        operator: OPERATOR,
+        now: new Date("2026-07-13T20:03:00.000Z"),
+      }),
       editWatchProposal({
         watchId: initial.id,
         expectedProposalRevision: 1,
         policy: { ...initial.effectiveRevision.policy, goal: "Concurrent goal B." },
-      }, { operator: OPERATOR, now: new Date("2026-07-13T20:03:01.000Z") }),
+      }, {
+        ...READY_WATCH_SERVICE_CONTEXT,
+        operator: OPERATOR,
+        now: new Date("2026-07-13T20:03:01.000Z"),
+      }),
     ]);
     assert.equal(edits.filter(({ status }) => status === "fulfilled").length, 1);
     assert.equal(edits.filter(({ status }) => status === "rejected").length, 1);
-    assert.equal((await getPolicyBoundWatch({ id: initial.id })).latestProposal.revision, 2);
+    assert.equal((await getPolicyBoundWatch(
+      { id: initial.id },
+      READY_WATCH_SERVICE_CONTEXT,
+    )).latestProposal.revision, 2);
     assert.equal(await proposalRevisionCount(), 2);
     assert.equal(
-      (await getActivePolicyBoundWatch({ id: initial.id }, { now: NOW }))
+      (await getActivePolicyBoundWatch(
+        { id: initial.id },
+        { ...READY_WATCH_SERVICE_CONTEXT, now: NOW },
+      ))
         .effectiveRevision.id,
       initial.effectiveRevision.id,
     );
@@ -173,7 +199,7 @@ async function createAndApprove() {
   const proposed = await createProposedWatch({
     policy: validPolicy(),
     actor: { id: "author-68", githubLogin: "watch-author" },
-  });
+  }, READY_WATCH_SERVICE_CONTEXT);
   return (await approveWatchProposal({
     watchId: proposed.id,
     proposalRevisionId: proposed.latestProposal.id,
@@ -238,6 +264,7 @@ async function withTemporaryDatabase(run: () => Promise<void>): Promise<void> {
   delete process.env.NODE_ENV;
   try {
     await migrateDocsAgentDatabase();
+    await prepareWatchWorkspace();
     await run();
   } finally {
     restoreEnvironment("DOCS_AGENT_DATABASE_URL", originalDatabaseUrl);

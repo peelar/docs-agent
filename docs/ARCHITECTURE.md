@@ -184,10 +184,35 @@ No current module is a SaaS registry, tenant router, or database provisioner.
 Deleting, exporting, restoring, or retaining one agent's product state must be
 possible without reading or rewriting another agent's database.
 
+### Policy-Bound Watch Persistence
+
+Policy-bound watches use the same typed control-plane and agent-owned database
+boundary as other Paige product state. `policy_bound_watches` stores the stable
+watch identity, lifecycle state, optimistic state revision, and current
+effective-revision pointer. `watch_policy_revisions` stores immutable proposals,
+including the audited classification of edits. `watch_effective_revisions`
+stores immutable approved policy copies, and `watch_lifecycle_events` stores the
+append-only actor, reason, transition, revision, and effective-policy reference.
+An unapproved proposal never changes the effective pointer; previously effective
+rows remain addressable for already admitted work until watch deletion removes
+policy content and leaves its lifecycle tombstone.
+
+The shared watch services are the only agent and operator-app access path to
+this state. Before creating, approving, resuming, listing admission-ready state,
+or returning an effective revision, they require all committed migrations, a
+valid canonical workspace setup, and a ready server-owned capability registry.
+Active and resumed policy is revalidated against that registry. Missing,
+unavailable, corrupt, expired, or internally inconsistent state fails visibly
+and never produces a usable watch. The secret-safe readiness projection reports
+`unavailable`, `invalid`, `proposed`, `paused`, `expired`, `active`, or `deleted`
+without exposing database configuration, credentials, or raw provider state.
+
 ## Integration Boundaries
 
 - Database: control-plane services hide Drizzle/libSQL details from apps and
   model-facing tools. The current client is deployment-bound, not request-bound.
+  Watch callers receive typed services and readiness projections, never tables,
+  a database client, or a caller-selected workspace or database.
 - Operator authentication: authorizes use of one deployed agent; it does not
   grant raw database access.
 - Provider adapters: authenticate and admit events before they can wake the

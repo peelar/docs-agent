@@ -17,6 +17,10 @@ import {
   migrateDocsAgentDatabase,
   withDocsAgentDatabase,
 } from "../src/db/client.ts";
+import {
+  prepareWatchWorkspace,
+  READY_WATCH_SERVICE_CONTEXT,
+} from "./watch-test-fixtures.ts";
 
 test("policy-bound watch proposals are durable and inactive", async () => {
   const tempRoot = await mkdtemp(join(tmpdir(), "paige-policy-bound-watch-"));
@@ -29,11 +33,12 @@ test("policy-bound watch proposals are durable and inactive", async () => {
 
   try {
     await migrateDocsAgentDatabase();
+    await prepareWatchWorkspace();
     const policy = fixturePolicy();
     const created = await createProposedWatch({
       policy,
       actor: { id: "operator-64", githubLogin: "docs-owner" },
-    });
+    }, READY_WATCH_SERVICE_CONTEXT);
 
     assert.equal(created.workspaceId, "default");
     assert.equal(created.lifecycleState, "proposed");
@@ -48,7 +53,10 @@ test("policy-bound watch proposals are durable and inactive", async () => {
       githubLogin: "docs-owner",
     });
 
-    const persisted = await getPolicyBoundWatch({ id: created.id });
+    const persisted = await getPolicyBoundWatch(
+      { id: created.id },
+      READY_WATCH_SERVICE_CONTEXT,
+    );
     assert.deepEqual(persisted, created);
 
     const rowCounts = await withDocsAgentDatabase(async (db) => {
@@ -66,7 +74,10 @@ test("policy-bound watch proposals are durable and inactive", async () => {
     assert.deepEqual(rowCounts, [1, 1, 0, 0, 0]);
 
     await assert.rejects(
-      () => getPolicyBoundWatch({ id: "00000000-0000-4000-8000-000000000064" }),
+      () => getPolicyBoundWatch(
+        { id: "00000000-0000-4000-8000-000000000064" },
+        READY_WATCH_SERVICE_CONTEXT,
+      ),
       /was not found/,
     );
 

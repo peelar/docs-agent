@@ -27,11 +27,16 @@ import {
   watchPolicyRevisions,
 } from "../src/db/schema.ts";
 import type { ProposedWatchPolicy } from "../src/watch-contract.ts";
+import {
+  prepareWatchWorkspace,
+  READY_WATCH_CAPABILITY_REGISTRY,
+  READY_WATCH_SERVICE_CONTEXT,
+} from "./watch-test-fixtures.ts";
 
 const NOW = new Date("2026-07-13T20:00:00.000Z");
 const LIFECYCLE_CONTEXT: WatchLifecycleContext = {
   operator: { id: "operator-67", githubLogin: "docs-owner" },
-  availableCapabilities: ["knowledge.read", "repository.read"],
+  capabilityRegistry: READY_WATCH_CAPABILITY_REGISTRY,
   now: NOW,
 };
 
@@ -41,7 +46,10 @@ test("watch lifecycle is audited, idempotent, and preserves approved authority",
     assert.equal(active.stateRevision, 2);
     const effectiveRevisionId = active.effectiveRevision.id;
 
-    const listed = await listPolicyBoundWatches({ now: NOW.toISOString() });
+    const listed = await listPolicyBoundWatches(
+      { now: NOW.toISOString() },
+      READY_WATCH_SERVICE_CONTEXT,
+    );
     assert.equal(listed.length, 1);
     assert.equal(listed[0]?.lifecycleState, "active");
     assert.equal(listed[0]?.admissionReady, true);
@@ -58,7 +66,10 @@ test("watch lifecycle is audited, idempotent, and preserves approved authority",
     assert.equal(paused.watch.admissionReady, false);
     assert.equal(paused.watch.effectiveRevisionId, effectiveRevisionId);
     await assert.rejects(
-      () => getActivePolicyBoundWatch({ id: active.id }, { now: NOW }),
+      () => getActivePolicyBoundWatch(
+        { id: active.id },
+        { ...READY_WATCH_SERVICE_CONTEXT, now: NOW },
+      ),
       /is not active/,
     );
 
@@ -105,7 +116,10 @@ test("watch lifecycle is audited, idempotent, and preserves approved authority",
     assert.equal(resumed.watch.stateRevision, 4);
     assert.equal(resumed.watch.effectiveRevisionId, effectiveRevisionId);
     assert.equal(
-      (await getActivePolicyBoundWatch({ id: active.id }, { now: NOW }))
+      (await getActivePolicyBoundWatch(
+        { id: active.id },
+        { ...READY_WATCH_SERVICE_CONTEXT, now: NOW },
+      ))
         .effectiveRevision.id,
       effectiveRevisionId,
     );
@@ -154,14 +168,17 @@ test("watch expiry and concurrent lifecycle mutations fail closed", async () => 
     const expiring = await createActiveWatch("2026-07-14T00:00:00.000Z");
     const afterExpiry = new Date("2026-07-14T00:00:01.000Z");
     await assert.rejects(
-      () => getActivePolicyBoundWatch({ id: expiring.id }, { now: afterExpiry }),
+      () => getActivePolicyBoundWatch(
+        { id: expiring.id },
+        { ...READY_WATCH_SERVICE_CONTEXT, now: afterExpiry },
+      ),
       /has expired/,
     );
     assert.equal(
       (await getPolicyBoundWatchLifecycleItem({
         watchId: expiring.id,
         now: afterExpiry.toISOString(),
-      })).admissionReady,
+      }, { ...READY_WATCH_SERVICE_CONTEXT, now: afterExpiry })).admissionReady,
       false,
     );
 
@@ -217,7 +234,7 @@ async function createActiveWatch(expiresAt: string) {
   const proposed = await createProposedWatch({
     policy: validPolicy(expiresAt),
     actor: { id: "author-67", githubLogin: "watch-author" },
-  });
+  }, READY_WATCH_SERVICE_CONTEXT);
   return (await approveWatchProposal({
     watchId: proposed.id,
     proposalRevisionId: proposed.latestProposal.id,
@@ -226,7 +243,7 @@ async function createActiveWatch(expiresAt: string) {
     idempotencyKey: `approve-${proposed.id}`,
   }, {
     operator: { id: "operator-67", githubLogin: "docs-owner" },
-    availableCapabilities: ["knowledge.read", "repository.read"],
+    capabilityRegistry: READY_WATCH_CAPABILITY_REGISTRY,
     now: NOW,
   })).watch;
 }
@@ -285,6 +302,7 @@ async function withTemporaryDatabase(run: () => Promise<void>): Promise<void> {
   delete process.env.NODE_ENV;
   try {
     await migrateDocsAgentDatabase();
+    await prepareWatchWorkspace();
     await run();
   } finally {
     restoreEnvironment("DOCS_AGENT_DATABASE_URL", originalDatabaseUrl);

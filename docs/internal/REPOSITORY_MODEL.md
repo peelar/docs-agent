@@ -222,6 +222,36 @@ operations are ordered within a process and retry only bounded `SQLITE_BUSY`
 contention, while database constraints and short transactions preserve
 correctness across instances.
 
+## Policy-Bound Watch State
+
+A watch is product state, not repository configuration, an Eve session, or a
+second workflow engine. Its durable record is split by responsibility:
+
+- `policy_bound_watches` owns workspace scope, lifecycle, optimistic state
+  revision, and the pointer to the approved effective revision;
+- `watch_policy_revisions` owns immutable proposed policies and deterministic
+  edit classifications;
+- `watch_effective_revisions` owns immutable approved policy copies so admitted
+  work stays bound to the revision it started with;
+- `watch_lifecycle_events` owns append-only creation, approval, pause, resume,
+  expiry, and deletion audit.
+
+Deletion removes proposal and effective policy content but retains the watch
+identity and lifecycle audit tombstone. Natural-language goal edits and
+structured authority edits always create a new proposal. They do not mutate an
+approved policy or change admission until the exact replacement is explicitly
+approved.
+
+All agent and web access goes through the shared control-plane exports. Those
+services require ready database migrations, canonical workspace setup, and a
+server-owned capability registry before they can create, approve, resume, list
+as admission-ready, or return effective watch authority. Active policy is
+revalidated on read. The readiness projection distinguishes unavailable,
+invalid, proposed, paused, expired, active, and deleted state without returning
+database locations, tokens, connector secrets, or raw policy validation input.
+Store, setup, registry, schema, or policy failures stop visibly; there is no
+in-memory watch, default active policy, or inferred authority fallback.
+
 Slack enters Eve through `chatSdkChannel` and the Chat SDK Slack adapter at the
 existing `/eve/v1/slack` route. Vercel Connect still resolves the app-scoped bot
 token and verifies trigger-forwarded requests. The adapter admits explicit app

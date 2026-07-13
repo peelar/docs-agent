@@ -9,6 +9,8 @@ export * from "./policy-bound-watches.ts";
 export * from "./watch-policy-preview.ts";
 export * from "./watch-policy-changes.ts";
 export * from "./watch-lifecycle.ts";
+export * from "./watch-service-readiness.ts";
+export * from "./watch-readiness.ts";
 
 export {
   DOCS_PROFILE_FORMAT_VERSION,

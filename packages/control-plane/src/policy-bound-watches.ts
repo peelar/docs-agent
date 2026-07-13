@@ -27,7 +27,6 @@ import {
   policyBoundWatchSchema,
   WATCH_POLICY_CONTRACT_VERSION,
   watchActorSchema,
-  watchCapabilityFamilySchema,
   type ActivePolicyBoundWatch,
   type ApproveWatchProposalResult,
   type EditWatchProposalResult,
@@ -37,15 +36,21 @@ import {
 import { classifyWatchPolicyChange } from "./watch-policy-changes.ts";
 import {
   previewWatchPolicy,
-  type WatchPolicyPreviewContext,
 } from "./watch-policy-preview.ts";
+import {
+  availableWatchCapabilities,
+  requireWatchServiceReady,
+  type WatchServiceContext,
+} from "./watch-service-readiness.ts";
 
 export * from "./watch-contract.ts";
 
 export async function createProposedWatch(
   input: z.input<typeof createProposedWatchInputSchema>,
+  context: WatchServiceContext,
 ): Promise<PolicyBoundWatch> {
   const parsed = createProposedWatchInputSchema.parse(input);
+  await requireWatchServiceReady(context);
   const watchId = randomUUID();
   const revisionId = randomUUID();
   const now = new Date().toISOString();
@@ -91,12 +96,11 @@ export async function createProposedWatch(
     });
   });
 
-  return getPolicyBoundWatch({ id: watchId });
+  return readPolicyBoundWatch({ id: watchId });
 }
 
-export type WatchProposalEditContext = {
+export type WatchProposalEditContext = WatchServiceContext & {
   operator: z.input<typeof watchActorSchema>;
-  now?: Date;
 };
 
 export async function editWatchProposal(
@@ -104,11 +108,12 @@ export async function editWatchProposal(
   context: WatchProposalEditContext,
 ): Promise<EditWatchProposalResult> {
   const parsed = editWatchProposalInputSchema.parse(input);
-  const parsedContext = z.object({
-    operator: watchActorSchema,
-    now: z.date().optional(),
-  }).strict().parse(context);
-  const createdAt = (parsedContext.now ?? new Date()).toISOString();
+  const readyContext = await requireWatchServiceReady({
+    capabilityRegistry: context.capabilityRegistry,
+    now: context.now,
+  });
+  const operator = watchActorSchema.parse(context.operator);
+  const createdAt = (readyContext.now ?? new Date()).toISOString();
   const revisionId = randomUUID();
 
   const classification = await withDocsAgentDatabase(async (db) =>
@@ -161,8 +166,8 @@ export async function editWatchProposal(
           contractVersion: WATCH_POLICY_CONTRACT_VERSION,
           policy: parsed.policy,
           changeClassification,
-          createdById: parsedContext.operator.id,
-          createdByLogin: parsedContext.operator.githubLogin,
+          createdById: operator.id,
+          createdByLogin: operator.githubLogin,
           createdAt,
         })
         .onConflictDoNothing()
@@ -192,12 +197,12 @@ export async function editWatchProposal(
   );
 
   return editWatchProposalResultSchema.parse({
-    watch: await getPolicyBoundWatch({ id: parsed.watchId }),
+    watch: await readPolicyBoundWatch({ id: parsed.watchId }),
     classification,
   });
 }
 
-export type WatchApprovalContext = WatchPolicyPreviewContext & {
+export type WatchApprovalContext = WatchServiceContext & {
   operator: z.input<typeof watchActorSchema>;
 };
 
@@ -206,12 +211,12 @@ export async function approveWatchProposal(
   context: WatchApprovalContext,
 ): Promise<ApproveWatchProposalResult> {
   const parsed = approveWatchProposalInputSchema.parse(input);
-  const parsedContext = z.object({
-    operator: watchActorSchema,
-    availableCapabilities: z.array(watchCapabilityFamilySchema),
-    now: z.date().optional(),
-  }).strict().parse(context);
-  const approvedAt = (parsedContext.now ?? new Date()).toISOString();
+  const readyContext = await requireWatchServiceReady({
+    capabilityRegistry: context.capabilityRegistry,
+    now: context.now,
+  });
+  const operator = watchActorSchema.parse(context.operator);
+  const approvedAt = (readyContext.now ?? new Date()).toISOString();
   const effectiveRevisionId = randomUUID();
 
   const activation = await withDocsAgentDatabase(async (db) =>
@@ -269,8 +274,8 @@ export async function approveWatchProposal(
         lifecycleState: "proposed",
         policy: watch.proposalPolicy,
       }, {
-        availableCapabilities: parsedContext.availableCapabilities,
-        now: parsedContext.now,
+        availableCapabilities: availableWatchCapabilities(readyContext),
+        now: readyContext.now,
       });
 
       const inserted = await tx
@@ -283,8 +288,8 @@ export async function approveWatchProposal(
           contractVersion: WATCH_POLICY_CONTRACT_VERSION,
           policy: preview.effectivePolicy,
           approvalKey: parsed.idempotencyKey,
-          approvedById: parsedContext.operator.id,
-          approvedByLogin: parsedContext.operator.githubLogin,
+          approvedById: operator.id,
+          approvedByLogin: operator.githubLogin,
           approvedAt,
         })
         .onConflictDoNothing()
@@ -337,8 +342,8 @@ export async function approveWatchProposal(
         workspaceId: DEFAULT_WORKSPACE_ID,
         operationKey: `watch-approved:${parsed.idempotencyKey}`,
         action: watch.lifecycleState === "active" ? "approve-replacement" : "approve",
-        actorId: parsedContext.operator.id,
-        actorLogin: parsedContext.operator.githubLogin,
+        actorId: operator.id,
+        actorLogin: operator.githubLogin,
         previousState: watch.lifecycleState,
         nextState: "active",
         reason: watch.lifecycleState === "active"
@@ -355,15 +360,16 @@ export async function approveWatchProposal(
 
   return approveWatchProposalResultSchema.parse({
     ...activation,
-    watch: await getActivePolicyBoundWatch({ id: parsed.watchId }),
+    watch: await getActivePolicyBoundWatch({ id: parsed.watchId }, readyContext),
   });
 }
 
 export async function getActivePolicyBoundWatch(
   input: z.input<typeof getPolicyBoundWatchInputSchema>,
-  context: { now?: Date } = {},
+  context: WatchServiceContext,
 ): Promise<ActivePolicyBoundWatch> {
   const parsed = getPolicyBoundWatchInputSchema.parse(input);
+  const readyContext = await requireWatchServiceReady(context);
 
   return withDocsAgentDatabase(async (db) => {
     const rows = await db
@@ -425,18 +431,28 @@ export async function getActivePolicyBoundWatch(
     const expiresAt = active.effectiveRevision.policy.expiresAt;
     if (
       expiresAt === null ||
-      new Date(expiresAt).getTime() <= (context.now ?? new Date()).getTime()
+      new Date(expiresAt).getTime() <= (readyContext.now ?? new Date()).getTime()
     ) {
       throw new Error(`Policy-bound watch ${parsed.id} has expired.`);
     }
+    previewWatchPolicy({
+      contractVersion: active.effectiveRevision.contractVersion,
+      lifecycleState: "proposed",
+      policy: active.effectiveRevision.policy,
+    }, {
+      availableCapabilities: availableWatchCapabilities(readyContext),
+      now: readyContext.now,
+    });
     return active;
   });
 }
 
 export async function getEffectiveWatchRevision(
   input: z.input<typeof getEffectiveWatchRevisionInputSchema>,
+  context: WatchServiceContext,
 ): Promise<EffectiveWatchRevision> {
   const parsed = getEffectiveWatchRevisionInputSchema.parse(input);
+  const readyContext = await requireWatchServiceReady(context);
   return withDocsAgentDatabase(async (db) => {
     const rows = await db
       .select()
@@ -453,7 +469,7 @@ export async function getEffectiveWatchRevision(
         `Effective revision ${parsed.effectiveRevisionId} was not found for watch ${parsed.watchId}.`,
       );
     }
-    return effectiveWatchRevisionSchema.parse({
+    const effective = effectiveWatchRevisionSchema.parse({
       id: row.id,
       watchId: row.watchId,
       proposalRevisionId: row.proposalRevisionId,
@@ -465,10 +481,27 @@ export async function getEffectiveWatchRevision(
       },
       approvedAt: row.approvedAt,
     });
+    previewWatchPolicy({
+      contractVersion: effective.contractVersion,
+      lifecycleState: "proposed",
+      policy: effective.policy,
+    }, {
+      availableCapabilities: availableWatchCapabilities(readyContext),
+      now: readyContext.now,
+    });
+    return effective;
   });
 }
 
 export async function getPolicyBoundWatch(
+  input: z.input<typeof getPolicyBoundWatchInputSchema>,
+  context: WatchServiceContext,
+): Promise<PolicyBoundWatch> {
+  await requireWatchServiceReady(context);
+  return readPolicyBoundWatch(input);
+}
+
+async function readPolicyBoundWatch(
   input: z.input<typeof getPolicyBoundWatchInputSchema>,
 ): Promise<PolicyBoundWatch> {
   const parsed = getPolicyBoundWatchInputSchema.parse(input);

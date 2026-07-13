@@ -34,6 +34,23 @@ A user or future schedule asks the agent to check configured sources such as
 watched repositories, release feeds, or channel/project scopes. The scan creates
 or updates docs signals. It does not write docs directly.
 
+### Policy-Bound Proactive Attention
+
+An operator may propose a bounded watch goal and structured source, context,
+capability, retention, budget, delivery, and expiry policy. Proposal preview,
+explicit approval, pause, resume, expiry, deletion, and replacement approval are
+shared control-plane operations; they are not model-authored workflow steps.
+Only the immutable effective revision can later admit work. Editing a goal or
+authority creates another proposal while existing and already admitted work
+remain bound to their original effective revision.
+
+Before any watch can become usable, the service rechecks database migrations,
+canonical workspace setup, the server-owned capability registry, lifecycle,
+expiry, and the exact effective policy. Failure reports unavailable or invalid
+readiness and stops. It does not create an Eve turn, infer default authority, or
+fall back to process memory. Provider event admission and watch-goal execution
+remain later workflow slices.
+
 ### Initiative Or Project Participation
 
 The agent follows a product effort over time by joining new Slack, Linear,
@@ -78,6 +95,7 @@ cookie or silently inherit web authentication.
 | Validation result recording and assurance | Give the control plane a durable assurance source and a read-only regression view without treating console or workflow internals as an API. | Typed shared run/case write and read services, structured Eve reporter callbacks, explicit live-eval versus deterministic-validation kinds, redacted summaries, stable ids, compatible earlier-baseline comparison, and 30-day bounded cleanup. | Parse CLI output, store prompts, outputs, context, reasoning, event streams, tool payloads, or credentials; weaken assertions, compare incompatible runs, run arbitrary commands from the browser, or hide persistence failures. |
 | Behavior settings | Let an operator tune Paige's voice and Slack participation without turning settings into an authority or prompt editor. | Strict personality and participation fields, server-owned audit actors, append-only settings events, non-default dynamic instruction modifiers, pre-Chat SDK mention and DM admission, and bounded followed-thread continuation. | Accept raw prompt text, edit permanent evidence or safety rules, widen mutation or publishing authority, accept a browser-supplied actor, or hide persistence failures. |
 | Operator workspace setup | Validate and persist the one canonical workspace configuration with an authenticated audit actor. | Status-page preflight over the shared repository validator and GitHub writeback preflight, followed by a revalidated save to `workspace_setup` and an append-only `workspace_setup_events` snapshot. | Persist before checks pass, create provider installations, widen watched repositories beyond read-only actions, or fork agent and web setup state. |
+| Policy-bound watch governance | Persist bounded proactive-attention authority as immutable proposals and effective revisions with audited lifecycle. | Shared create, preview, approval, edit classification, pause, resume, expiry, deletion, effective-revision read, and secret-safe readiness services over the agent-owned database, canonical setup, and server-owned capability registry. | Treat an unapproved proposal as active, infer missing authority, expose tables or credentials, accept browser-selected scope, or continue when storage, setup, registry, policy, or lifecycle state is invalid. |
 | Slack thread presence | Admit only invited thread replies and preserve conversational continuity. | Separate `slack_thread_presence` state plus Chat SDK subscriptions, one-second burst debounce, silent observer turns, dismissal, signal-resolution cleanup, and seven-day inactivity expiry. | Persist or model-process unenrolled channel traffic, create signals from ordinary chatter, or widen participation beyond the invited thread. |
 | Slack context retrieval | Fill one concrete context gap during the current Slack user's interaction. | Request-scoped `action_token`, one `assistant.search.context` call, up to five results, ephemeral summarization, and permalink-only citations through `retrieve_slack_context`. | Search ambiently, page automatically, expose tokens or raw hits to Eve state, retain results, or treat Slack discussion as verified public evidence. |
 | Signal intake | Convert provider context into a docs signal with provenance. | `capture_slack_docs_signal`, `capture_linear_docs_signal`; `create_docs_signal`, `list_docs_signals`, `get_docs_signal`, `update_docs_signal_lifecycle`; watched scans also create source evidence. | Inspect or patch docs directly. |
