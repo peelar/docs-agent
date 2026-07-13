@@ -5,6 +5,7 @@ export * from "./libsql-chat-state.ts";
 export * from "./slack-thread-presence.ts";
 export * from "./validation-results.ts";
 export * from "./behavior-settings.ts";
+export * from "./policy-bound-watches.ts";
 
 export {
   DOCS_PROFILE_FORMAT_VERSION,

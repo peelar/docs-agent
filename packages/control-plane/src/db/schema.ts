@@ -77,6 +77,53 @@ export const workspaceBehaviorSettingsEvents = sqliteTable(
   ],
 );
 
+export const policyBoundWatches = sqliteTable(
+  "policy_bound_watches",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    lifecycleState: text("lifecycle_state").notNull(),
+    createdAt: text("created_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    index("policy_bound_watches_workspace_state_idx").on(
+      table.workspaceId,
+      table.lifecycleState,
+      table.updatedAt,
+    ),
+  ],
+);
+
+export const watchPolicyRevisions = sqliteTable(
+  "watch_policy_revisions",
+  {
+    id: text("id").primaryKey(),
+    watchId: text("watch_id")
+      .notNull()
+      .references(() => policyBoundWatches.id, { onDelete: "cascade" }),
+    workspaceId: text("workspace_id").notNull(),
+    revision: integer("revision").notNull(),
+    contractVersion: integer("contract_version").notNull(),
+    policy: text("policy", { mode: "json" }).$type<unknown>().notNull(),
+    createdById: text("created_by_id").notNull(),
+    createdByLogin: text("created_by_login").notNull(),
+    createdAt: text("created_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("watch_policy_revisions_watch_revision_idx").on(
+      table.workspaceId,
+      table.watchId,
+      table.revision,
+    ),
+    index("watch_policy_revisions_watch_created_idx").on(
+      table.workspaceId,
+      table.watchId,
+      table.createdAt,
+    ),
+  ],
+);
+
 export const connectorDeliveryVerifications = sqliteTable(
   "connector_delivery_verifications",
   {
@@ -765,6 +812,7 @@ export const schema = {
   productRunSteps,
   productRunTraceLinks,
   productRuns,
+  policyBoundWatches,
   slackThreadPresences,
   workspaceMemoryEvents,
   workspaceMemoryRecords,
@@ -773,4 +821,5 @@ export const schema = {
   workspaceBehaviorSettingsEvents,
   workspaceSetup,
   workspaceSetupEvents,
+  watchPolicyRevisions,
 };
