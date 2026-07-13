@@ -86,6 +86,46 @@ export const proposedWatchPolicySchema = z.object({
   expiresAt: z.string().datetime({ offset: true }).nullable(),
 }).strict();
 
+export const watchPolicyDraftSchema = z.object({
+  source: watchSourceSchema,
+  goal: boundedTextSchema,
+  trigger: watchTriggerSchema.optional(),
+  evaluation: watchEvaluationSchema.optional(),
+  delivery: watchDeliverySchema.optional(),
+  context: watchContextPolicySchema.partial().optional(),
+  capabilityGrants: z.array(z.string().trim().min(1).max(200)).max(20).optional(),
+  retention: watchRetentionPolicySchema.partial().optional(),
+  budgets: watchBudgetPolicySchema.partial().optional(),
+  expiresAt: z.string().datetime({ offset: true }).nullable().optional(),
+}).strict();
+
+export const watchPolicyPreviewInputSchema = z.object({
+  contractVersion: z.number().int().positive().optional(),
+  lifecycleState: z.string().trim().min(1).max(100).optional(),
+  policy: watchPolicyDraftSchema,
+}).strict();
+
+export const watchPolicyConsequenceSchema = z.object({
+  kind: z.enum([
+    "source",
+    "evaluation",
+    "delivery",
+    "context",
+    "authority",
+    "retention",
+    "expiry",
+  ]),
+  summary: z.string().min(1),
+});
+
+export const watchPolicyPreviewSchema = z.object({
+  contractVersion: z.literal(WATCH_POLICY_CONTRACT_VERSION),
+  lifecycleState: z.literal("proposed"),
+  effectivePolicy: proposedWatchPolicySchema,
+  defaultsApplied: z.array(z.string().min(1)),
+  operatorConsequences: z.array(watchPolicyConsequenceSchema),
+});
+
 export const watchActorSchema = z.object({
   id: identifierSchema,
   githubLogin: identifierSchema,
@@ -124,4 +164,5 @@ export type ProposedWatchRevision = z.infer<typeof proposedWatchRevisionSchema>;
 export type PolicyBoundWatch = z.infer<typeof policyBoundWatchSchema>;
 export type WatchActor = z.infer<typeof watchActorSchema>;
 export type WatchCapabilityFamily = z.infer<typeof watchCapabilityFamilySchema>;
-
+export type WatchPolicyPreview = z.infer<typeof watchPolicyPreviewSchema>;
+export type WatchPolicyDraft = z.infer<typeof watchPolicyDraftSchema>;
