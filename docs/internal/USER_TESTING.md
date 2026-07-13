@@ -48,6 +48,26 @@ Expected result:
 - Produce no patch and no diff.
 - Do not push or open a draft PR.
 
+### Real Source-backed Gap: EditorJS Table Support
+
+Saleor 3.23.9 shipped support for `@editorjs/table`, but the current
+3.22-to-3.23 upgrade guide still presents an exhaustive supported-extension
+list without it. This Slack scenario uses the real release and source PR as
+evidence and exercises signal intake, current-docs verification, thread
+continuation, and Paige's general authoring path.
+
+Expected result:
+
+- Clone, refresh, or reuse `peelar/saleor-docs` in
+  `/workspace/working-docs`.
+- Inspect `docs/upgrade-guides/core/3-22-to-3-23.mdx` and nearby conventions.
+- Choose a focused patch without creating a content plan or new page.
+- Add `@editorjs/table` to the supported EditorJS extension list with its
+  correct package link and 3.23.9 version context.
+- Leave generated API reference files untouched.
+- Run sandboxed git diff checks before exporting a diff.
+- Leave publication waiting for explicit approval.
+
 ## Manual `/goal` Loop
 
 Use the scenario's rendered prompt as the `/goal` objective. The prompt sent to
@@ -85,10 +105,26 @@ persisted repository setup instead of asking for the same URL again. The
 configure step should validate and persist setup quickly; sandbox materializing
 can happen later when the docs workflow needs the checkout.
 
+## Manual Slack Loop
+
+The real EditorJS gap is exercised as a two-message Slack thread rather than a
+`/goal` run. Copy the messages from
+`apps/agent/evals/scenarios/manual/saleor-docs-editorjs-table-support.slack.md`.
+The first mention should capture and verify the signal without patching. After
+Paige reports the stale guide, the second message requests a reversible patch
+and checks in the same thread. A third, optional message explicitly approves a
+draft PR.
+
+Keep the human review contract out of Paige's context while testing:
+`apps/agent/evals/scenarios/manual/saleor-docs-editorjs-table-support.review.md`.
+
 ## Eve Evals
 
-`apps/agent/evals/saleor-docs-user-tests.eval.ts` registers both scenarios with hard
-assertions for the live agent behavior and repository workflow.
+`apps/agent/evals/saleor-docs-user-tests.eval.ts` registers the two deterministic
+scenarios with hard assertions for the live agent behavior and repository
+workflow. The EditorJS scenario remains a manual Slack thread so it exercises
+provider intake and the generic authoring path instead of adding another
+hard-coded scenario implementation.
 
 `apps/agent/evals/watched-repositories.eval.ts` registers the first watched-repository
 scan scenario. It configures `peelar/saleor-docs` as the working documentation
