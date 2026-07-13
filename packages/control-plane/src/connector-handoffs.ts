@@ -252,7 +252,7 @@ export function buildAppChannelStages(input: AppChannelProbe): ConnectorStage[] 
     "trigger",
     triggerState,
     triggerVerified
-      ? `A verified ${providerName} event reached Docs Agent at ${formatVerifiedAt(input.delivery!.verifiedAt)}.`
+      ? `A verified ${providerName} event reached Paige at ${formatVerifiedAt(input.delivery!.verifiedAt)}.`
       : triggerSummary(input.provider),
     triggerState === "action-required"
       ? attachTriggerAction(input.provider)
@@ -276,7 +276,7 @@ export function buildAppChannelStages(input: AppChannelProbe): ConnectorStage[] 
         linearGrantState,
         triggerVerified
           ? "A real Agent Session proves the app is assignable or mentionable in Linear."
-          : "Linear must grant app:assignable and app:mentionable before an Agent Session can reach Docs Agent.",
+          : "Linear must grant app:assignable and app:mentionable before an Agent Session can reach Paige.",
         linearGrantState === "action-required"
           ? manageConnectorAction("Linear")
           : null,
@@ -340,7 +340,7 @@ export function buildGitHubStages(input: {
       githubInstallationState,
       installationVerified
         ? "GitHub issued an installation-scoped app token."
-        : "A GitHub administrator must install or authorize the app; Docs Agent cannot consent on their behalf.",
+        : "A GitHub administrator must install or authorize the app; Paige cannot consent on their behalf.",
       githubInstallationState === "action-required"
         ? manageConnectorAction("GitHub")
         : null,

@@ -30,7 +30,8 @@ authentication, guided setup, connector handoffs, workspace-memory review, run
 history, approvals, assurance, and behavior settings now build on it.
 
 The operator surface builds on the existing agent workflow contract in
-`docs/internal/WORKFLOWS.md`; it does not replace or redefine those runtime boundaries.
+`docs/internal/WORKFLOWS.md`; it does not replace or redefine those runtime
+boundaries.
 
 This appetite still rules out multi-workspace accounts and roles, silent
 provider installation, a raw database or workflow-state editor, a custom
@@ -40,11 +41,11 @@ tracing backend, broad context ingestion, and autonomous publishing.
 
 | Milestone | Goal | Done When | Issues |
 | --- | --- | --- | --- |
-| M0 | Project setup and operating rules | README, root instructions, and planning docs establish the Eve-first Docs Agent contract. | #5 |
+| M0 | Project setup and operating rules | README, root instructions, and planning docs establish the Eve-first Paige contract. | #5 |
 | M1 | Sandboxed GitHub working-repository loop | The agent materializes one working docs repository, enforces repository policy, prepares and checks minimal patches, exports diffs, publishes approved draft PRs, and detects missing setup. | #6, #1, #2, #4, #7, #11 |
 | M2 | Safety and read-only source evidence | The repository workflow is covered for successful and fail-closed paths, and watched repositories can provide read-only release evidence. | #3, #8 |
 | M3 | Durable docs-signal workflows | Slack, Linear, watched scans, patch handoff, safety evals, and workspace memories use the app-owned database and shared docs-impact model. | #20, #28, #21, #22, #23, #24, #25, #26, #27, #29 |
-| M4 | Operator control plane first delivery | A local operator can see whether Docs Agent is ready, browse the durable work queue, and inspect signal provenance, lifecycle, and artifacts. | #35, #36, #38, #39, #40, #41 |
+| M4 | Operator control plane first delivery | A local operator can see whether Paige is ready, browse the durable work queue, and inspect signal provenance, lifecycle, and artifacts. | #35, #36, #38, #39, #40, #41 |
 
 ## M4 Slice Plan
 

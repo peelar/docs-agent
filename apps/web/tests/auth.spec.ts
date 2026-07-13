@@ -35,7 +35,7 @@ test("unauthenticated pages redirect to sign in and protected operations reject"
 
   await page.goto("/signals?state=open");
   await expect(page).toHaveURL(/\/sign-in\?returnTo=%2Fsignals%3Fstate%3Dopen$/);
-  await expect(page.getByRole("heading", { name: "Sign in to Docs Agent" }))
+  await expect(page.getByRole("heading", { name: "Sign in to Paige" }))
     .toBeVisible();
 
   await page.goto("/runs");

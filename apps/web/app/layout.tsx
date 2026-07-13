@@ -9,8 +9,8 @@ const geist = Geist({subsets:['latin'],variable:'--font-sans'});
 
 export const metadata: Metadata = {
   title: {
-    default: "Docs Agent",
-    template: "%s · Docs Agent",
+    default: "Paige",
+    template: "%s · Paige",
   },
   description: "A quiet control plane for documentation operations.",
 };

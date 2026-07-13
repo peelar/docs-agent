@@ -48,7 +48,7 @@ const proposed = await memory.proposeWorkspaceMemory({
   source: [
     {
       kind: "maintainer-decision",
-      label: "Docs maintainer correction",
+      label: "Paige correction",
       url: "https://example.com/decisions/private-metadata-docs",
       externalId: "decision-private-metadata",
       sourceText:

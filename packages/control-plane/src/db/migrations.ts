@@ -31,7 +31,7 @@ export function docsAgentMigrationsFolder(): string {
   }
 
   throw new Error(
-    `Docs Agent Drizzle migrations were not found. Checked: ${candidates.join(", ")}.`,
+    `Paige Drizzle migrations were not found. Checked: ${candidates.join(", ")}.`,
   );
 }
 

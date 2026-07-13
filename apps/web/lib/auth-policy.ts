@@ -31,7 +31,7 @@ export function createGitHubProfileMapper(
     const githubLogin = normalizeGitHubLogin(profile.login);
     if (!isApprovedGitHubLogin(githubLogin, approvedLogins)) {
       throw new APIError("FORBIDDEN", {
-        message: "This GitHub account is not approved for Docs Agent.",
+        message: "This GitHub account is not approved for Paige.",
       });
     }
     return {

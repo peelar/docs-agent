@@ -1,7 +1,7 @@
 ---
 name: next
 description: >-
-  Repo-specific $next workflow for docs-maintainer-agent. Use when the user
+  Repo-specific $next workflow for Paige. Use when the user
   writes "$next", says "next", or asks Codex to pick up the next GitHub issue
   in this repository. Inspect the ordered issue backlog, planning docs, repo
   instructions, Eve docs for changed runtime surfaces, and current main branch
@@ -15,7 +15,7 @@ description: >-
 
 ## Purpose
 
-Use this workflow to pick and ship the next coherent docs-maintainer-agent
+Use this workflow to pick and ship the next coherent Paige
 backlog item. This repo does not use the global `$next` draft-PR publishing
 loop. Work is intended to land directly on `main` after validation and explicit
 commit approval.
@@ -42,13 +42,14 @@ available.
      and credentials allow it.
 3. Read planning and operating context.
    - Always read `AGENTS.md`.
-   - Read `docs/internal/MANIFEST.md`, `docs/internal/ROADMAP.md`, and any relevant docs they
-     reference.
-   - Read relevant ADRs in `docs/internal/adr/` or `docs/internal/decisions/` when present.
-   - Read `docs/internal/REPOSITORY_MODEL.md` when repository setup, sandbox behavior,
-     writeback, watched repositories, or provenance are involved.
-   - Read `docs/internal/USER_TESTING.md` and existing files under `evals/` when the
-     task changes agent behavior or test coverage.
+   - Read `docs/internal/MANIFEST.md`, `docs/internal/ROADMAP.md`, and any
+     relevant docs they reference.
+   - Read relevant ADRs in `docs/internal/adr/` or
+     `docs/internal/decisions/` when present.
+   - Read `docs/internal/REPOSITORY_MODEL.md` when repository setup, sandbox
+     behavior, writeback, watched repositories, or provenance are involved.
+   - Read `docs/internal/USER_TESTING.md` and existing files under `evals/`
+     when the task changes agent behavior or test coverage.
    - Before writing Eve runtime code, tools, channels, skills, sandbox config,
      evals, or instructions, read the relevant installed Eve docs under
      `node_modules/eve/docs/`.
@@ -79,8 +80,9 @@ available.
 6. Assess whether the next open issue is still coherent.
    - Check that dependencies appear before dependent work.
    - Check for duplicate, stale, conditional, vague, or placeholder issues.
-   - Check that the issue still matches `docs/internal/MANIFEST.md`, `docs/internal/ROADMAP.md`,
-     repo docs, current code, and latest user feedback.
+   - Check that the issue still matches `docs/internal/MANIFEST.md`,
+     `docs/internal/ROADMAP.md`, repo docs, current code, and latest user
+     feedback.
    - Treat material disagreements as backlog problems and suggest `$refine`
      rather than selecting premature implementation work.
 7. Select exactly one issue when the backlog is coherent.

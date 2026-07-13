@@ -1,4 +1,4 @@
-# eve Agent App
+# Paige
 
 This project uses the eve framework. Before writing code, read the relevant guide
 from the installed eve package docs. In most installs, those docs are at

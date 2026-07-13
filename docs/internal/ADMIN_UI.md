@@ -4,7 +4,7 @@ Status: Internal product plan
 
 ## Purpose
 
-Docs Agent needs a small web control plane around the durable state it already
+Paige needs a small web control plane around the durable state it already
 owns. The first useful product is not a generic dashboard. It is a place to see
 whether the agent is ready, inspect the docs work it has collected, and
 understand what happened to each signal.
@@ -76,7 +76,7 @@ installation.
 
 ### Workspace setup
 
-Once one surface can reach Docs Agent, the agent or the web app can collect the
+Once one surface can reach Paige, the agent or the web app can collect the
 working documentation repository, watched repositories, and GitHub writeback
 configuration. Both interfaces use the same persisted setup services and show
 the same readiness result.
@@ -124,7 +124,7 @@ the browser cannot import the package's agent or raw database entrypoints.
 
 Tracked by [#39](https://github.com/peelar/docs-agent/issues/39).
 
-The first real screen now answers one question: is Docs Agent ready?
+The first real screen now answers one question: is Paige ready?
 
 It should distinguish configured, reachable, verified, blocked, and unknown for
 at least:
@@ -399,6 +399,6 @@ folded into the web foundation.
 ## Success
 
 The first delivery is useful when a local operator can open the app,
-understand whether Docs Agent is ready, see the durable work queue, and inspect
+understand whether Paige is ready, see the durable work queue, and inspect
 the full evidence and lifecycle of one signal without reaching for SQLite or
 runtime logs.

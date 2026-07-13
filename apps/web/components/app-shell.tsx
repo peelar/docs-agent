@@ -34,7 +34,7 @@ export function AppShell({
         <Link
           className="flex w-fit items-center gap-3 rounded-md"
           href="/"
-          aria-label="Docs Agent home"
+          aria-label="Paige home"
         >
           <span
             className="grid size-11 shrink-0 place-items-center overflow-hidden rounded-full border border-foreground/25 bg-background"
@@ -43,8 +43,8 @@ export function AppShell({
             <Image className="size-full object-cover" src="/paige-magpie.png" alt="" width={128} height={128} priority />
           </span>
           <span className="grid gap-0.5 max-sm:hidden">
-            <span className="font-heading text-xl leading-none font-semibold tracking-tight">Docs Agent</span>
-            <span className="font-mono text-[0.64rem] font-bold tracking-[0.1em] text-muted-foreground uppercase">by Paige</span>
+            <span className="font-heading text-xl leading-none font-semibold tracking-tight">Paige</span>
+            <span className="font-mono text-[0.64rem] font-bold tracking-[0.1em] text-muted-foreground uppercase">Technical editor</span>
           </span>
         </Link>
 

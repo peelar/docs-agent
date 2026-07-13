@@ -44,7 +44,7 @@ export function resolveDocsAgentDatabaseConfig(
 
   if (url === undefined && isDeployedRuntime(env)) {
     throw new DatabaseConfigurationError(
-      `${DOCS_AGENT_DATABASE_URL_ENV} is required for deployed Docs Agent setup persistence.`,
+      `${DOCS_AGENT_DATABASE_URL_ENV} is required for deployed Paige setup persistence.`,
     );
   }
 
@@ -85,7 +85,7 @@ export async function migrateDocsAgentDatabase(): Promise<void> {
     });
     await assertDocsAgentDatabaseReady(connection.db);
   } catch (error) {
-    throw new Error(`Docs Agent database migration failed: ${formatUnknownError(error)}`);
+    throw new Error(`Paige database migration failed: ${formatUnknownError(error)}`);
   } finally {
     connection.client.close();
   }
@@ -100,7 +100,7 @@ export async function withDocsAgentDatabase<T>(
     try {
       await assertDocsAgentDatabaseReady(connection.db);
     } catch (error) {
-      throw new Error(`Docs Agent database is unavailable: ${formatUnknownError(error)}`);
+      throw new Error(`Paige database is unavailable: ${formatUnknownError(error)}`);
     }
 
     return await fn(connection.db);

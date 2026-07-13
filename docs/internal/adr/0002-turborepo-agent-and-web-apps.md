@@ -6,7 +6,7 @@ Supersedes: None
 
 ## Context
 
-Docs Agent currently runs as one Eve application at the repository root. The
+Paige currently runs as one Eve application at the repository root. The
 next product surface is an authenticated web control plane for setup readiness,
 the docs-signal queue, signal evidence, and later operator workflows.
 

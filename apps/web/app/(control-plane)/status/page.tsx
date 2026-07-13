@@ -28,7 +28,7 @@ export default async function StatusPage({
       <PageHeading
         index="01"
         title="Status"
-        summary="A single place to understand whether Docs Agent is ready and what needs attention."
+        summary="A single place to understand whether Paige is ready and what needs attention."
       />
       <ReadinessBoard report={report} />
       <WorkspaceOnboarding

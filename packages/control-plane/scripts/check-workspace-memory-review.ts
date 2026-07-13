@@ -171,7 +171,7 @@ async function propose(
   return proposeWorkspaceMemory({
     kind: input.kind,
     statement,
-    scope: "Docs Agent operator review",
+    scope: "Paige operator review",
     summary: `Summary for ${statement}.`,
     tags: input.tags,
     confidence: "medium",

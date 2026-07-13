@@ -4,8 +4,9 @@
   "private": true,
   "packageManager": "pnpm@9.15.0",
   "scripts": {
+    "brand:check": "node scripts/check-brand-name.mjs",
     "build": "turbo run build",
-    "check": "turbo run check && pnpm monorepo:smoke && pnpm status:smoke",
+    "check": "turbo run check && pnpm brand:check && pnpm monorepo:smoke && pnpm status:smoke",
     "db:generate": "pnpm --filter @docs-agent/control-plane db:generate",
     "db:migrate": "pnpm --filter @docs-agent/control-plane db:migrate",
     "dev": "turbo run dev --filter=docs-agent --",

@@ -79,7 +79,7 @@ export async function assertDocsAgentDatabaseReady(
 
 function notReady(reason: string): DatabaseSchemaNotReadyError {
   return new DatabaseSchemaNotReadyError(
-    `Docs Agent database schema is not ready. Run pnpm db:migrate before starting the agent. ${reason}`,
+    `Paige database schema is not ready. Run pnpm db:migrate before starting the agent. ${reason}`,
   );
 }
 

@@ -43,7 +43,7 @@ export function buildGitHubAuthOptions(
   const plugins = [...(overrides.plugins ?? []), nextCookies()];
   return {
     ...(overrides.database ? { database: overrides.database } : {}),
-    appName: "Docs Agent Operator",
+    appName: "Paige",
     baseURL: configuration.baseURL,
     secret: configuration.secret,
     trustedOrigins: [configuration.baseURL],

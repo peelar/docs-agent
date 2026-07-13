@@ -2,7 +2,7 @@
 
 ## Product Stance
 
-Docs Agent is an open-source agent for software teams that keep product
+Paige is an open-source agent for software teams that keep product
 documentation in Git. Its first job is not to broadly generate prose. Its job is
 to inspect engineering context, decide whether documentation is affected, and
 make the smallest reviewable intervention that solves the reader's problem when
@@ -10,7 +10,7 @@ the evidence supports it.
 
 The agent should be present where work happens. Product decisions, release
 intent, support signals, and behavior clarifications often appear in Slack and
-Linear before they become a pull request or release artifact. Docs Agent
+Linear before they become a pull request or release artifact. Paige
 captures those signals with provenance, decides what kind of docs work they
 imply, and verifies the current documentation state when the signal is
 substantive enough to justify repository inspection.
@@ -78,7 +78,7 @@ communication thread, issue-tracker item, decision record, release note, or
 customer report. It preserves provenance, source shape, timestamps, authors,
 links, and relationships instead of becoming a plain text blob.
 
-**Docs signals** are durable units of Docs Agent work produced from external
+**Docs signals** are durable units of Paige work produced from external
 context, watched-repository evidence, or future scheduled scans. A signal
 records the claim or change being discussed, source provenance, suspected docs
 surfaces, uncertainty, related repository or release references, and current
@@ -221,7 +221,7 @@ a domain projection over Eve execution, not a separate workflow engine.
 - Signals from Slack, Linear, watched repositories, and release context can be
   joined so the agent does not lose context between discovery, verification,
   patch preparation, and final writeback.
-- A local operator can tell whether Docs Agent is ready, browse the
+- A local operator can tell whether Paige is ready, browse the
   durable docs-signal queue, and inspect signal evidence and lifecycle without
   reading SQLite or runtime logs.
 
@@ -248,15 +248,17 @@ a domain projection over Eve execution, not a separate workflow engine.
 ## Truth Surfaces
 
 - GitHub Issues: executable backlog and completion source of truth.
-- `docs/internal/ROADMAP.md`: milestones, appetite, dependencies, and fallback order.
-- `docs/internal/REPOSITORY_MODEL.md`: working docs repository, watched repository,
-  context repository, external context, sandbox, and provenance contract.
-- `docs/internal/USER_TESTING.md`: manual user-test scenarios, expected outcomes, and
-  eval readiness notes.
-- `docs/internal/WORKFLOWS.md`: docs-signal workflow model, runtime boundaries, and tool
-  mapping for channel, scan, verification, patch, and writeback work.
-- `docs/internal/ADMIN_UI.md`: operator control-plane scope, onboarding boundary, and
-  delivery order.
+- `docs/internal/ROADMAP.md`: milestones, appetite, dependencies, and fallback
+  order.
+- `docs/internal/REPOSITORY_MODEL.md`: working docs repository, watched
+  repository, context repository, external context, sandbox, and provenance
+  contract.
+- `docs/internal/USER_TESTING.md`: manual user-test scenarios, expected
+  outcomes, and eval readiness notes.
+- `docs/internal/WORKFLOWS.md`: docs-signal workflow model, runtime boundaries,
+  and tool mapping for channel, scan, verification, patch, and writeback work.
+- `docs/internal/ADMIN_UI.md`: operator control-plane scope, onboarding
+  boundary, and delivery order.
 - `docs/DEVELOPMENT.md`, `docs/DEPLOYMENT.md`, and `docs/TEAM_CONTEXT.md`: local
   setup, production deployment, and provider installation contracts.
 - `apps/agent/evals/scenarios/`: typed user-test fixture data used by manual tests and

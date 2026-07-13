@@ -1,6 +1,6 @@
-# Docs Agent Workflows
+# Paige Workflows
 
-Docs Agent work starts from a docs signal and ends with a report, a lifecycle
+Paige work starts from a docs signal and ends with a report, a lifecycle
 state change, a patch handoff, or a maintainer question. Current-docs
 verification is one capability inside these workflows, not the whole product.
 
@@ -135,7 +135,7 @@ cookie or silently inherit web authentication.
 
 ### Slack Mention With Source Evidence
 
-1. A user mentions Docs Agent in a Slack thread: "Does this API change need docs?"
+1. A user mentions Paige in a Slack thread: "Does this API change need docs?"
 2. Slack thread context is captured as a `slack-thread` signal source.
 3. `capture_slack_docs_signal` maps the Slack thread into
    `communication-thread` external context and creates or dedupes the signal.
@@ -154,7 +154,7 @@ cookie or silently inherit web authentication.
 
 ### Linear Issue Without Source Evidence
 
-1. A Linear Agent Session asks Docs Agent to check an issue.
+1. A Linear Agent Session asks Paige to check an issue.
 2. `capture_linear_docs_signal` maps the issue and Agent Session context into
    `issue-tracker-item` external context and captures a `linear-issue` signal
    source.

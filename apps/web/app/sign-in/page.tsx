@@ -18,7 +18,7 @@ export default function SignInPage() {
               Single operator workspace
             </p>
             <h1 className="font-heading text-3xl font-medium leading-snug">
-              Sign in to Docs Agent
+              Sign in to Paige
             </h1>
             <CardDescription className="text-sm leading-6">
               Use an approved GitHub account. There is no public signup.

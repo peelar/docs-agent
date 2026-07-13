@@ -620,7 +620,7 @@ only this typed projection, never the database client, tables, or Eve reporter.
 
 ## Docs Impact Decision Model
 
-Docs Agent uses a shared decision contract for signal triage, watched-release
+Paige uses a shared decision contract for signal triage, watched-release
 findings, scenario workflows, and future Slack/Linear intake. The shared
 decision record carries:
 

@@ -6,7 +6,7 @@ Supersedes: None
 
 ## Context
 
-Docs Agent needs both infrastructure setup and product setup. They cannot all
+Paige needs both infrastructure setup and product setup. They cannot all
 happen in the same place.
 
 Slack, Linear, and GitHub app credentials are app-scoped. Their Vercel Connect
@@ -15,7 +15,7 @@ channels can receive the first message or issue an app token. An agent cannot
 install the Slack app required to deliver the Slack message that is supposed to
 start onboarding.
 
-Once one channel or web surface is reachable, Docs Agent can already collect
+Once one channel or web surface is reachable, Paige can already collect
 workspace configuration conversationally. The current setup gate persists the
 working documentation repository and GitHub writeback state in the app-owned
 database and asks for missing setup at turn start.
