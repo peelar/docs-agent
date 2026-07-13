@@ -11,6 +11,7 @@ const agentPackageJson = JSON.parse(readFileSync(join(agentRoot, "package.json")
 const webPackageJson = JSON.parse(
   readFileSync(join(repositoryRoot, "apps", "web", "package.json"), "utf8"),
 );
+const portlessJson = JSON.parse(readFileSync(join(repositoryRoot, "portless.json"), "utf8"));
 const turboJson = JSON.parse(readFileSync(join(repositoryRoot, "turbo.json"), "utf8"));
 
 const workspaceSetupSkillPath = join(
@@ -70,41 +71,49 @@ for (const sourceRoot of typescriptSourceRoots) {
   }
 }
 
-for (const script of ["dev", "build", "typecheck", "test", "check"]) {
+for (const script of ["build", "typecheck", "test", "check"]) {
   if (!packageJson.scripts?.[script]?.includes("turbo run")) {
     throw new Error(`Root script ${script} must run through Turborepo.`);
   }
 }
 
-if (packageJson.scripts?.dev !== "pnpm dev:proxy && turbo run dev") {
-  throw new Error("Root pnpm dev must start Portless and every workspace development task.");
-}
-if (packageJson.scripts?.["dev:proxy"] !== "portless proxy start --no-tls --port 1355") {
-  throw new Error("Local development must use the shared Portless proxy on port 1355.");
+if (packageJson.scripts?.dev !== "PORTLESS_PORT=1355 PORTLESS_HTTPS=0 portless") {
+  throw new Error("Root pnpm dev must start every app through the shared Portless proxy.");
 }
 if (
-  !packageJson.scripts?.["dev:agent"]?.includes("pnpm dev:proxy") ||
-  !packageJson.scripts?.["dev:agent"]?.includes("--filter=docs-agent")
+  !packageJson.scripts?.["dev:agent"]?.includes("--filter docs-agent") ||
+  !packageJson.scripts?.["dev:agent"]?.includes("--name agent.paige")
 ) {
-  throw new Error("The focused agent development command must filter to docs-agent.");
+  throw new Error("The focused agent development command must use the agent.paige route.");
 }
 if (
-  !packageJson.scripts?.["dev:web"]?.includes("pnpm dev:proxy") ||
-  !packageJson.scripts?.["dev:web"]?.includes("--filter=@docs-agent/web")
+  !packageJson.scripts?.["dev:web"]?.includes("--filter @docs-agent/web") ||
+  !packageJson.scripts?.["dev:web"]?.includes("--name paige")
 ) {
-  throw new Error("The focused web development command must filter to @docs-agent/web.");
+  throw new Error("The focused web development command must use the paige route.");
 }
 if (packageJson.devDependencies?.portless !== "0.15.1") {
   throw new Error("The workspace must pin the Portless development proxy version.");
 }
-if (!agentPackageJson.scripts?.dev?.includes("portless agent.paige eve dev")) {
-  throw new Error("The Eve development server must use the agent.paige Portless route.");
+if (portlessJson.script !== "dev:portless") {
+  throw new Error("Portless must run the dedicated workspace development task.");
 }
 if (
-  !webPackageJson.scripts?.dev?.includes("portless paige next dev") ||
-  !webPackageJson.scripts?.dev?.includes("portless get agent.paige")
+  portlessJson.apps?.["apps/agent"]?.name !== "agent.paige" ||
+  portlessJson.apps?.["apps/agent"]?.proxy !== true ||
+  portlessJson.apps?.["apps/web"]?.name !== "paige" ||
+  portlessJson.apps?.["apps/web"]?.proxy !== true
 ) {
-  throw new Error("The operator app must use Portless and address Eve through its named route.");
+  throw new Error("Portless must expose the stable Paige app routes.");
+}
+if (agentPackageJson.scripts?.["dev:portless"] !== "pnpm dev") {
+  throw new Error("The Eve app must expose its development task to Portless.");
+}
+if (!webPackageJson.scripts?.["dev:portless"]?.includes("portless get agent.paige")) {
+  throw new Error("The operator app must address Eve through its named route.");
+}
+if (turboJson.tasks?.["dev:portless"]?.persistent !== true) {
+  throw new Error("The Portless development task must be persistent in Turborepo.");
 }
 
 const agentBuildTask = turboJson.tasks?.["docs-agent#build"];
