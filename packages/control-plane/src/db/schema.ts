@@ -111,6 +111,8 @@ export const watchPolicyRevisions = sqliteTable(
     createdById: text("created_by_id").notNull(),
     createdByLogin: text("created_by_login").notNull(),
     createdAt: text("created_at").notNull(),
+    changeClassification: text("change_classification", { mode: "json" })
+      .$type<unknown>(),
   },
   (table) => [
     uniqueIndex("watch_policy_revisions_watch_revision_idx").on(

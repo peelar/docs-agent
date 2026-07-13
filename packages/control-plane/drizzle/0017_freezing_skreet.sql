@@ -1,0 +1,1 @@
+ALTER TABLE `watch_policy_revisions` ADD `change_classification` text;

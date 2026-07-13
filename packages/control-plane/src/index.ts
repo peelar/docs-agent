@@ -7,6 +7,7 @@ export * from "./validation-results.ts";
 export * from "./behavior-settings.ts";
 export * from "./policy-bound-watches.ts";
 export * from "./watch-policy-preview.ts";
+export * from "./watch-policy-changes.ts";
 export * from "./watch-lifecycle.ts";
 
 export {

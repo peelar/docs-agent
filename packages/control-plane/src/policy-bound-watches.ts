@@ -19,6 +19,10 @@ import {
   approveWatchProposalInputSchema,
   approveWatchProposalResultSchema,
   createProposedWatchInputSchema,
+  editWatchProposalInputSchema,
+  editWatchProposalResultSchema,
+  effectiveWatchRevisionSchema,
+  getEffectiveWatchRevisionInputSchema,
   getPolicyBoundWatchInputSchema,
   policyBoundWatchSchema,
   WATCH_POLICY_CONTRACT_VERSION,
@@ -26,8 +30,11 @@ import {
   watchCapabilityFamilySchema,
   type ActivePolicyBoundWatch,
   type ApproveWatchProposalResult,
+  type EditWatchProposalResult,
+  type EffectiveWatchRevision,
   type PolicyBoundWatch,
 } from "./watch-contract.ts";
+import { classifyWatchPolicyChange } from "./watch-policy-changes.ts";
 import {
   previewWatchPolicy,
   type WatchPolicyPreviewContext,
@@ -61,6 +68,7 @@ export async function createProposedWatch(
         revision: 1,
         contractVersion: WATCH_POLICY_CONTRACT_VERSION,
         policy: parsed.policy,
+        changeClassification: null,
         createdById: parsed.actor.id,
         createdByLogin: parsed.actor.githubLogin,
         createdAt: now,
@@ -84,6 +92,109 @@ export async function createProposedWatch(
   });
 
   return getPolicyBoundWatch({ id: watchId });
+}
+
+export type WatchProposalEditContext = {
+  operator: z.input<typeof watchActorSchema>;
+  now?: Date;
+};
+
+export async function editWatchProposal(
+  input: z.input<typeof editWatchProposalInputSchema>,
+  context: WatchProposalEditContext,
+): Promise<EditWatchProposalResult> {
+  const parsed = editWatchProposalInputSchema.parse(input);
+  const parsedContext = z.object({
+    operator: watchActorSchema,
+    now: z.date().optional(),
+  }).strict().parse(context);
+  const createdAt = (parsedContext.now ?? new Date()).toISOString();
+  const revisionId = randomUUID();
+
+  const classification = await withDocsAgentDatabase(async (db) =>
+    db.transaction(async (tx) => {
+      const rows = await tx
+        .select({
+          lifecycleState: policyBoundWatches.lifecycleState,
+          latestRevision: watchPolicyRevisions.revision,
+          latestPolicy: watchPolicyRevisions.policy,
+        })
+        .from(policyBoundWatches)
+        .innerJoin(
+          watchPolicyRevisions,
+          and(
+            eq(watchPolicyRevisions.watchId, policyBoundWatches.id),
+            eq(watchPolicyRevisions.workspaceId, policyBoundWatches.workspaceId),
+          ),
+        )
+        .where(and(
+          eq(policyBoundWatches.id, parsed.watchId),
+          eq(policyBoundWatches.workspaceId, DEFAULT_WORKSPACE_ID),
+        ))
+        .orderBy(desc(watchPolicyRevisions.revision))
+        .limit(1);
+      const current = rows[0];
+      if (current === undefined) {
+        throw new Error(`Policy-bound watch ${parsed.watchId} was not found.`);
+      }
+      if (current.lifecycleState !== "active") {
+        throw new Error("Only an active watch can receive a replacement proposal.");
+      }
+      if (current.latestRevision !== parsed.expectedProposalRevision) {
+        throw new Error(
+          `Watch ${parsed.watchId} proposal changed concurrently. Expected revision ${parsed.expectedProposalRevision}, found ${current.latestRevision}.`,
+        );
+      }
+
+      const changeClassification = classifyWatchPolicyChange(
+        current.latestPolicy as z.output<typeof editWatchProposalInputSchema>["policy"],
+        parsed.policy,
+      );
+      const nextRevision = current.latestRevision + 1;
+      const inserted = await tx
+        .insert(watchPolicyRevisions)
+        .values({
+          id: revisionId,
+          watchId: parsed.watchId,
+          workspaceId: DEFAULT_WORKSPACE_ID,
+          revision: nextRevision,
+          contractVersion: WATCH_POLICY_CONTRACT_VERSION,
+          policy: parsed.policy,
+          changeClassification,
+          createdById: parsedContext.operator.id,
+          createdByLogin: parsedContext.operator.githubLogin,
+          createdAt,
+        })
+        .onConflictDoNothing()
+        .returning({ id: watchPolicyRevisions.id });
+      if (inserted.length === 0) {
+        throw new Error(
+          `Watch ${parsed.watchId} proposal changed concurrently during editing.`,
+        );
+      }
+
+      const updated = await tx
+        .update(policyBoundWatches)
+        .set({ updatedAt: createdAt })
+        .where(and(
+          eq(policyBoundWatches.id, parsed.watchId),
+          eq(policyBoundWatches.workspaceId, DEFAULT_WORKSPACE_ID),
+          eq(policyBoundWatches.lifecycleState, "active"),
+        ))
+        .returning({ id: policyBoundWatches.id });
+      if (updated.length === 0) {
+        throw new Error(
+          `Watch ${parsed.watchId} changed concurrently during proposal editing.`,
+        );
+      }
+      return changeClassification;
+    })
+  );
+
+  return editWatchProposalResultSchema.parse({
+    watch: await getPolicyBoundWatch({ id: parsed.watchId }),
+    classification,
+  });
 }
 
 export type WatchApprovalContext = WatchPolicyPreviewContext & {
@@ -140,11 +251,8 @@ export async function approveWatchProposal(
         if (existing?.proposalRevisionId === parsed.proposalRevisionId) {
           return { created: false, replayed: true };
         }
-        throw new Error(
-          `Watch ${parsed.watchId} is already active on a different effective revision.`,
-        );
       }
-      if (watch.lifecycleState !== "proposed") {
+      if (watch.lifecycleState !== "proposed" && watch.lifecycleState !== "active") {
         throw new Error(`Watch ${parsed.watchId} is not awaiting proposal approval.`);
       }
       if (
@@ -207,8 +315,11 @@ export async function approveWatchProposal(
         .where(and(
           eq(policyBoundWatches.id, parsed.watchId),
           eq(policyBoundWatches.workspaceId, DEFAULT_WORKSPACE_ID),
-          eq(policyBoundWatches.lifecycleState, "proposed"),
-          isNull(policyBoundWatches.effectiveRevisionId),
+          eq(policyBoundWatches.lifecycleState, watch.lifecycleState),
+          eq(policyBoundWatches.stateRevision, watch.stateRevision),
+          watch.effectiveRevisionId === null
+            ? isNull(policyBoundWatches.effectiveRevisionId)
+            : eq(policyBoundWatches.effectiveRevisionId, watch.effectiveRevisionId),
         ))
         .returning({
           id: policyBoundWatches.id,
@@ -225,12 +336,14 @@ export async function approveWatchProposal(
         watchId: parsed.watchId,
         workspaceId: DEFAULT_WORKSPACE_ID,
         operationKey: `watch-approved:${parsed.idempotencyKey}`,
-        action: "approve",
+        action: watch.lifecycleState === "active" ? "approve-replacement" : "approve",
         actorId: parsedContext.operator.id,
         actorLogin: parsedContext.operator.githubLogin,
-        previousState: "proposed",
+        previousState: watch.lifecycleState,
         nextState: "active",
-        reason: "Operator approved the proposed watch policy.",
+        reason: watch.lifecycleState === "active"
+          ? "Operator approved a replacement watch policy."
+          : "Operator approved the proposed watch policy.",
         stateRevision: updated[0]!.stateRevision,
         effectiveRevisionId,
         occurredAt: approvedAt,
@@ -320,6 +433,41 @@ export async function getActivePolicyBoundWatch(
   });
 }
 
+export async function getEffectiveWatchRevision(
+  input: z.input<typeof getEffectiveWatchRevisionInputSchema>,
+): Promise<EffectiveWatchRevision> {
+  const parsed = getEffectiveWatchRevisionInputSchema.parse(input);
+  return withDocsAgentDatabase(async (db) => {
+    const rows = await db
+      .select()
+      .from(watchEffectiveRevisions)
+      .where(and(
+        eq(watchEffectiveRevisions.workspaceId, DEFAULT_WORKSPACE_ID),
+        eq(watchEffectiveRevisions.watchId, parsed.watchId),
+        eq(watchEffectiveRevisions.id, parsed.effectiveRevisionId),
+      ))
+      .limit(1);
+    const row = rows[0];
+    if (row === undefined) {
+      throw new Error(
+        `Effective revision ${parsed.effectiveRevisionId} was not found for watch ${parsed.watchId}.`,
+      );
+    }
+    return effectiveWatchRevisionSchema.parse({
+      id: row.id,
+      watchId: row.watchId,
+      proposalRevisionId: row.proposalRevisionId,
+      contractVersion: row.contractVersion,
+      policy: row.policy,
+      approvedBy: {
+        id: row.approvedById,
+        githubLogin: row.approvedByLogin,
+      },
+      approvedAt: row.approvedAt,
+    });
+  });
+}
+
 export async function getPolicyBoundWatch(
   input: z.input<typeof getPolicyBoundWatchInputSchema>,
 ): Promise<PolicyBoundWatch> {
@@ -338,6 +486,7 @@ export async function getPolicyBoundWatch(
         revision: watchPolicyRevisions.revision,
         contractVersion: watchPolicyRevisions.contractVersion,
         policy: watchPolicyRevisions.policy,
+        changeClassification: watchPolicyRevisions.changeClassification,
         createdById: watchPolicyRevisions.createdById,
         createdByLogin: watchPolicyRevisions.createdByLogin,
         revisionCreatedAt: watchPolicyRevisions.createdAt,
@@ -375,6 +524,7 @@ export async function getPolicyBoundWatch(
         revision: row.revision,
         contractVersion: row.contractVersion,
         policy: row.policy,
+        changeClassification: row.changeClassification,
         createdBy: {
           id: row.createdById,
           githubLogin: row.createdByLogin,

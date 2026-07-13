@@ -142,6 +142,46 @@ export const createProposedWatchInputSchema = z.object({
   actor: watchActorSchema,
 }).strict();
 
+export const watchPolicyChangeKindSchema = z.enum([
+  "goal",
+  "source",
+  "trigger",
+  "evaluation",
+  "delivery",
+  "context",
+  "capability",
+  "retention",
+  "budget",
+  "expiry",
+]);
+
+export const watchPolicyChangeDirectionSchema = z.enum([
+  "expanded",
+  "narrowed",
+  "changed",
+]);
+
+export const watchPolicyChangeSchema = z.object({
+  kind: watchPolicyChangeKindSchema,
+  path: z.string().min(1),
+  direction: watchPolicyChangeDirectionSchema,
+  summary: z.string().min(1),
+}).strict();
+
+export const watchPolicyChangeClassificationSchema = z.object({
+  approvalRequired: z.literal(true),
+  approvalConsequence: z.literal("fresh-approval-required"),
+  hasAuthorityExpansion: z.boolean(),
+  hasAuthorityNarrowing: z.boolean(),
+  changes: z.array(watchPolicyChangeSchema).min(1),
+}).strict();
+
+export const editWatchProposalInputSchema = z.object({
+  watchId: z.string().uuid(),
+  expectedProposalRevision: z.number().int().positive(),
+  policy: proposedWatchPolicySchema,
+}).strict();
+
 export const getPolicyBoundWatchInputSchema = z.object({
   id: z.string().uuid(),
 }).strict();
@@ -152,6 +192,7 @@ export const proposedWatchRevisionSchema = z.object({
   revision: z.number().int().positive(),
   contractVersion: z.literal(WATCH_POLICY_CONTRACT_VERSION),
   policy: proposedWatchPolicySchema,
+  changeClassification: watchPolicyChangeClassificationSchema.nullable(),
   createdBy: watchActorSchema,
   createdAt: z.string().datetime({ offset: true }),
 });
@@ -164,6 +205,11 @@ export const policyBoundWatchSchema = z.object({
   latestProposal: proposedWatchRevisionSchema,
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }),
+});
+
+export const editWatchProposalResultSchema = z.object({
+  watch: policyBoundWatchSchema,
+  classification: watchPolicyChangeClassificationSchema,
 });
 
 export const approveWatchProposalInputSchema = z.object({
@@ -183,6 +229,11 @@ export const effectiveWatchRevisionSchema = z.object({
   approvedBy: watchActorSchema,
   approvedAt: z.string().datetime({ offset: true }),
 });
+
+export const getEffectiveWatchRevisionInputSchema = z.object({
+  watchId: z.string().uuid(),
+  effectiveRevisionId: z.string().uuid(),
+}).strict();
 
 export const activePolicyBoundWatchSchema = z.object({
   id: z.string().uuid(),
@@ -258,6 +309,14 @@ export const mutateWatchLifecycleResultSchema = z.object({
 export type ProposedWatchPolicy = z.infer<typeof proposedWatchPolicySchema>;
 export type ProposedWatchRevision = z.infer<typeof proposedWatchRevisionSchema>;
 export type PolicyBoundWatch = z.infer<typeof policyBoundWatchSchema>;
+export type WatchPolicyChange = z.infer<typeof watchPolicyChangeSchema>;
+export type WatchPolicyChangeClassification = z.infer<
+  typeof watchPolicyChangeClassificationSchema
+>;
+export type EditWatchProposalResult = z.infer<
+  typeof editWatchProposalResultSchema
+>;
+export type EffectiveWatchRevision = z.infer<typeof effectiveWatchRevisionSchema>;
 export type WatchActor = z.infer<typeof watchActorSchema>;
 export type WatchCapabilityFamily = z.infer<typeof watchCapabilityFamilySchema>;
 export type WatchPolicyPreview = z.infer<typeof watchPolicyPreviewSchema>;
