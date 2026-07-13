@@ -284,7 +284,7 @@ auth does not satisfy this smoke.
 
 Keep the Eve deployment on its own origin during this scenario. The web cookie
 must not authorize Eve routes; a future operator-to-Eve action needs the
-server-to-server `AuthFn` bridge described in `docs/ADMIN_UI.md`.
+server-to-server `AuthFn` bridge described in `docs/internal/ADMIN_UI.md`.
 
 ## Guided Workspace Onboarding
 

@@ -4,10 +4,10 @@ import { join } from "node:path";
 import { fileURLToPath } from "node:url";
 
 const repositoryRoot = fileURLToPath(new URL("../../../", import.meta.url));
-const workflows = await readFile(join(repositoryRoot, "docs/WORKFLOWS.md"), "utf8");
-const repositoryModel = await readFile(join(repositoryRoot, "docs/REPOSITORY_MODEL.md"), "utf8");
-const manifest = await readFile(join(repositoryRoot, "docs/MANIFEST.md"), "utf8");
-const roadmap = await readFile(join(repositoryRoot, "docs/ROADMAP.md"), "utf8");
+const workflows = await readFile(join(repositoryRoot, "docs/internal/WORKFLOWS.md"), "utf8");
+const repositoryModel = await readFile(join(repositoryRoot, "docs/internal/REPOSITORY_MODEL.md"), "utf8");
+const manifest = await readFile(join(repositoryRoot, "docs/internal/MANIFEST.md"), "utf8");
+const roadmap = await readFile(join(repositoryRoot, "docs/internal/ROADMAP.md"), "utf8");
 
 for (const heading of [
   "Mentioned In Context",
@@ -48,8 +48,8 @@ assert.match(workflows, /Draft PR publishing waits for explicit approval/);
 assert.match(workflows, /No sandbox verification runs yet/);
 assert.match(workflows, /Slack Mention With Source Evidence/);
 assert.match(workflows, /Linear Issue Without Source Evidence/);
-assert.match(manifest, /docs\/WORKFLOWS\.md/);
-assert.match(roadmap, /docs\/WORKFLOWS\.md/);
+assert.match(manifest, /docs\/internal\/WORKFLOWS\.md/);
+assert.match(roadmap, /docs\/internal\/WORKFLOWS\.md/);
 assert.match(repositoryModel, /Docs Impact Decision Model/);
 
 console.log("Workflow model checks passed.");

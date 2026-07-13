@@ -30,7 +30,7 @@ authentication, guided setup, connector handoffs, workspace-memory review, run
 history, approvals, assurance, and behavior settings now build on it.
 
 The operator surface builds on the existing agent workflow contract in
-`docs/WORKFLOWS.md`; it does not replace or redefine those runtime boundaries.
+`docs/internal/WORKFLOWS.md`; it does not replace or redefine those runtime boundaries.
 
 This appetite still rules out multi-workspace accounts and roles, silent
 provider installation, a raw database or workflow-state editor, a custom

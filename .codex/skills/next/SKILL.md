@@ -20,7 +20,7 @@ backlog item. This repo does not use the global `$next` draft-PR publishing
 loop. Work is intended to land directly on `main` after validation and explicit
 commit approval.
 
-GitHub Issues are the backlog source of truth. `docs/ROADMAP.md` is the
+GitHub Issues are the backlog source of truth. `docs/internal/ROADMAP.md` is the
 fallback ordering source when GitHub Projects or custom priority fields are not
 available.
 
@@ -42,12 +42,12 @@ available.
      and credentials allow it.
 3. Read planning and operating context.
    - Always read `AGENTS.md`.
-   - Read `docs/MANIFEST.md`, `docs/ROADMAP.md`, and any relevant docs they
+   - Read `docs/internal/MANIFEST.md`, `docs/internal/ROADMAP.md`, and any relevant docs they
      reference.
-   - Read relevant ADRs in `docs/adr/` or `docs/decisions/` when present.
-   - Read `docs/REPOSITORY_MODEL.md` when repository setup, sandbox behavior,
+   - Read relevant ADRs in `docs/internal/adr/` or `docs/internal/decisions/` when present.
+   - Read `docs/internal/REPOSITORY_MODEL.md` when repository setup, sandbox behavior,
      writeback, watched repositories, or provenance are involved.
-   - Read `docs/USER_TESTING.md` and existing files under `evals/` when the
+   - Read `docs/internal/USER_TESTING.md` and existing files under `evals/` when the
      task changes agent behavior or test coverage.
    - Before writing Eve runtime code, tools, channels, skills, sandbox config,
      evals, or instructions, read the relevant installed Eve docs under
@@ -60,7 +60,7 @@ available.
    - Prefer the agreed ordered backlog view, project view, priority field, or
      milestone order when one exists.
    - If no richer GitHub ordering is available, use the ordered issue table in
-     `docs/ROADMAP.md`.
+     `docs/internal/ROADMAP.md`.
    - Fetch enough details for the top issues: title, body, labels, milestone,
      comments, links, and current state.
    - Do not treat GitHub's default issue list as product order unless the repo
@@ -79,7 +79,7 @@ available.
 6. Assess whether the next open issue is still coherent.
    - Check that dependencies appear before dependent work.
    - Check for duplicate, stale, conditional, vague, or placeholder issues.
-   - Check that the issue still matches `docs/MANIFEST.md`, `docs/ROADMAP.md`,
+   - Check that the issue still matches `docs/internal/MANIFEST.md`, `docs/internal/ROADMAP.md`,
      repo docs, current code, and latest user feedback.
    - Treat material disagreements as backlog problems and suggest `$refine`
      rather than selecting premature implementation work.

@@ -248,18 +248,20 @@ a domain projection over Eve execution, not a separate workflow engine.
 ## Truth Surfaces
 
 - GitHub Issues: executable backlog and completion source of truth.
-- `docs/ROADMAP.md`: milestones, appetite, dependencies, and fallback order.
-- `docs/REPOSITORY_MODEL.md`: working docs repository, watched repository,
+- `docs/internal/ROADMAP.md`: milestones, appetite, dependencies, and fallback order.
+- `docs/internal/REPOSITORY_MODEL.md`: working docs repository, watched repository,
   context repository, external context, sandbox, and provenance contract.
-- `docs/USER_TESTING.md`: manual user-test scenarios, expected outcomes, and
+- `docs/internal/USER_TESTING.md`: manual user-test scenarios, expected outcomes, and
   eval readiness notes.
-- `docs/WORKFLOWS.md`: docs-signal workflow model, runtime boundaries, and tool
+- `docs/internal/WORKFLOWS.md`: docs-signal workflow model, runtime boundaries, and tool
   mapping for channel, scan, verification, patch, and writeback work.
-- `docs/ADMIN_UI.md`: operator control-plane scope, onboarding boundary, and
+- `docs/internal/ADMIN_UI.md`: operator control-plane scope, onboarding boundary, and
   delivery order.
+- `docs/DEVELOPMENT.md`, `docs/DEPLOYMENT.md`, and `docs/TEAM_CONTEXT.md`: local
+  setup, production deployment, and provider installation contracts.
 - `apps/agent/evals/scenarios/`: typed user-test fixture data used by manual tests and
   future executable evals.
-- `docs/adr/`: durable decision records, created through `$to-adr`.
+- `docs/internal/adr/`: durable decision records, created through `$to-adr`.
 - `AGENTS.md`: agent rules and source-of-truth pointers only.
 - Installed Eve docs under `node_modules/eve/docs/`: source of truth for Eve
   project layout, runtime behavior, channels, tools, sandbox, connections,
