@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, desc, eq, isNull } from "drizzle-orm";
+import { and, desc, eq, isNull, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -10,6 +10,7 @@ import {
 import {
   policyBoundWatches,
   watchEffectiveRevisions,
+  watchLifecycleEvents,
   watchPolicyRevisions,
 } from "./db/schema.ts";
 import { DEFAULT_WORKSPACE_ID } from "./setup-state.ts";
@@ -49,6 +50,7 @@ export async function createProposedWatch(
         workspaceId: DEFAULT_WORKSPACE_ID,
         lifecycleState: "proposed",
         effectiveRevisionId: null,
+        stateRevision: 1,
         createdAt: now,
         updatedAt: now,
       });
@@ -62,6 +64,21 @@ export async function createProposedWatch(
         createdById: parsed.actor.id,
         createdByLogin: parsed.actor.githubLogin,
         createdAt: now,
+      });
+      await tx.insert(watchLifecycleEvents).values({
+        id: randomUUID(),
+        watchId,
+        workspaceId: DEFAULT_WORKSPACE_ID,
+        operationKey: `watch-created:${watchId}`,
+        action: "create",
+        actorId: parsed.actor.id,
+        actorLogin: parsed.actor.githubLogin,
+        previousState: null,
+        nextState: "proposed",
+        reason: "Proposed watch created.",
+        stateRevision: 1,
+        effectiveRevisionId: null,
+        occurredAt: now,
       });
     });
   });
@@ -93,6 +110,7 @@ export async function approveWatchProposal(
           id: policyBoundWatches.id,
           lifecycleState: policyBoundWatches.lifecycleState,
           effectiveRevisionId: policyBoundWatches.effectiveRevisionId,
+          stateRevision: policyBoundWatches.stateRevision,
           proposalRevisionId: watchPolicyRevisions.id,
           proposalRevision: watchPolicyRevisions.revision,
           contractVersion: watchPolicyRevisions.contractVersion,
@@ -175,7 +193,6 @@ export async function approveWatchProposal(
             `Approval key ${parsed.idempotencyKey} is already assigned to another watch revision.`,
           );
         }
-        await activateExistingRevision(tx, parsed.watchId, existing.id, approvedAt);
         return { created: false, replayed: true };
       }
 
@@ -185,6 +202,7 @@ export async function approveWatchProposal(
           lifecycleState: "active",
           effectiveRevisionId,
           updatedAt: approvedAt,
+          stateRevision: sql`${policyBoundWatches.stateRevision} + 1`,
         })
         .where(and(
           eq(policyBoundWatches.id, parsed.watchId),
@@ -192,12 +210,31 @@ export async function approveWatchProposal(
           eq(policyBoundWatches.lifecycleState, "proposed"),
           isNull(policyBoundWatches.effectiveRevisionId),
         ))
-        .returning({ id: policyBoundWatches.id });
+        .returning({
+          id: policyBoundWatches.id,
+          stateRevision: policyBoundWatches.stateRevision,
+        });
       if (updated.length === 0) {
         throw new Error(
           `Watch ${parsed.watchId} changed concurrently during approval.`,
         );
       }
+
+      await tx.insert(watchLifecycleEvents).values({
+        id: randomUUID(),
+        watchId: parsed.watchId,
+        workspaceId: DEFAULT_WORKSPACE_ID,
+        operationKey: `watch-approved:${parsed.idempotencyKey}`,
+        action: "approve",
+        actorId: parsedContext.operator.id,
+        actorLogin: parsedContext.operator.githubLogin,
+        previousState: "proposed",
+        nextState: "active",
+        reason: "Operator approved the proposed watch policy.",
+        stateRevision: updated[0]!.stateRevision,
+        effectiveRevisionId,
+        occurredAt: approvedAt,
+      });
 
       return { created: true, replayed: false };
     })
@@ -211,6 +248,7 @@ export async function approveWatchProposal(
 
 export async function getActivePolicyBoundWatch(
   input: z.input<typeof getPolicyBoundWatchInputSchema>,
+  context: { now?: Date } = {},
 ): Promise<ActivePolicyBoundWatch> {
   const parsed = getPolicyBoundWatchInputSchema.parse(input);
 
@@ -222,6 +260,7 @@ export async function getActivePolicyBoundWatch(
         lifecycleState: policyBoundWatches.lifecycleState,
         createdAt: policyBoundWatches.createdAt,
         updatedAt: policyBoundWatches.updatedAt,
+        stateRevision: policyBoundWatches.stateRevision,
         effectiveRevisionId: watchEffectiveRevisions.id,
         proposalRevisionId: watchEffectiveRevisions.proposalRevisionId,
         contractVersion: watchEffectiveRevisions.contractVersion,
@@ -250,10 +289,11 @@ export async function getActivePolicyBoundWatch(
       throw new Error(`Policy-bound watch ${parsed.id} is not active.`);
     }
 
-    return activePolicyBoundWatchSchema.parse({
+    const active = activePolicyBoundWatchSchema.parse({
       id: row.id,
       workspaceId: row.workspaceId,
       lifecycleState: row.lifecycleState,
+      stateRevision: row.stateRevision,
       effectiveRevision: {
         id: row.effectiveRevisionId,
         watchId: row.id,
@@ -269,6 +309,14 @@ export async function getActivePolicyBoundWatch(
       createdAt: row.createdAt,
       updatedAt: row.updatedAt,
     });
+    const expiresAt = active.effectiveRevision.policy.expiresAt;
+    if (
+      expiresAt === null ||
+      new Date(expiresAt).getTime() <= (context.now ?? new Date()).getTime()
+    ) {
+      throw new Error(`Policy-bound watch ${parsed.id} has expired.`);
+    }
+    return active;
   });
 }
 
@@ -285,6 +333,7 @@ export async function getPolicyBoundWatch(
         lifecycleState: policyBoundWatches.lifecycleState,
         createdAt: policyBoundWatches.createdAt,
         updatedAt: policyBoundWatches.updatedAt,
+        stateRevision: policyBoundWatches.stateRevision,
         revisionId: watchPolicyRevisions.id,
         revision: watchPolicyRevisions.revision,
         contractVersion: watchPolicyRevisions.contractVersion,
@@ -319,6 +368,7 @@ export async function getPolicyBoundWatch(
       id: row.id,
       workspaceId: row.workspaceId,
       lifecycleState: row.lifecycleState,
+      stateRevision: row.stateRevision,
       latestProposal: {
         id: row.revisionId,
         watchId: row.id,
@@ -369,21 +419,4 @@ async function readEffectiveRevisionByProposal(
     ))
     .limit(1);
   return rows[0];
-}
-
-async function activateExistingRevision(
-  db: WatchExecutor,
-  watchId: string,
-  effectiveRevisionId: string,
-  updatedAt: string,
-): Promise<void> {
-  await db
-    .update(policyBoundWatches)
-    .set({ lifecycleState: "active", effectiveRevisionId, updatedAt })
-    .where(and(
-      eq(policyBoundWatches.id, watchId),
-      eq(policyBoundWatches.workspaceId, DEFAULT_WORKSPACE_ID),
-      eq(policyBoundWatches.lifecycleState, "proposed"),
-      isNull(policyBoundWatches.effectiveRevisionId),
-    ));
 }

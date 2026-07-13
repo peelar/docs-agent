@@ -86,6 +86,7 @@ export const policyBoundWatches = sqliteTable(
     createdAt: text("created_at").notNull(),
     updatedAt: text("updated_at").notNull(),
     effectiveRevisionId: text("effective_revision_id"),
+    stateRevision: integer("state_revision").notNull().default(1),
   },
   (table) => [
     index("policy_bound_watches_workspace_state_idx").on(
@@ -153,6 +154,37 @@ export const watchEffectiveRevisions = sqliteTable(
       table.workspaceId,
       table.watchId,
       table.approvalKey,
+    ),
+  ],
+);
+
+export const watchLifecycleEvents = sqliteTable(
+  "watch_lifecycle_events",
+  {
+    id: text("id").primaryKey(),
+    watchId: text("watch_id").notNull(),
+    workspaceId: text("workspace_id").notNull(),
+    operationKey: text("operation_key").notNull(),
+    action: text("action").notNull(),
+    actorId: text("actor_id").notNull(),
+    actorLogin: text("actor_login").notNull(),
+    previousState: text("previous_state"),
+    nextState: text("next_state").notNull(),
+    reason: text("reason").notNull(),
+    stateRevision: integer("state_revision").notNull(),
+    effectiveRevisionId: text("effective_revision_id"),
+    occurredAt: text("occurred_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("watch_lifecycle_events_operation_idx").on(
+      table.workspaceId,
+      table.watchId,
+      table.operationKey,
+    ),
+    index("watch_lifecycle_events_watch_time_idx").on(
+      table.workspaceId,
+      table.watchId,
+      table.occurredAt,
     ),
   ],
 );
@@ -848,6 +880,7 @@ export const schema = {
   policyBoundWatches,
   slackThreadPresences,
   watchEffectiveRevisions,
+  watchLifecycleEvents,
   workspaceMemoryEvents,
   workspaceMemoryRecords,
   workspaceMemorySources,

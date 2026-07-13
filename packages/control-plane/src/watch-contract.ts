@@ -9,7 +9,13 @@ const scheduleSchema = z.object({
   timeZone: z.string().trim().min(1).max(100),
 }).strict();
 
-export const watchLifecycleStateSchema = z.enum(["proposed", "active"]);
+export const watchLifecycleStateSchema = z.enum([
+  "proposed",
+  "active",
+  "paused",
+  "expired",
+  "deleted",
+]);
 
 export const watchCapabilityFamilySchema = z.enum([
   "knowledge.read",
@@ -154,6 +160,7 @@ export const policyBoundWatchSchema = z.object({
   id: z.string().uuid(),
   workspaceId: identifierSchema,
   lifecycleState: watchLifecycleStateSchema,
+  stateRevision: z.number().int().positive(),
   latestProposal: proposedWatchRevisionSchema,
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }),
@@ -181,6 +188,7 @@ export const activePolicyBoundWatchSchema = z.object({
   id: z.string().uuid(),
   workspaceId: identifierSchema,
   lifecycleState: z.literal("active"),
+  stateRevision: z.number().int().positive(),
   effectiveRevision: effectiveWatchRevisionSchema,
   createdAt: z.string().datetime({ offset: true }),
   updatedAt: z.string().datetime({ offset: true }),
@@ -190,6 +198,61 @@ export const approveWatchProposalResultSchema = z.object({
   created: z.boolean(),
   replayed: z.boolean(),
   watch: activePolicyBoundWatchSchema,
+});
+
+export const watchLifecycleActionSchema = z.enum([
+  "pause",
+  "resume",
+  "expire",
+  "delete",
+]);
+
+export const mutateWatchLifecycleInputSchema = z.object({
+  watchId: z.string().uuid(),
+  action: watchLifecycleActionSchema,
+  expectedStateRevision: z.number().int().positive(),
+  operationKey: z.string().trim().min(1).max(500),
+  reason: z.string().trim().min(1).max(1_000),
+}).strict();
+
+export const listPolicyBoundWatchesInputSchema = z.object({
+  states: z.array(watchLifecycleStateSchema).max(5).optional(),
+  limit: z.number().int().min(1).max(100).default(100),
+  now: z.string().datetime({ offset: true }).optional(),
+}).strict();
+
+export const policyBoundWatchListItemSchema = z.object({
+  id: z.string().uuid(),
+  workspaceId: identifierSchema,
+  lifecycleState: watchLifecycleStateSchema,
+  stateRevision: z.number().int().positive(),
+  effectiveRevisionId: z.string().uuid().nullable(),
+  expiresAt: z.string().datetime({ offset: true }).nullable(),
+  admissionReady: z.boolean(),
+  policyRetained: z.boolean(),
+  createdAt: z.string().datetime({ offset: true }),
+  updatedAt: z.string().datetime({ offset: true }),
+});
+
+export const watchLifecycleEventSchema = z.object({
+  id: z.string().uuid(),
+  watchId: z.string().uuid(),
+  operationKey: z.string(),
+  action: z.string(),
+  actor: watchActorSchema,
+  previousState: watchLifecycleStateSchema.nullable(),
+  nextState: watchLifecycleStateSchema,
+  reason: z.string(),
+  stateRevision: z.number().int().positive(),
+  effectiveRevisionId: z.string().uuid().nullable(),
+  occurredAt: z.string().datetime({ offset: true }),
+});
+
+export const mutateWatchLifecycleResultSchema = z.object({
+  applied: z.boolean(),
+  replayed: z.boolean(),
+  watch: policyBoundWatchListItemSchema,
+  event: watchLifecycleEventSchema,
 });
 
 export type ProposedWatchPolicy = z.infer<typeof proposedWatchPolicySchema>;
@@ -202,4 +265,11 @@ export type WatchPolicyDraft = z.infer<typeof watchPolicyDraftSchema>;
 export type ActivePolicyBoundWatch = z.infer<typeof activePolicyBoundWatchSchema>;
 export type ApproveWatchProposalResult = z.infer<
   typeof approveWatchProposalResultSchema
+>;
+export type PolicyBoundWatchListItem = z.infer<
+  typeof policyBoundWatchListItemSchema
+>;
+export type WatchLifecycleEvent = z.infer<typeof watchLifecycleEventSchema>;
+export type MutateWatchLifecycleResult = z.infer<
+  typeof mutateWatchLifecycleResultSchema
 >;
