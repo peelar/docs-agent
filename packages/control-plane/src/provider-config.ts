@@ -1,5 +1,5 @@
 export const SLACK_CONNECTOR_ENV = "DOCS_AGENT_SLACK_CONNECTOR";
-export const DEFAULT_SLACK_CONNECTOR = "slack/docs-agent";
+export const DEFAULT_SLACK_CONNECTOR = "slack/paige";
 export const LINEAR_CONNECTOR_ENV = "DOCS_AGENT_LINEAR_CONNECTOR";
 export const DEFAULT_LINEAR_CONNECTOR = "linear/docs-agent";
 export const EVE_RUNTIME_URL_ENV = "DOCS_AGENT_EVE_URL";

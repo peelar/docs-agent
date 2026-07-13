@@ -321,7 +321,7 @@ successful onboarding result.
 
 ### Slack Chat SDK End-to-End
 
-Use a non-production Slack channel and the installed `slack/docs-agent`
+Use a non-production Slack channel and the installed `slack/paige`
 connector. The Slack app must deliver `app_mention`, `message.im`,
 `message.channels`, and `message.groups` events to the unchanged
 `/eve/v1/slack` trigger, and must have the matching history scopes plus

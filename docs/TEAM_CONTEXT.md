@@ -10,7 +10,7 @@ issuance as completed setup.
 ## Slack
 
 Slack uses Eve's Chat SDK channel with the Chat SDK Slack adapter. Set
-`DOCS_AGENT_SLACK_CONNECTOR`, or use the default `slack/docs-agent`, and attach
+`DOCS_AGENT_SLACK_CONNECTOR`, or use the default `slack/paige`, and attach
 the connector trigger to:
 
 ```text
