@@ -9,7 +9,7 @@
   },
   "scripts": {
     "build": "pnpm --filter @docs-agent/control-plane db:migrate:deployment && eve build",
-    "check": "pnpm typecheck && pnpm test && pnpm build",
+    "check": "pnpm typecheck && pnpm test",
     "dev": "pnpm --filter @docs-agent/control-plane db:migrate && eve dev",
     "eval": "eve eval",
     "start": "pnpm --filter @docs-agent/control-plane db:migrate && eve start",

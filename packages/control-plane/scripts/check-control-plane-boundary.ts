@@ -114,7 +114,7 @@ try {
   ) as { exports?: Record<string, unknown>; scripts?: Record<string, string> };
   assert.equal(packageManifest.exports?.["./agent"], "./src/agent.ts");
   assert.equal(packageManifest.exports?.["./testing"], "./src/testing.ts");
-  assert.equal(packageManifest.scripts?.build, undefined);
+  assert.equal(packageManifest.scripts?.build, "pnpm typecheck");
 
   const agentMemoryShim = await readFile(
     join(agentRoot, "agent", "lib", "workspace-memory.ts"),

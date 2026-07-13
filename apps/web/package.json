@@ -7,7 +7,7 @@
     "check": "pnpm typecheck && pnpm test",
     "dev": "DOCS_AGENT_OPERATOR_ACCESS=local next dev --hostname 127.0.0.1",
     "start": "next start --hostname 127.0.0.1",
-    "test": "pnpm build && playwright test",
+    "test": "playwright test",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

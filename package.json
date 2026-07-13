@@ -6,7 +6,7 @@
   "scripts": {
     "brand:check": "node scripts/check-brand-name.mjs",
     "build": "turbo run build",
-    "check": "turbo run check && pnpm brand:check && pnpm monorepo:smoke && pnpm status:smoke",
+    "check": "pnpm validation-graph:check && turbo run check && pnpm brand:check && pnpm monorepo:smoke && pnpm status:smoke",
     "db:generate": "pnpm --filter @docs-agent/control-plane db:generate",
     "db:migrate": "pnpm --filter @docs-agent/control-plane db:migrate",
     "dev": "turbo run dev --filter=docs-agent --",
@@ -18,7 +18,8 @@
     "status:smoke": "node scripts/check-status-smoke.mjs",
     "start": "pnpm --filter docs-agent start",
     "test": "turbo run test",
-    "typecheck": "turbo run typecheck"
+    "typecheck": "turbo run typecheck",
+    "validation-graph:check": "node scripts/check-validation-graph.mjs"
   },
   "devDependencies": {
     "turbo": "2.10.4"

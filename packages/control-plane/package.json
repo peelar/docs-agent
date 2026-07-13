@@ -13,7 +13,8 @@
     "./testing": "./src/testing.ts"
   },
   "scripts": {
-    "check": "pnpm typecheck && pnpm test",
+    "build": "pnpm typecheck",
+    "check": "pnpm test",
     "db:generate": "drizzle-kit generate",
     "db:migrate": "tsx scripts/migrate-db.ts",
     "db:migrate:deployment": "tsx scripts/migrate-db-for-build.ts",

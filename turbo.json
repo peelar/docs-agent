@@ -25,8 +25,12 @@
         ".output/**"
       ]
     },
-    "check": {
+    "@docs-agent/control-plane#build": {
       "dependsOn": ["^build"],
+      "outputs": []
+    },
+    "check": {
+      "dependsOn": ["build"],
       "cache": false
     },
     "dev": {
@@ -34,6 +38,7 @@
       "persistent": true
     },
     "test": {
+      "dependsOn": ["build"],
       "cache": false
     },
     "typecheck": {
