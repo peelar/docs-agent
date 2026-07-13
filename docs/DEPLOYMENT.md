@@ -8,12 +8,27 @@ Create two Vercel projects from this repository:
 | Agent | `apps/agent` | Eve routes, channels, tools, sandboxes, workflows, and runtime variables |
 | Operator | `apps/web` | Authenticated pages, server-side control-plane reads, and audited operator actions |
 
-Both projects must use Node 24.18.0 and the same durable database. Configure
-`DOCS_AGENT_DATABASE_URL` in both projects and
-`DOCS_AGENT_DATABASE_AUTH_TOKEN` when the provider requires it. The agent's
-Vercel build applies the committed Drizzle migrations before Eve builds. Make
-sure that migration has completed before either project serves code expecting a
-new schema.
+These two projects are two server surfaces of one Paige agent. Both must use
+Node 24.18.0 and the same agent-owned durable database. Configure
+`DOCS_AGENT_DATABASE_URL` in both projects and a token scoped to that database
+as `DOCS_AGENT_DATABASE_AUTH_TOKEN` when the provider requires it. Do not reuse
+that database URL or token for another Paige agent, even when the agents have
+the same owner or deployment account. Do not use an organization-level Turso
+management token as an application database token.
+
+The database URL and token are server-only. They must not be exposed through
+`NEXT_PUBLIC_*`, browser payloads, model context, tool output, logs, or
+artifacts. Operators access typed product projections through the authenticated
+web app; they do not receive direct database access.
+
+The agent's Vercel build applies the committed Drizzle migrations before Eve
+builds. Make sure that migration has completed before either project serves
+code expecting a new schema.
+
+The current deployment model contains no SaaS registry or tenant router. A
+second agent requires a second database and separately scoped credential. See
+the [architecture contract](./ARCHITECTURE.md) and
+[ADR-0005](./internal/adr/0005-one-database-per-agent.md).
 
 ## Agent Project
 

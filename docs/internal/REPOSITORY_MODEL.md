@@ -196,7 +196,7 @@ intent, a Linear issue may clarify scope, a watched release may provide source
 evidence, and the working documentation repository verification may decide
 whether the current docs are already covered or stale.
 
-Signal and workflow state is persisted in an app-owned database, not in the
+Signal and workflow state is persisted in one agent-owned database, not in the
 working documentation repository, watched repositories, Slack, Linear, GitHub
 issues/comments, Eve session state, or repo-local JSON. ADR-0001 chooses a
 Drizzle-backed SQLite-compatible storage boundary: local development can use a
@@ -204,14 +204,23 @@ SQLite file through `@libsql/client`, while deployed runtimes can use the same
 Drizzle schema against libSQL, with Turso Cloud as the likely first managed
 backend when hosted persistence is needed.
 
-Chat SDK operational state uses that same database client and deployment
-configuration, but remains isolated in `chat_sdk_*` tables. The app-owned state
-adapter persists thread subscriptions, token-owned leases, TTL-backed key-value
-and list state, and FIFO debounce queues. Local and hosted runtimes use the same
-contract. A missing or unhealthy required database is an explicit failure; the
-adapter never substitutes process memory. SQLite write operations are ordered
-within a process and retry only bounded `SQLITE_BUSY` contention, while database
-constraints and short transactions preserve correctness across instances.
+That database belongs to one Paige agent. The agent runtime and its paired
+server-side operator app use the same typed services and may share the
+database-scoped credential. Another Paige agent must use another database and
+credential. Browser input, provider payloads, model-facing tools,
+`workspace_id`, and `tenant_id` never select a database. See the
+[architecture contract](../ARCHITECTURE.md) and
+[ADR-0005](./adr/0005-one-database-per-agent.md).
+
+Chat SDK operational state uses that same agent-owned database client and
+deployment configuration, but remains isolated in `chat_sdk_*` tables. The
+app-owned state adapter persists thread subscriptions, token-owned leases,
+TTL-backed key-value and list state, and FIFO debounce queues. Local and hosted
+runtimes use the same contract. A missing or unhealthy required database is an
+explicit failure; the adapter never substitutes process memory. SQLite write
+operations are ordered within a process and retry only bounded `SQLITE_BUSY`
+contention, while database constraints and short transactions preserve
+correctness across instances.
 
 Slack enters Eve through `chatSdkChannel` and the Chat SDK Slack adapter at the
 existing `/eve/v1/slack` route. Vercel Connect still resolves the app-scoped bot
@@ -275,7 +284,8 @@ writeback target.
 
 The signal database should start small but support the near-term M3 workflows:
 
-- workspaces for the future tenant or workspace boundary;
+- one canonical workspace scope inside the current agent database; it is not a
+  cross-agent tenant boundary;
 - docs signals with status, extracted claim, uncertainty, priority, timestamps,
   and optional next action time;
 - signal sources with provider ids, source kind, authors, timestamps, and
@@ -299,11 +309,11 @@ run lookup by signal id.
 The first queue implementation stores this state in dedicated Drizzle tables:
 `docs_signals`, `docs_signal_sources`, `docs_signal_links`,
 `docs_signal_artifacts`, `docs_signal_events`, and `docs_signal_owned_work`.
-Runtime code owns workspace
-scoping and currently uses the default workspace id; model-facing tools do not
-accept a workspace or tenant id. Source rows keep raw provenance such as source
-text, provider ids, authors, and permalinks separate from model-generated signal
-summaries and extracted claims.
+Runtime code owns workspace scoping and currently uses the default workspace id
+inside the already selected agent database; model-facing tools do not accept a
+workspace, tenant, or agent id, database URL, or database token. Source rows
+keep raw provenance such as source text, provider ids, authors, and permalinks
+separate from model-generated signal summaries and extracted claims.
 
 The model-facing queue tools are deliberately small:
 

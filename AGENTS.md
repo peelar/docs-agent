@@ -14,6 +14,9 @@ package docs are unavailable, use <https://eve.dev/docs> as a fallback.
   work over, run the complete repo validation command (`pnpm check:full`). Keep
   all required handoff validators wired into that command instead of relying on
   separate remembered steps.
+- Before changing persistence, deployment, authentication, connectors, or
+  workspace scoping, read and preserve the accepted contract in
+  `docs/ARCHITECTURE.md` and its linked ADRs.
 - Once a scope of work is complete, propose a commit message following conventional commit message conventions. End with "Commit? [Y/n]".
 - We'll be often using peelar/saleor-docs as the working documentation repository. It is our dogfooding project. Avoid overfitting to this repository. It's only an example we need to generalize from.
 

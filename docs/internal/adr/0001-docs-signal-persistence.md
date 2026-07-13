@@ -20,14 +20,18 @@ repository and watched repositories. It was not the right boundary for
 multi-channel mutable workflow state or ongoing setup persistence.
 
 Eve session state is also not the right boundary. Eve `defineState` is durable
-per-session working memory, while docs signals must be available across
-sessions, channels, schedules, and future users or workspaces.
+per-session working memory, while docs signals must be available across the
+current agent's sessions, channels, schedules, and operator surfaces.
 
 ## Decision
 
 Docs signals and workflow state will live in an app-owned database behind a
 small persistence interface. The first implementation should use Drizzle as the
 typed schema and query layer with a SQLite-compatible backend.
+
+The app-owned database belongs to one Paige agent. Its paired agent and web apps
+may use the same database through server-side services, but another agent must
+use another database and credential. ADR-0005 records this isolation boundary.
 
 The intended storage shape is:
 
@@ -53,7 +57,8 @@ fixtures, but not the durable workflow store.
 The first schema should be small but should not paint the app into a corner.
 The database needs to represent:
 
-- workspaces: the future tenant or workspace boundary for configured docs work;
+- workspaces: the canonical configured docs-work scope inside one agent
+  database, not a cross-agent tenant boundary;
 - docs signals: provider-neutral work items with status, extracted claim,
   uncertainty, priority, capture time, update time, and optional next action
   time;
@@ -106,10 +111,10 @@ before Slack and Linear workflows prove product value.
 
 Turso is worth evaluating as the first deployed backend because Turso Cloud is
 SQLite-compatible, runs through libSQL, supports scoped access tokens, backups
-and point-in-time recovery, usage visibility, branching, and a Platform API for
-future database-per-workspace or database-per-agent models. The app should
-depend on the libSQL/Drizzle interface, not on Turso-specific product behavior
-unless a later issue explicitly chooses it.
+and point-in-time recovery, usage visibility, branching, and a Platform API that
+can support the accepted database-per-agent direction. Provisioning remains
+deferred. The app should depend on the libSQL/Drizzle interface, not on
+Turso-specific product behavior unless a later issue explicitly chooses it.
 
 ## Consequences
 
@@ -129,6 +134,7 @@ unless a later issue explicitly chooses it.
 - GitHub issue: https://github.com/peelar/docs-agent/issues/20
 - Repository model: ../REPOSITORY_MODEL.md
 - Roadmap: ../ROADMAP.md
+- Database-per-agent decision: ./0005-one-database-per-agent.md
 - Drizzle SQLite docs: https://orm.drizzle.team/docs/get-started/sqlite-new
 - Drizzle migrations docs: https://orm.drizzle.team/docs/migrations
 - Turso Drizzle docs: https://docs.turso.tech/sdk/ts/orm/drizzle

@@ -33,10 +33,11 @@ Root development and validation commands run through Turborepo. `pnpm check`
 is the fast affected-package feedback loop; `pnpm check:full` remains the
 complete repository handoff gate.
 
-The expected first shared boundary is database and control-plane services. The
-web app consumes typed server-side services rather than importing raw agent
-tools or database tables. The agent remains the owner of Eve runtime behavior
-and sandboxed repository work.
+The expected first shared boundary is the current agent's database and
+control-plane services. The two apps share one agent-owned database, not a
+database with other Paige agents. The web app consumes typed server-side
+services rather than importing raw agent tools or database tables. The agent
+remains the owner of Eve runtime behavior and sandboxed repository work.
 
 ## Options Considered
 
@@ -64,5 +65,6 @@ and sandboxed repository work.
 
 - [Admin UI plan](../ADMIN_UI.md)
 - [Project roadmap](../ROADMAP.md)
+- [Database-per-agent decision](./0005-one-database-per-agent.md)
 - [GitHub issue #35](https://github.com/peelar/docs-agent/issues/35)
 - Installed Eve Next.js guidance: `node_modules/eve/docs/guides/frontend/nextjs.mdx`

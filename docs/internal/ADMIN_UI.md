@@ -14,9 +14,12 @@ itself. It does not replace them as the place where documentation work starts.
 
 ## Product Boundary
 
-The control plane is for one operator workspace. Local development is bound to
-the local machine. A remote deployment uses an allowlisted GitHub identity;
-multi-workspace switching, invitations, and roles remain later concerns.
+The control plane is for one deployed agent and its canonical operator
+workspace. Local development is bound to the local machine. A remote deployment
+uses an allowlisted GitHub identity. The agent and web apps use the same
+agent-owned database through server-side services; no other agent may use that
+database or its credential. SaaS organizations, agent switching, provisioning,
+invitations, and roles remain later concerns.
 
 The UI is an application surface, not a database editor. It uses the same typed
 setup, signal, memory, and workflow services as the agent. Mutations must keep
@@ -42,9 +45,10 @@ packages/
 The structural move should preserve current agent behavior and keep the root
 `pnpm check` feedback loop and `pnpm check:full` handoff gate authoritative.
 Shared packages should be introduced from real reuse. The first expected
-boundary is database and control-plane services needed by both apps; the
-monorepo conversion should not extract the whole agent into speculative
-packages.
+boundary is the current agent's database and control-plane services needed by
+both apps; sharing code between the apps must not become a database shared by
+multiple agents. The monorepo conversion should not extract the whole agent
+into speculative packages.
 
 See [ADR-0002](./adr/0002-turborepo-agent-and-web-apps.md).
 
@@ -389,7 +393,8 @@ folded into the web foundation.
 
 ## Non-Goals For The First Delivery
 
-- Multi-tenant accounts, invitations, or roles.
+- A SaaS account layer, agent provisioning or switching, invitations, roles, or
+  shared-runtime tenant routing.
 - Remote access without the GitHub allowlist and secure web session.
 - Replacing Slack or Linear as the source of docs signals.
 - A raw SQL, table, environment-variable, or workflow-state editor.

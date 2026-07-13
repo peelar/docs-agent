@@ -156,6 +156,13 @@ docs change.
 - Keep the web control plane on the same typed setup, signal, memory, run-index,
   approval, and workflow services as the agent. Do not turn it into a raw
   database or runtime state editor.
+- Treat one Paige agent as one product-state isolation boundary. Its agent and
+  operator apps may share that agent's database through server-side services;
+  another agent must use another database and credential.
+- Keep database scope out of prompts, model-facing tools, browser inputs, and
+  provider payloads. The current deployment selects one agent database through
+  server-side configuration; future shared runtime must authenticate the agent
+  before binding its exclusive database.
 
 ## Repository Workflow
 
@@ -267,6 +274,8 @@ a domain projection over Eve execution, not a separate workflow engine.
 
 ## Truth Surfaces
 
+- `docs/ARCHITECTURE.md`: accepted system, runtime, persistence, isolation, and
+  variability contract.
 - GitHub Issues: executable backlog and completion source of truth.
 - `docs/internal/ROADMAP.md`: milestones, appetite, dependencies, and fallback
   order.

@@ -8,22 +8,24 @@ implemented. The product has useful state, but operators cannot see it without
 asking the agent or inspecting runtime and database internals.
 
 The first local-only web control-plane delivery is complete: the Turborepo
-boundary, operator shell, shared app-owned database and read-service package,
-readiness report, docs-signal queue, and complete signal detail are in place.
+boundary, operator shell, one agent-owned database shared by that agent's two
+server apps, and the read-service package, readiness report, docs-signal queue,
+and complete signal detail are in place.
 The Technical Editor epic is complete. Paige now profiles the repository,
 chooses the reader-solving intervention, plans substantial work, authors complete
 multi-file drafts, and owns that work durably to the next human boundary.
-Bounded scheduled follow-up and durable Chat SDK state on the shared database
-service, the privacy-filtered Chat SDK Slack transport, and scoped continued
-thread participation, and bounded user-authorized Slack context retrieval are
-also complete. The authenticated operator implementation and guided workspace
-onboarding are in place; the real GitHub OAuth deployment smoke remains
-required before #37 is complete. Connector installation handoffs are complete;
-workspace-memory review, product-level run history, and the centralized
-approval inbox are also complete. Durable eval and validation result recording
-and its read-only assurance UI are complete. Instruction-boundary cleanup is
-implemented and awaits repository-backed eval proof in a configured Eve
-environment. Structured personality and participation settings are complete.
+Bounded scheduled follow-up and durable Chat SDK state on the same agent-owned
+database service, the privacy-filtered Chat SDK Slack transport, scoped
+continued thread participation, and bounded user-authorized Slack context
+retrieval are also complete. The authenticated operator implementation and
+guided workspace onboarding are in place; the real GitHub OAuth deployment
+smoke remains required before #37 is complete. Connector installation handoffs
+are complete; workspace-memory review, product-level run history, and the
+centralized approval inbox are also complete. Durable eval and validation result
+recording and its read-only assurance UI are complete. Instruction-boundary
+cleanup is implemented and awaits repository-backed eval proof in a configured
+Eve environment. Structured personality and participation settings are
+complete.
 
 The next product bet is policy-bound proactive attention. An operator should be
 able to delegate a bounded documentation goal over one approved provider
@@ -40,10 +42,15 @@ The operator surface builds on the existing agent workflow contract in
 `docs/internal/WORKFLOWS.md`; it does not replace or redefine those runtime
 boundaries.
 
-This appetite still rules out multi-workspace accounts and roles, silent
-provider installation, a raw database or workflow-state editor, a custom
-tracing backend, unbounded or implicit context ingestion outside approved watch
-scopes, arbitrary executable workflows, and autonomous publishing.
+The accepted persistence boundary is one database per agent. The current
+product still deploys one agent at a time; it does not include a SaaS registry,
+database provisioning, agent switching, organizations, invitations, roles, or
+shared-runtime routing. See `docs/ARCHITECTURE.md` and ADR-0005.
+
+This appetite also rules out silent provider installation, a raw database or
+workflow-state editor, a custom tracing backend, unbounded or implicit context
+ingestion outside approved watch scopes, arbitrary executable workflows, and
+autonomous publishing.
 
 ## Milestones
 
@@ -112,7 +119,7 @@ Tracked by #57.
 | Order | Issue | Why Later | Depends On |
 | --- | --- | --- | --- |
 | Complete | #51 Run scheduled follow-ups | Adds bounded proactive maintenance after the shared signal service exists. | #38 (complete) |
-| Complete | #33 Persist Chat SDK state in libSQL/Turso | Adds durable subscription and debounce state through the shared database boundary. | #38 (complete) |
+| Complete | #33 Persist Chat SDK state in libSQL/Turso | Adds durable subscription and debounce state inside the current agent's database boundary. | #38 (complete) |
 | Complete | #34 Replace Eve's native Slack channel with Chat SDK | Establishes the transport and privacy boundary needed for continued participation. | #33 (complete) |
 | Complete | #30 Keep participating after a Slack mention | Makes Paige a scoped thread participant rather than a repeatedly invoked bot. | #33, #34 (complete) |
 | Complete | #49 Retrieve missing Slack context on demand | Adds bounded, user-authorized retrieval without ambient ingestion. | #34 (complete) |
@@ -129,7 +136,9 @@ Tracked by #57.
 
 ## Later
 
-- Multi-workspace accounts, invitations, and roles.
+- A SaaS control plane for organizations, agent provisioning and switching,
+  invitations, roles, billing, and shared-runtime routing. Any future SaaS must
+  preserve one database per agent.
 - Production deployment and remote operator authentication before the local
   control-plane delivery is proven.
 - Operator mutations for signal priority, lifecycle, and next action.
