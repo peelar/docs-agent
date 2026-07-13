@@ -238,7 +238,11 @@ second workflow engine. Its durable record is split by responsibility:
 - `watch_observation_claims` owns the minimal content-free idempotency state for
   one effective revision, provider resource, and provider event occurrence;
 - `watch_observation_windows` owns one bounded collecting window per effective
-  revision and clears its normalized raw observations on handoff or expiry.
+  revision and clears its normalized raw observations on handoff or expiry;
+- `watch_dispatch_reservations` owns a content-free idempotent readiness record
+  for one handoff;
+- `watch_processing_budget_buckets` owns atomic processing-run reservations in
+  fixed UTC-hour buckets for one effective revision.
 
 Deletion removes proposal and effective policy content but retains the watch
 identity and lifecycle audit tombstone. Natural-language goal edits and
@@ -297,6 +301,21 @@ only claim references, source scope, counts, state, and timestamps. Pause,
 policy expiry, or effective-revision replacement clears the old collecting
 window and rejects another join. Due-window flushing is a service boundary for
 the existing runtime to call; it is not a second scheduler.
+
+Every ready handoff then crosses dispatch readiness while still inside the
+verified Slack adapter. The service rechecks canonical workspace setup,
+provider workspace authorization, active lifecycle, exact effective-revision
+pointer, source, admitted event types, expiry, retention, durable occurrence
+claims, currently available capability families, and remaining processing
+budget. It never substitutes a newer revision for the admitted one. The first
+attempt creates a deterministic content-free dispatch reservation and atomically
+increments that revision's fixed UTC-hour budget bucket; replay returns the
+same reservation without consuming another slot. Pause, deletion, policy
+expiry, authorization loss, budget exhaustion, or effective-revision
+replacement stops visibly. The result contains the provider-neutral handoff and
+the exact approved effective revision—no raw Slack payload or capability beyond
+that policy—and deliberately does not start Eve, create a signal or memory,
+schedule work, or send a reply. Issue #60 is the later consumer of this boundary.
 
 Accepted turns retain Slack actor auth, incremental context since Paige's last
 reply, thread delivery, and HITL user identity. Followed-thread observer turns

@@ -56,8 +56,11 @@ provider-neutral ephemeral envelope and claim a durable, content-free
 occurrence checkpoint before evaluation. Per-event evaluation returns one
 ephemeral handoff. Windowed evaluation accumulates only within the effective
 duration, event-count, aggregate-context, and raw-retention bounds, then clears
-raw content on handoff or expiry. Watch-goal execution remains a later workflow
-slice.
+raw content on handoff or expiry. Before later execution, dispatch readiness
+rechecks the exact current revision, verified provider workspace, retention,
+claims, capabilities, and remaining processing budget, then reserves one
+idempotent fixed-UTC-hour slot. It still does not start an Eve turn. Watch-goal
+execution remains a later workflow slice.
 
 ### Initiative Or Project Participation
 
@@ -107,6 +110,7 @@ cookie or silently inherit web authentication.
 | Slack watch admission | Reject ambient Slack traffic before content parsing and bind admitted events to approved authority. | Verified-webhook metadata lookup by agent workspace, Slack workspace, channel, event type, lifecycle, expiry, and exact effective revision; original human messages then reduce to an ephemeral provider-neutral envelope with a post-admission permalink; mention, DM, and followed-thread admission remain separate. | Send rejected content to Chat SDK, queues, Eve, or the model; admit bots, self output, edits, deletes, or unsupported subtypes; leak provider payloads; infer provider authorization; admit paused or expired policy; create a signal or memory during normalization. |
 | Watch occurrence checkpoint | Claim an admitted observation once across provider retries, concurrent delivery, and process restarts. | Deterministic key over workspace, effective revision, provider resource, and provider event occurrence; first-writer-wins insert; explicit bounded compare-and-set failure retry. | Persist observation text, prompts, secrets, permalinks, or actors; silently reset a failed claim; dispatch an existing claim again. |
 | Watch evaluation assembly | Produce one provider-neutral handoff per event or assemble a bounded window before later dispatch. | Per-event in-memory handoff; or one restart-safe collecting row capped by effective duration, observation count, aggregate characters, and raw retention, with atomic content clearing on handoff or expiry. | Couple evaluation to trigger or delivery timing; retain raw content after handoff/expiry; admit another event after pause, policy expiry, or revision replacement; add another scheduler. |
+| Watch dispatch readiness | Revalidate and reserve a bounded handoff before the later watch-turn executor. | Current verified provider workspace, canonical setup, active exact effective revision, source/event/retention/claim validation, available approved capabilities, and an idempotent fixed-UTC-hour processing-budget reservation. | Inherit a replacement revision; expose provider payload fields or extra capability; dispatch after pause/deletion/expiry/authorization loss/budget exhaustion; start Eve or create signals, memories, replies, digests, or follow-ups. |
 | Slack thread presence | Admit only invited thread replies and preserve conversational continuity. | Separate `slack_thread_presence` state plus Chat SDK subscriptions, one-second burst debounce, silent observer turns, dismissal, signal-resolution cleanup, and seven-day inactivity expiry. | Persist or model-process unenrolled channel traffic, create signals from ordinary chatter, or widen participation beyond the invited thread. |
 | Slack context retrieval | Fill one concrete context gap during the current Slack user's interaction. | Request-scoped `action_token`, one `assistant.search.context` call, up to five results, ephemeral summarization, and permalink-only citations through `retrieve_slack_context`. | Search ambiently, page automatically, expose tokens or raw hits to Eve state, retain results, or treat Slack discussion as verified public evidence. |
 | Signal intake | Convert provider context into a docs signal with provenance. | `capture_slack_docs_signal`, `capture_linear_docs_signal`; `create_docs_signal`, `list_docs_signals`, `get_docs_signal`, `update_docs_signal_lifecycle`; watched scans also create source evidence. | Inspect or patch docs directly. |

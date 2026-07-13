@@ -8,6 +8,7 @@ import type { WebhookOptions } from "chat";
 import type {
   EphemeralWatchObservation,
   WatchEventAdmission,
+  WatchDispatchReadyHandoff,
   WatchObservationAssemblyResult,
   WatchObservationClaimResult,
 } from "@docs-agent/control-plane/agent";
@@ -52,6 +53,9 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
   private readonly assembleWatchObservation?: (
     input: AssembleClaimedWatchObservationInput,
   ) => Promise<WatchObservationAssemblyResult>;
+  private readonly prepareWatchDispatch?: (
+    handoff: WatchObservationAssemblyResult["handoffs"][number],
+  ) => Promise<WatchDispatchReadyHandoff>;
 
   constructor(
     config: SlackAdapterConfig,
@@ -72,6 +76,9 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
       assembleWatchObservation?: (
         input: AssembleClaimedWatchObservationInput,
       ) => Promise<WatchObservationAssemblyResult>;
+      prepareWatchDispatch?: (
+        handoff: WatchObservationAssemblyResult["handoffs"][number],
+      ) => Promise<WatchDispatchReadyHandoff>;
     } = {},
   ) {
     super(config);
@@ -81,6 +88,7 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
     this.normalizeWatchEvent = options.normalizeWatchEvent;
     this.claimWatchObservation = options.claimWatchObservation;
     this.assembleWatchObservation = options.assembleWatchObservation;
+    this.prepareWatchDispatch = options.prepareWatchDispatch;
   }
 
   protected override handleMessageEvent(
@@ -223,10 +231,11 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
     if (
       this.normalizeWatchEvent === undefined ||
       this.claimWatchObservation === undefined ||
-      this.assembleWatchObservation === undefined
+      this.assembleWatchObservation === undefined ||
+      this.prepareWatchDispatch === undefined
     ) {
       throw new Error(
-        "Slack watch admission requires configured normalization, durable claim, and assembly services.",
+        "Slack watch admission requires configured normalization, durable claim, assembly, and dispatch-readiness services.",
       );
     }
 
@@ -246,8 +255,11 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
       ...input,
       claimResult: await this.claimWatchObservation!(input),
     })));
-    await Promise.all(claimed.map((input) =>
+    const assemblyResults = await Promise.all(claimed.map((input) =>
       this.assembleWatchObservation!(input)
+    ));
+    await Promise.all(assemblyResults.flatMap(({ handoffs }) => handoffs).map(
+      (handoff) => this.prepareWatchDispatch!(handoff),
     ));
   }
 
@@ -281,6 +293,9 @@ export function createSubscriptionFilteredSlackAdapter(
     assembleWatchObservation?: (
       input: AssembleClaimedWatchObservationInput,
     ) => Promise<WatchObservationAssemblyResult>;
+    prepareWatchDispatch?: (
+      handoff: WatchObservationAssemblyResult["handoffs"][number],
+    ) => Promise<WatchDispatchReadyHandoff>;
   } = {},
 ): SubscriptionFilteredSlackAdapter {
   return new SubscriptionFilteredSlackAdapter(config, options);

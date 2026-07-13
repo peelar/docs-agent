@@ -1,9 +1,12 @@
 import {
   DEFAULT_WORKSPACE_ID,
+  prepareWatchDispatch,
   resolveActiveWatchEventAdmissions,
   WATCH_CAPABILITY_REGISTRY_VERSION,
   type WatchCapabilityRegistry,
   type WatchEventAdmission,
+  type WatchDispatchReadyHandoff,
+  type WatchObservationHandoff,
 } from "@docs-agent/control-plane/agent";
 
 import type { SlackWatchEventScope } from "./subscription-filtered-slack-adapter";
@@ -42,6 +45,28 @@ export function resolveSlackWatchEventAdmissions(
     providerAuthorization: {
       provider: "slack",
       providerWorkspaceId: scope.providerWorkspaceId,
+      verification: "verified-webhook",
+    },
+  });
+}
+
+export function prepareSlackWatchDispatch(
+  handoff: WatchObservationHandoff,
+): Promise<WatchDispatchReadyHandoff> {
+  const providerWorkspaceIds = new Set(
+    handoff.observations.map(({ provenance }) => provenance.providerWorkspaceId),
+  );
+  const providerWorkspaceId = [...providerWorkspaceIds][0];
+  if (providerWorkspaceIds.size !== 1 || providerWorkspaceId === undefined) {
+    throw new Error(
+      "A Slack watch handoff must belong to one verified provider workspace.",
+    );
+  }
+  return prepareWatchDispatch(handoff, {
+    capabilityRegistry: PAIGE_WATCH_CAPABILITY_REGISTRY,
+    providerAuthorization: {
+      provider: "slack",
+      providerWorkspaceId,
       verification: "verified-webhook",
     },
   });

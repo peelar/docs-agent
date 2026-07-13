@@ -238,6 +238,16 @@ the old collecting window without admitting another event. Trigger and
 delivery modes do not change these evaluation boundaries, and window closure
 does not introduce another scheduler.
 
+The verified adapter passes every ready handoff through dispatch readiness
+before any future Eve watch turn. That boundary rechecks canonical workspace
+readiness, verified provider workspace, active lifecycle, the exact current
+effective revision, source and event scope, expiry, retention, durable claims,
+capability availability, and `processingRunsPerHour`. A deterministic
+`watch_dispatch_reservations` row makes the same handoff idempotent, while
+`watch_processing_budget_buckets` atomically reserves a fixed UTC-hour slot.
+The returned provider-neutral handoff carries only the exact approved revision;
+it does not start Eve, create product state, or deliver a provider response.
+
 ## Integration Boundaries
 
 - Database: control-plane services hide Drizzle/libSQL details from apps and

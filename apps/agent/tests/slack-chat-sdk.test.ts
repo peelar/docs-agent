@@ -6,8 +6,10 @@ import type { Message, Thread, WebhookOptions } from "chat";
 import type {
   EphemeralWatchObservation,
   WatchEventAdmission,
+  WatchDispatchReadyHandoff,
   WatchObservationAssemblyResult,
   WatchObservationClaimResult,
+  WatchObservationHandoff,
 } from "@docs-agent/control-plane/agent";
 
 import {
@@ -48,6 +50,9 @@ class TestSlackAdapter extends SubscriptionFilteredSlackAdapter {
     assembleWatchObservation?: (
       input: AssembleClaimedWatchObservationInput,
     ) => Promise<WatchObservationAssemblyResult>;
+    prepareWatchDispatch?: (
+      handoff: WatchObservationHandoff,
+    ) => Promise<WatchDispatchReadyHandoff>;
   } = {}) {
     super({ botToken: "xoxb-test", webhookVerifier: () => true }, options);
   }
@@ -179,8 +184,10 @@ assert.deepEqual(
 const normalizedInputs: SlackWatchObservationInput[] = [];
 const claimedInputs: ClaimNormalizedWatchObservationInput[] = [];
 const assembledInputs: AssembleClaimedWatchObservationInput[] = [];
+const preparedHandoffs: WatchObservationHandoff[] = [];
 const normalizedObservation = {} as EphemeralWatchObservation;
 const claimResult = {} as WatchObservationClaimResult;
+const assembledHandoff = {} as WatchObservationHandoff;
 const normalizingWatchAdapter = new TestSlackAdapter({
   admitWatchEvent: async () => [{} as WatchEventAdmission],
   normalizeWatchEvent: async (input) => {
@@ -193,7 +200,14 @@ const normalizingWatchAdapter = new TestSlackAdapter({
   },
   assembleWatchObservation: async (input) => {
     assembledInputs.push(input);
-    return {} as WatchObservationAssemblyResult;
+    return {
+      disposition: "ready",
+      handoffs: [assembledHandoff],
+    } as WatchObservationAssemblyResult;
+  },
+  prepareWatchDispatch: async (handoff) => {
+    preparedHandoffs.push(handoff);
+    return {} as WatchDispatchReadyHandoff;
   },
 });
 await normalizingWatchAdapter.emit(event({ text: "normalize after admission" }));
@@ -210,6 +224,7 @@ assert.equal(claimedInputs[0]?.observation, normalizedObservation);
 assert.equal(assembledInputs.length, 1);
 assert.equal(assembledInputs[0]?.claimResult, claimResult);
 assert.equal(assembledInputs[0]?.observation, normalizedObservation);
+assert.deepEqual(preparedHandoffs, [assembledHandoff]);
 
 await watchFiltered.emit(event({ type: "app_mention", text: "@Paige direct path" }));
 await watchFiltered.emit(event({ channel: "D123", channel_type: "im", text: "DM path" }));

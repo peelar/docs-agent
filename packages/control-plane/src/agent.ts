@@ -20,6 +20,7 @@ export * from "./watch-event-admission.ts";
 export * from "./watch-observation.ts";
 export * from "./watch-observation-claims.ts";
 export * from "./watch-observation-windows.ts";
+export * from "./watch-dispatch-readiness.ts";
 export {
   WATCH_CAPABILITY_REGISTRY_VERSION,
   type WatchCapabilityRegistry,
