@@ -134,6 +134,16 @@ Keep the human review contract out of Paige's context while testing:
 
 ## Eve Evals
 
+Run live evals through the repository supervisor. Both `pnpm eval` and
+`pnpm eval:safe` use a fresh workflow-data directory, hold an exclusive local
+lock, stop after two minutes without meaningful progress, and enforce a
+ten-minute wall-clock budget. `PAIGE_EVAL_WALL_TIMEOUT_MS` may shorten that
+budget or raise it to at most twenty minutes. The supervisor terminates the
+complete process group, removes only Eve sandboxes absent from its pre-run
+baseline, and writes a bounded failure transcript under
+`.eve/eval-supervisor/failures/`. Do not invoke the package-level `eve eval`
+command directly during loop work.
+
 `apps/agent/evals/saleor-docs-user-tests.eval.ts` registers four executable
 scenarios: the two historical cases, the source-backed EditorJS gap, and a
 repository-generic pagination no-change case whose language cannot match the
@@ -159,9 +169,9 @@ case captures an issue that lacks source evidence and asserts that current-docs
 verification, patch handoff, and writeback are not called.
 
 ```sh
-pnpm eval saleor-docs-user-tests --skip-report --verbose
-pnpm eval watched-repositories --skip-report --verbose
-pnpm eval docs-signal-workflows --skip-report --verbose
+pnpm eval:safe -- saleor-docs-user-tests --skip-report --verbose
+pnpm eval:safe -- watched-repositories --skip-report --verbose
+pnpm eval:safe -- docs-signal-workflows --skip-report --verbose
 ```
 
 That command validates:
@@ -195,7 +205,7 @@ catalog:
 
 ```sh
 EVE_GATEWAY_MODEL=anthropic/claude-sonnet-5 \
-pnpm eval saleor-docs-user-tests --skip-report --verbose
+pnpm eval:safe -- saleor-docs-user-tests --skip-report --verbose
 ```
 
 List the scenarios with:
@@ -416,7 +426,7 @@ answerable docs question, unrelated chatter that stays silent, and relevant
 context that calls the existing Slack intake tool. It was run for #30 with:
 
 ```sh
-pnpm eval slack-participation --skip-report --verbose
+pnpm eval:safe -- slack-participation --skip-report --verbose
 ```
 
 Result on 2026-07-11: four cases passed and all twelve eval gates passed.
@@ -804,7 +814,7 @@ cross-session read, compare-and-swap update, and revision history behavior.
 Run the executable behavior proof with:
 
 ```sh
-pnpm eval internal-working-documents --skip-report --verbose
+pnpm eval:safe -- internal-working-documents --skip-report --verbose
 ```
 
 The control-plane test `packages/control-plane/tests/internal-documents.test.ts`
@@ -913,8 +923,8 @@ GitHub connector boundary. Re-run the two repository-backed suites in an Eve
 environment with the GitHub connector configured before closing #32:
 
 ```bash
-pnpm eval saleor-docs-user-tests --skip-report --verbose
-pnpm eval watched-repositories --skip-report --verbose
+pnpm eval:safe -- saleor-docs-user-tests --skip-report --verbose
+pnpm eval:safe -- watched-repositories --skip-report --verbose
 ```
 
 ## Behavior Settings
@@ -941,8 +951,8 @@ The deterministic persistence, schema, instruction, and Slack adapter checks
 run through `pnpm check`. The live behavior suites were also run with:
 
 ```sh
-pnpm eval behavior-settings --skip-report --verbose
-pnpm eval slack-participation --skip-report --verbose
+pnpm eval:safe -- behavior-settings --skip-report --verbose
+pnpm eval:safe -- slack-participation --skip-report --verbose
 ```
 
 Result on 2026-07-12: the three personality cases passed all nine gates, and the

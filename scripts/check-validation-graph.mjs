@@ -120,13 +120,18 @@ assert.deepEqual(
 );
 
 assert.match(rootPackage.scripts.check, /turbo run typecheck test --affected/u);
+assert.match(rootPackage.scripts.check, /pnpm eval:safe:test/u);
 assert.match(rootPackage.scripts.check, /pnpm capability:check/u);
 assert.doesNotMatch(rootPackage.scripts.check, /test:e2e|monorepo:smoke|status:smoke/u);
 assert.match(rootPackage.scripts["check:full"], /turbo run typecheck test build test:e2e/u);
+assert.match(rootPackage.scripts["check:full"], /pnpm eval:safe:test/u);
 assert.match(rootPackage.scripts["check:full"], /pnpm capability:check/u);
 assert.doesNotMatch(rootPackage.scripts["check:full"], /--affected/u);
 assert.match(packages.get("docs-agent").scripts.build, /eve build/u);
 assert.match(packages.get("@docs-agent/web").scripts.build, /next build/u);
+assert.equal(rootPackage.scripts.eval, "node scripts/run-supervised-eval.mjs");
+assert.equal(rootPackage.scripts["eval:safe"], "node scripts/run-supervised-eval.mjs");
+assert.equal(rootPackage.scripts["eval:safe:test"], "node scripts/test-supervised-eval.mjs");
 
 console.log("Turbo validation graph checks passed.");
 
