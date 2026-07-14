@@ -37,6 +37,8 @@ import {
 
 type DispatchDatabase = Pick<DocsAgentDatabase, "insert" | "select" | "update">;
 
+export const WATCH_EPHEMERAL_DISPATCH_CLAIM_MS = 60_000;
+
 export const watchDispatchReadinessContextSchema = watchServiceContextSchema
   .extend({ providerAuthorization: watchProviderAuthorizationSchema })
   .strict();
@@ -148,10 +150,10 @@ export async function prepareWatchDispatch(
         reservationId,
       )).limit(1);
       if (existing[0] !== undefined) {
-        if (existing[0].status !== "ready") {
+        if (!["ready", "dispatching", "dispatched", "completed"].includes(existing[0].status)) {
           throw new WatchDispatchReadinessError(
             "storage-unavailable",
-            "The existing watch dispatch reservation is incomplete.",
+            "The existing watch dispatch reservation cannot be replayed.",
           );
         }
         return readyResult(
@@ -170,20 +172,46 @@ export async function prepareWatchDispatch(
         (sum, observation) => sum + observation.content.characterCount,
         0,
       );
+      const providerWorkspaceIds = new Set(
+        handoff.observations.map(({ provenance }) => provenance.providerWorkspaceId),
+      );
+      const providerWorkspaceId = [...providerWorkspaceIds][0];
+      if (providerWorkspaceIds.size !== 1 || providerWorkspaceId === undefined) {
+        throw new WatchDispatchReadinessError(
+          "handoff-invalid",
+          "The watch dispatch handoff does not retain one verified provider workspace.",
+        );
+      }
+      const rawObservationSeconds = effectiveRevision.policy.retention.rawObservationSeconds;
+      const payloadExpiresAt = new Date(Math.min(
+        new Date(effectiveRevision.policy.expiresAt!).getTime(),
+        now.getTime() + (rawObservationSeconds === 0
+          ? WATCH_EPHEMERAL_DISPATCH_CLAIM_MS
+          : rawObservationSeconds * 1_000),
+      )).toISOString();
+      const durableHandoff = rawObservationSeconds > 0
+        ? handoff
+        : null;
       const inserted = await tx.insert(watchDispatchReservations).values({
         id: reservationId,
         workspaceId: handoff.workspaceId,
         watchId: handoff.watchId,
         effectiveRevisionId: handoff.effectiveRevisionId,
         provider: handoff.source.provider,
+        providerWorkspaceId,
         resourceType: handoff.source.resource.type,
         resourceId: handoff.source.resource.id,
         handoffKind: handoff.kind,
+        handoffPayload: durableHandoff,
+        payloadExpiresAt,
         claimIds,
         observationCount: handoff.observations.length,
         characterCount,
         hourBucket,
         status: "reserving",
+        attempts: 0,
+        leaseExpiresAt: null,
+        sessionId: null,
         reservedAt: preparedAt,
         updatedAt: preparedAt,
       }).onConflictDoNothing().returning({ id: watchDispatchReservations.id });
@@ -257,8 +285,12 @@ export async function prepareWatchDispatch(
 export async function resolveWatchDispatchCapabilityAuthority(
   reservationIdInput: string,
   context: unknown,
+  options: { claimToken?: string; allowTerminal?: boolean } = {},
 ): Promise<WatchDispatchCapabilityAuthority> {
   const reservationId = z.string().regex(/^[a-f0-9]{64}$/u).parse(reservationIdInput);
+  const claimToken = options.claimToken === undefined
+    ? undefined
+    : z.string().uuid().parse(options.claimToken);
   const readyContext = await requireWatchServiceReady(context);
   const now = readyContext.now ?? new Date();
 
@@ -267,9 +299,11 @@ export async function resolveWatchDispatchCapabilityAuthority(
       const rows = await db.select({
         reservationWorkspaceId: watchDispatchReservations.workspaceId,
         reservationStatus: watchDispatchReservations.status,
+        reservationClaimToken: watchDispatchReservations.leaseToken,
         reservationWatchId: watchDispatchReservations.watchId,
         reservationEffectiveRevisionId: watchDispatchReservations.effectiveRevisionId,
         reservationProvider: watchDispatchReservations.provider,
+        reservationProviderWorkspaceId: watchDispatchReservations.providerWorkspaceId,
         reservationResourceType: watchDispatchReservations.resourceType,
         reservationResourceId: watchDispatchReservations.resourceId,
         lifecycleState: policyBoundWatches.lifecycleState,
@@ -303,7 +337,13 @@ export async function resolveWatchDispatchCapabilityAuthority(
       if (
         row === undefined ||
         row.reservationWorkspaceId !== DEFAULT_WORKSPACE_ID ||
-        row.reservationStatus !== "ready" ||
+        ![
+          "ready",
+          "dispatching",
+          "dispatched",
+          ...(options.allowTerminal === true ? ["completed", "failed"] : []),
+        ].includes(row.reservationStatus) ||
+        claimToken !== undefined && row.reservationClaimToken !== claimToken ||
         row.lifecycleState !== "active" ||
         row.currentEffectiveRevisionId !== row.reservationEffectiveRevisionId ||
         row.effectiveRevisionId !== row.reservationEffectiveRevisionId ||
@@ -339,6 +379,7 @@ export async function resolveWatchDispatchCapabilityAuthority(
       const policy = revision.data.policy;
       if (
         policy.source.provider !== row.reservationProvider ||
+        policy.source.providerWorkspaceId !== row.reservationProviderWorkspaceId ||
         policy.source.resource.type !== row.reservationResourceType ||
         policy.source.resource.id !== row.reservationResourceId ||
         policy.expiresAt === null ||

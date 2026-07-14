@@ -139,6 +139,7 @@ test("watch policy preview fails closed with secret-safe structured errors", () 
   assertIssue(
     { policy: { ...minimalDraft(), source: {
       provider: "linear",
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "project", id: "secret-resource-xoxb-123" },
     } } },
     CONTEXT,
@@ -186,17 +187,6 @@ test("watch policy preview fails closed with secret-safe structured errors", () 
   );
   assertIssue(
     { policy: completeDraft({
-      trigger: {
-        type: "on_schedule",
-        schedule: { cron: "0 9 * * *", timeZone: "UTC" },
-      },
-      evaluation: { mode: "per_event" },
-    }) },
-    CONTEXT,
-    "incompatible-policy",
-  );
-  assertIssue(
-    { policy: completeDraft({
       evaluation: { mode: "windowed", windowSeconds: 600, maxObservations: 10 },
       retention: { rawObservationSeconds: 60, auditDays: 30 },
     }) },
@@ -219,6 +209,7 @@ function minimalDraft(): WatchPolicyDraft {
   return {
     source: {
       provider: "slack",
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "channel", id: "C-DOCS-FEEDBACK" },
     },
     goal: "Find evidence-backed documentation gaps discussed in this channel.",

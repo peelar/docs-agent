@@ -68,6 +68,7 @@ test("resolves only exact active event watches and binds immutable authority", a
     assert.equal(admissions[0]?.providerWorkspaceId, PROVIDER_WORKSPACE_ID);
     assert.deepEqual(admissions[0]?.source, {
       provider: "slack",
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "channel", id: "C-DOCS-FEEDBACK" },
     });
     assert.equal(admissions[0]?.eventType, "message");
@@ -239,6 +240,7 @@ function lookup(channelId: string) {
     providerWorkspaceId: PROVIDER_WORKSPACE_ID,
     source: {
       provider: "slack",
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "channel", id: channelId },
     },
     eventType: "message",
@@ -249,6 +251,7 @@ function policy(channelId: string, expiresAt: string): ProposedWatchPolicy {
   return {
     source: {
       provider: "slack",
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "channel", id: channelId },
     },
     goal: "Find evidence-backed documentation gaps discussed in this channel.",

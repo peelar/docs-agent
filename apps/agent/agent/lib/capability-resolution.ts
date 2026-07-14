@@ -32,6 +32,7 @@ export const authoredToolNames = [
   "memory_retire",
   "memory_search",
   "process_due_docs_followups",
+  "provider_delivery",
   "publish_working_repository_pr",
   "retrieve_slack_context",
   "scan_watched_repositories",
@@ -85,7 +86,7 @@ const familyTools: Readonly<Record<CapabilityFamily, readonly AuthoredToolName[]
   "docs_work.manage": ["docs_work_read", "docs_work_manage", "internal_document"],
   "draft.edit": ["authoring_workspace"],
   "follow_up.schedule": ["docs_follow_up"],
-  "provider.deliver": [],
+  "provider.deliver": ["provider_delivery"],
   "publication.publish": ["publish_working_repository_pr"],
 };
 
@@ -258,7 +259,8 @@ async function resolveRuntimeCapabilities(
 ): Promise<CapabilityResolution> {
   const current = projectPrincipal(session.auth.current);
   const initiator = projectPrincipal(session.auth.initiator);
-  const reservationId = watchReservationId(current, initiator);
+  const watchClaim = watchDispatchClaimFromAuth(session.auth);
+  const reservationId = watchClaim?.reservationId ?? null;
 
   try {
     if (forceFailure) throw new Error("Dynamic resolver event has no verified turn id.");
@@ -268,7 +270,7 @@ async function resolveRuntimeCapabilities(
         ? Promise.resolve(null)
         : resolveWatchDispatchCapabilityAuthority(reservationId, {
             capabilityRegistry: PAIGE_WATCH_CAPABILITY_REGISTRY,
-          }),
+          }, { claimToken: watchClaim!.claimToken }),
     ]);
     const resolved = resolveCapabilityMatrix({
       current,
@@ -414,6 +416,87 @@ function watchReservationId(
   ) return null;
   const reservationId = current.principalId.slice(prefix.length);
   return /^[a-f0-9]{64}$/u.test(reservationId) ? reservationId : null;
+}
+
+export function watchDispatchClaimFromAuth(auth: {
+  readonly current?: unknown;
+  readonly initiator?: unknown;
+}): { reservationId: string; claimToken: string } | null {
+  const reservationId = watchReservationId(
+    projectPrincipal(auth.current),
+    projectPrincipal(auth.initiator),
+  );
+  if (reservationId === null) return null;
+  const currentToken = dispatchClaimToken(auth.current);
+  const initiatorToken = dispatchClaimToken(auth.initiator);
+  if (currentToken === null || currentToken !== initiatorToken) return null;
+  return { reservationId, claimToken: currentToken };
+}
+
+export function watchReservationIdFromAuth(auth: {
+  readonly current?: unknown;
+  readonly initiator?: unknown;
+}): string | null {
+  return watchDispatchClaimFromAuth(auth)?.reservationId ?? null;
+}
+
+export async function resolveFrameworkKnowledgeReadVisibility(
+  event: unknown,
+  context: ResolverContext,
+): Promise<boolean> {
+  if (!isWatchDispatchAuthCandidate(context.session.auth)) return true;
+  return canExposeFrameworkKnowledgeRead(
+    context.session.auth,
+    await resolveDynamicCapabilities(event, context),
+  );
+}
+
+export async function requireFrameworkKnowledgeReadExecution(
+  ctx: ToolContext,
+): Promise<void> {
+  if (!isWatchDispatchAuthCandidate(ctx.session.auth)) return;
+  const resolved = await resolveRuntimeCapabilities(
+    ctx.session,
+    ctx.session.turn.id,
+    null,
+    false,
+  );
+  if (canExposeFrameworkKnowledgeRead(ctx.session.auth, resolved)) return;
+  throw new Error(
+    "Framework knowledge reads are unavailable in this exact watch runtime context.",
+  );
+}
+
+export function canExposeFrameworkKnowledgeRead(
+  auth: { readonly current?: unknown; readonly initiator?: unknown },
+  resolution: CapabilityResolution | null,
+): boolean {
+  if (!isWatchDispatchAuthCandidate(auth)) return true;
+  return resolution?.contextClass === "watch" &&
+    resolution.status === "resolved" &&
+    resolution.capabilityFamilies.includes("knowledge.read");
+}
+
+function dispatchClaimToken(value: unknown): string | null {
+  if (typeof value !== "object" || value === null || !("attributes" in value)) return null;
+  const attributes = value.attributes;
+  if (typeof attributes !== "object" || attributes === null ||
+    !("watchDispatchClaimToken" in attributes)) return null;
+  const token = attributes.watchDispatchClaimToken;
+  return typeof token === "string" && /^[0-9a-f-]{36}$/u.test(token) ? token : null;
+}
+
+function isWatchDispatchAuthCandidate(auth: {
+  readonly current?: unknown;
+  readonly initiator?: unknown;
+}): boolean {
+  return [auth.current, auth.initiator].some((value) => {
+    if (typeof value !== "object" || value === null) return false;
+    const principal = value as Record<string, unknown>;
+    return principal.authenticator === "paige-watch-dispatch" ||
+      typeof principal.principalId === "string" &&
+        principal.principalId.startsWith("paige:watch-dispatch:");
+  });
 }
 
 function isSchedulePrincipal(principal: PrincipalProjection): boolean {

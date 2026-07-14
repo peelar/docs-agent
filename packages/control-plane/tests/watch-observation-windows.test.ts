@@ -97,6 +97,7 @@ test("windowed evaluation survives reopens and hands off at event and context bo
     const contextActive = await createActiveWatch(policy({
       source: {
         provider: "slack",
+      providerWorkspaceId: "T-DOCS",
         resource: { type: "channel", id: "C-CONTEXT" },
       },
       evaluation: { mode: "windowed", windowSeconds: 300, maxObservations: 10 },
@@ -142,6 +143,7 @@ test("due windows hand off within retention and expire raw content after retenti
     const laterActive = await createActiveWatch(policy({
       source: {
         provider: "slack",
+      providerWorkspaceId: "T-DOCS",
         resource: { type: "channel", id: "C-RETENTION" },
       },
       evaluation: { mode: "windowed", windowSeconds: 60, maxObservations: 10 },
@@ -168,6 +170,7 @@ test("pause, policy expiry, and replacement reject new joins and clear old raw w
     const paused = await createActiveWatch(policy({
       source: {
         provider: "slack",
+      providerWorkspaceId: "T-DOCS",
         resource: { type: "channel", id: "C-PAUSED" },
       },
       evaluation: { mode: "windowed", windowSeconds: 300, maxObservations: 10 },
@@ -235,6 +238,7 @@ test("pause, policy expiry, and replacement reject new joins and clear old raw w
     const expiring = await createActiveWatch(policy({
       source: {
         provider: "slack",
+      providerWorkspaceId: "T-DOCS",
         resource: { type: "channel", id: "C-EXPIRING" },
       },
       evaluation: { mode: "windowed", windowSeconds: 60, maxObservations: 10 },
@@ -333,6 +337,7 @@ function policy(
   return {
     source: {
       provider: "slack",
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "channel", id: "C-WINDOW" },
     },
     goal: "Find evidence-backed documentation gaps in a bounded window.",

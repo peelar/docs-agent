@@ -341,6 +341,119 @@ export const watchObservationClaims = sqliteTable(
   ],
 );
 
+export const watchActionOutcomes = sqliteTable(
+  "watch_action_outcomes",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    watchId: text("watch_id")
+      .notNull()
+      .references(() => policyBoundWatches.id, { onDelete: "cascade" }),
+    effectiveRevisionId: text("effective_revision_id").notNull(),
+    reservationId: text("reservation_id").notNull(),
+    sessionId: text("session_id").notNull(),
+    turnId: text("turn_id").notNull(),
+    actionKey: text("action_key").notNull(),
+    action: text("action").notNull(),
+    capabilityFamily: text("capability_family"),
+    status: text("status").notNull(),
+    resultCode: text("result_code"),
+    occurredAt: text("occurred_at").notNull(),
+    expiresAt: text("expires_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("watch_action_outcomes_action_idx").on(
+      table.workspaceId,
+      table.reservationId,
+      table.actionKey,
+    ),
+    index("watch_action_outcomes_watch_idx").on(
+      table.workspaceId,
+      table.watchId,
+      table.occurredAt,
+    ),
+    index("watch_action_outcomes_expiry_idx").on(
+      table.workspaceId,
+      table.expiresAt,
+    ),
+  ],
+);
+
+export const watchProviderDeliveries = sqliteTable(
+  "watch_provider_deliveries",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    watchId: text("watch_id")
+      .notNull()
+      .references(() => policyBoundWatches.id, { onDelete: "cascade" }),
+    effectiveRevisionId: text("effective_revision_id").notNull(),
+    reservationId: text("reservation_id").notNull(),
+    dispatchClaimToken: text("dispatch_claim_token").notNull(),
+    provider: text("provider").notNull(),
+    providerWorkspaceId: text("provider_workspace_id").notNull(),
+    resourceType: text("resource_type").notNull(),
+    resourceId: text("resource_id").notNull(),
+    mode: text("mode").notNull(),
+    digestBatchId: text("digest_batch_id"),
+    status: text("status").notNull(),
+    content: text("content"),
+    contentHash: text("content_hash").notNull(),
+    clientMessageId: text("client_message_id").notNull(),
+    attempts: integer("attempts").notNull().default(0),
+    leaseExpiresAt: text("lease_expires_at"),
+    leaseToken: text("lease_token"),
+    createdAt: text("created_at").notNull(),
+    expiresAt: text("expires_at").notNull(),
+    updatedAt: text("updated_at").notNull(),
+    deliveredAt: text("delivered_at"),
+  },
+  (table) => [
+    uniqueIndex("watch_provider_deliveries_call_idx").on(
+      table.workspaceId,
+      table.reservationId,
+      table.id,
+    ),
+    index("watch_provider_deliveries_due_idx").on(
+      table.workspaceId,
+      table.status,
+      table.mode,
+      table.createdAt,
+    ),
+    index("watch_provider_deliveries_digest_batch_idx").on(
+      table.workspaceId,
+      table.digestBatchId,
+    ),
+    index("watch_provider_deliveries_expiry_idx").on(
+      table.workspaceId,
+      table.expiresAt,
+    ),
+  ],
+);
+
+export const watchDeliveryBudgetBuckets = sqliteTable(
+  "watch_delivery_budget_buckets",
+  {
+    id: text("id").primaryKey(),
+    workspaceId: text("workspace_id").notNull(),
+    watchId: text("watch_id")
+      .notNull()
+      .references(() => policyBoundWatches.id, { onDelete: "cascade" }),
+    effectiveRevisionId: text("effective_revision_id").notNull(),
+    dayBucket: text("day_bucket").notNull(),
+    reservedDeliveries: integer("reserved_deliveries").notNull().default(0),
+    limitSnapshot: integer("limit_snapshot").notNull(),
+    updatedAt: text("updated_at").notNull(),
+  },
+  (table) => [
+    uniqueIndex("watch_delivery_budget_buckets_revision_idx").on(
+      table.workspaceId,
+      table.effectiveRevisionId,
+      table.dayBucket,
+    ),
+  ],
+);
+
 export const watchObservationWindows = sqliteTable(
   "watch_observation_windows",
   {
@@ -422,6 +535,13 @@ export const watchDispatchReservations = sqliteTable(
     status: text("status").notNull(),
     reservedAt: text("reserved_at").notNull(),
     updatedAt: text("updated_at").notNull(),
+    providerWorkspaceId: text("provider_workspace_id"),
+    handoffPayload: text("handoff_payload", { mode: "json" }).$type<unknown>(),
+    payloadExpiresAt: text("payload_expires_at"),
+    attempts: integer("attempts").notNull().default(0),
+    leaseExpiresAt: text("lease_expires_at"),
+    leaseToken: text("lease_token"),
+    sessionId: text("session_id"),
   },
   (table) => [
     index("watch_dispatch_reservations_budget_idx").on(
@@ -1160,6 +1280,9 @@ export const schema = {
   watchObservationWindows,
   watchProcessingBudgetBuckets,
   watchDispatchReservations,
+  watchActionOutcomes,
+  watchProviderDeliveries,
+  watchDeliveryBudgetBuckets,
   workspaceMemoryEvents,
   workspaceMemoryRecords,
   workspaceMemorySources,

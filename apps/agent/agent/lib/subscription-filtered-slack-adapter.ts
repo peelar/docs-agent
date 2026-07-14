@@ -11,6 +11,7 @@ import type {
   WatchDispatchReadyHandoff,
   WatchObservationAssemblyResult,
   WatchObservationClaimResult,
+  PreparedWatchProviderDelivery,
 } from "@docs-agent/control-plane/agent";
 
 import {
@@ -56,6 +57,9 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
   private readonly prepareWatchDispatch?: (
     handoff: WatchObservationAssemblyResult["handoffs"][number],
   ) => Promise<WatchDispatchReadyHandoff>;
+  private readonly dispatchWatchTurn?: (
+    ready: WatchDispatchReadyHandoff,
+  ) => Promise<void>;
 
   constructor(
     config: SlackAdapterConfig,
@@ -79,6 +83,9 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
       prepareWatchDispatch?: (
         handoff: WatchObservationAssemblyResult["handoffs"][number],
       ) => Promise<WatchDispatchReadyHandoff>;
+      dispatchWatchTurn?: (
+        ready: WatchDispatchReadyHandoff,
+      ) => Promise<void>;
     } = {},
   ) {
     super(config);
@@ -89,6 +96,7 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
     this.claimWatchObservation = options.claimWatchObservation;
     this.assembleWatchObservation = options.assembleWatchObservation;
     this.prepareWatchDispatch = options.prepareWatchDispatch;
+    this.dispatchWatchTurn = options.dispatchWatchTurn;
   }
 
   protected override handleMessageEvent(
@@ -218,6 +226,38 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
     return response.permalink;
   }
 
+  async postPreparedWatchDelivery(
+    input: PreparedWatchProviderDelivery,
+  ): Promise<void> {
+    if (
+      input.provider !== "slack" || input.resourceType !== "channel" ||
+      input.providerWorkspaceId.length === 0 || input.resourceId.length === 0
+    ) {
+      throw new Error("Slack watch delivery requires an exact verified workspace and source channel.");
+    }
+    const installation = await this.resolveTokenForTeam(input.providerWorkspaceId);
+    const token = installation?.token ?? await this.getToken();
+    await this.withBotToken(token, async () => {
+      const identity = await this.webClient.apiCall("auth.test") as {
+        ok?: boolean;
+        team_id?: unknown;
+      };
+      if (identity.ok !== true || identity.team_id !== input.providerWorkspaceId) {
+        throw new Error("Slack watch delivery token is not bound to the approved workspace.");
+      }
+      const result = await this.webClient.apiCall("chat.postMessage", {
+        channel: input.resourceId,
+        markdown_text: input.content,
+        client_msg_id: input.clientMessageId,
+        unfurl_links: false,
+        unfurl_media: false,
+      }) as { ok?: boolean };
+      if (result.ok !== true) {
+        throw new Error("Slack did not accept the source-bound watch delivery.");
+      }
+    });
+  }
+
   private async normalizeIfWatchAdmitted(event: SlackEvent): Promise<void> {
     const isSelf = this.isMessageFromSelf(event);
     if (
@@ -232,7 +272,8 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
       this.normalizeWatchEvent === undefined ||
       this.claimWatchObservation === undefined ||
       this.assembleWatchObservation === undefined ||
-      this.prepareWatchDispatch === undefined
+      this.prepareWatchDispatch === undefined ||
+      this.dispatchWatchTurn === undefined
     ) {
       throw new Error(
         "Slack watch admission requires configured normalization, durable claim, assembly, and dispatch-readiness services.",
@@ -258,9 +299,12 @@ export class SubscriptionFilteredSlackAdapter extends SlackAdapter {
     const assemblyResults = await Promise.all(claimed.map((input) =>
       this.assembleWatchObservation!(input)
     ));
-    await Promise.all(assemblyResults.flatMap(({ handoffs }) => handoffs).map(
-      (handoff) => this.prepareWatchDispatch!(handoff),
-    ));
+    const ready = await Promise.all(
+      assemblyResults.flatMap(({ handoffs }) => handoffs).map(
+        (handoff) => this.prepareWatchDispatch!(handoff),
+      ),
+    );
+    await Promise.all(ready.map((dispatch) => this.dispatchWatchTurn!(dispatch)));
   }
 
   private async forwardIfEntryAdmitted(
@@ -296,6 +340,9 @@ export function createSubscriptionFilteredSlackAdapter(
     prepareWatchDispatch?: (
       handoff: WatchObservationAssemblyResult["handoffs"][number],
     ) => Promise<WatchDispatchReadyHandoff>;
+    dispatchWatchTurn?: (
+      ready: WatchDispatchReadyHandoff,
+    ) => Promise<void>;
   } = {},
 ): SubscriptionFilteredSlackAdapter {
   return new SubscriptionFilteredSlackAdapter(config, options);

@@ -80,3 +80,24 @@
   behavior-settings, skill-routing, general-answer, and docs-work evals cannot
   run through the snapshot-backed session-start failure. Keep #86 open until
   that live proof can execute.
+- #60 - Assumed: `rawObservationSeconds` is the hard boundary for a durable
+  dispatch handoff, not a lower bound that the runtime may extend. A handoff
+  lease is therefore capped by both ten minutes and its remaining raw retention;
+  up to three attempts occur only when the approved retention permits. Ack or
+  terminal completion clears the handoff immediately, and expiry fails it and
+  clears content without another attempt. At zero retention no raw handoff is
+  stored: the exact just-prepared value has one metadata-deadline claim, while
+  release, crash expiry, or a missed deadline fails without durable retry.
+- #60 - Assumed: provider delivery is restricted to the effective watch's exact
+  verified Slack workspace and source channel. The model supplies content only;
+  mode, target, budget, digest membership, retry lease, and provider idempotency
+  key remain server-owned. `[[SILENT]]` suppresses the ordinary watch-turn reply
+  and is not itself provider delivery. A frozen digest batch fails atomically if
+  any member loses authority, so one provider key never represents new content.
+- #60 - Assumed: effective revisions without an exact `providerWorkspaceId`
+  cannot be granted watch authority and must be replaced by a newly approved
+  proposal; the runtime does not infer or backfill provider identity.
+- #60 - Blocker: deterministic runtime, capability, migration, adapter, and
+  retry-race proof can run locally, but live watch eval proof is not attempted
+  while the diagnosed Eve microsandbox session-start blocker remains unchanged.
+  Do not retry the live evaluator without a concrete upstream startup fix.

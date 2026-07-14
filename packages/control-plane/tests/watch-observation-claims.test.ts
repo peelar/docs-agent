@@ -220,6 +220,7 @@ function claimInput(watchId: string, effectiveRevisionId: string) {
     effectiveRevisionId,
     source: {
       provider: "slack" as const,
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "channel" as const, id: "C-DOCS" },
     },
     providerEventId: "slack:T-DOCS:C-DOCS:1710000000.000100",
@@ -230,6 +231,7 @@ function policy(): ProposedWatchPolicy {
   return {
     source: {
       provider: "slack",
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "channel", id: "C-DOCS" },
     },
     goal: "Find evidence-backed documentation gaps discussed in this channel.",

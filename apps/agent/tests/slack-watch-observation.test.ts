@@ -29,6 +29,7 @@ test("normalizes one supported human Slack message into the ephemeral envelope",
   assert.equal(observation.effectiveRevisionId, EFFECTIVE_REVISION_ID);
   assert.deepEqual(observation.source, {
     provider: "slack",
+      providerWorkspaceId: "T-DOCS",
     resource: { type: "channel", id: "C-DOCS" },
   });
   assert.deepEqual(observation.actor, { kind: "user", id: "U-AUTHOR" });
@@ -119,6 +120,7 @@ function admission(): WatchEventAdmission {
       policy: {
         source: {
           provider: "slack",
+      providerWorkspaceId: "T-DOCS",
           resource: { type: "channel", id: "C-DOCS" },
         },
         goal: "Find evidence-backed documentation gaps.",
@@ -146,6 +148,7 @@ function admission(): WatchEventAdmission {
     },
     source: {
       provider: "slack",
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "channel", id: "C-DOCS" },
     },
     eventType: "message",

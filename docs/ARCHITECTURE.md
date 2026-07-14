@@ -357,8 +357,10 @@ the existing status. The checkpoint contains no message content, prompt,
 secret, permalink, or actor. Failed processing remains failed until an explicit
 compare-and-set retry advances the bounded attempt counter.
 
-After a first claim, `per_event` evaluation produces one ephemeral handoff and
-does not persist its content. `windowed` evaluation may persist only normalized
+After a first claim, `per_event` evaluation produces one provider-neutral
+handoff. It is not durable product evidence, but dispatch may retain that
+normalized handoff only until the effective raw-observation retention boundary
+so a failed Eve handoff can retry. `windowed` evaluation may persist only normalized
 observations in one collecting `watch_observation_windows` row, capped by the
 effective revision's duration, observation count, aggregate character limit,
 and raw-retention period. Handoff or retention expiry atomically removes the
@@ -376,7 +378,46 @@ capability availability, and `processingRunsPerHour`. A deterministic
 `watch_dispatch_reservations` row makes the same handoff idempotent, while
 `watch_processing_budget_buckets` atomically reserves a fixed UTC-hour slot.
 The returned provider-neutral handoff carries only the exact approved revision;
-it does not start Eve, create product state, or deliver a provider response.
+readiness itself does not start Eve, create product state, or deliver a provider
+response.
+
+The watch runtime is the only consumer of ready dispatch reservations. The
+verified Slack adapter sends admitted per-event handoffs into an Eve turn;
+window closure and one Eve minute schedule use the same claim service for
+windowed and `on_schedule` occurrences. A durable compare-and-set lease binds
+each attempt to one opaque claim token. It is capped at ten minutes and, for
+raw handoffs, at the remaining approved retention. At most three attempts are
+possible when that retention permits; acknowledgement or terminal completion
+clears raw handoff content immediately. Late workers cannot acknowledge,
+release, record an outcome, or deliver through a replacement claim token.
+When raw retention is zero, readiness stores no handoff content and exposes a
+one-minute metadata-only direct-claim deadline capped by policy expiry. Only
+the exact just-prepared in-memory handoff can claim once during that interval;
+ordinary scanners cannot reconstruct it, and release, crash expiry, or a missed
+deadline fails the reservation without retry.
+
+Every watch turn receives its exact approved goal, policy, occurrence, and
+provider-neutral observations dynamically. Its turn skill treats ignore and
+abstain as tool-free no-op outcomes, composes only the granted capability
+families, prohibits publication, and ends with the internal `[[SILENT]]`
+sentinel so ordinary assistant output is never a delivery path. Redacted
+capability resolutions and action outcomes retain ids, selected tool or no-op,
+status, and bounded result codes, but no prompt or raw provider content.
+Eve's framework `web_fetch` and provider-managed `web_search` retain their
+ordinary behavior outside watch contexts; dynamic overrides hide them on a
+watch resolver failure or unless the exact claim grants `knowledge.read`, and
+the local fetch executor rechecks that authority.
+
+`provider_delivery` accepts bounded content but no destination. The executor
+re-resolves the exact dispatch claim, active effective revision, approved Slack
+workspace and source channel, delivery mode, expiry, and daily budget. Immediate
+and digest rows use bounded leases and stable provider idempotency keys; digest
+membership freezes on first claim so later queued items cannot change a retry.
+If any member of a frozen batch loses authority, the whole batch fails
+atomically instead of reusing its provider idempotency key for reduced content.
+Silent delivery exposes no provider tool. The Slack adapter verifies the
+installed workspace with `auth.test` before sending, and no watch path can
+widen the source-bound target.
 
 ## Integration Boundaries
 

@@ -1,4 +1,5 @@
 import { z } from "zod";
+import { CronExpressionParser } from "cron-parser";
 
 import { capabilityFamilySchema } from "./capability-contract.ts";
 
@@ -9,7 +10,17 @@ const boundedTextSchema = z.string().trim().min(1).max(4_000);
 const scheduleSchema = z.object({
   cron: z.string().trim().min(1).max(200),
   timeZone: z.string().trim().min(1).max(100),
-}).strict();
+}).strict().superRefine(({ cron, timeZone }, context) => {
+  if (cron.split(/\s+/u).length !== 5) {
+    context.addIssue({ code: "custom", path: ["cron"], message: "Watch schedules require a five-field cron expression." });
+    return;
+  }
+  try {
+    CronExpressionParser.parse(cron, { tz: timeZone, hashSeed: cron });
+  } catch {
+    context.addIssue({ code: "custom", path: ["cron"], message: "The watch cron expression or time zone is invalid." });
+  }
+});
 
 export const watchLifecycleStateSchema = z.enum([
   "proposed",
@@ -25,6 +36,7 @@ export const watchCapabilityFamilySchema = capabilityFamilySchema.exclude([
 
 export const watchSourceSchema = z.object({
   provider: z.string().trim().regex(/^[a-z][a-z0-9-]*$/).max(100),
+  providerWorkspaceId: identifierSchema,
   resource: z.object({
     type: z.string().trim().regex(/^[a-z][a-z0-9-]*$/).max(100),
     id: identifierSchema,

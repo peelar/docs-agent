@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, eq, lte } from "drizzle-orm";
+import { and, asc, eq, lte } from "drizzle-orm";
 import { z } from "zod";
 
 import {
@@ -61,6 +61,7 @@ export type AssembleClaimedWatchObservationInput = {
 
 export type WatchObservationAssemblyContext = {
   now?: Date;
+  limit?: number;
 };
 
 export class WatchObservationAssemblyError extends Error {
@@ -126,6 +127,7 @@ export async function flushReadyWatchObservationWindows(
   context: WatchObservationAssemblyContext = {},
 ): Promise<readonly WatchObservationHandoff[]> {
   const now = context.now ?? new Date();
+  const limit = z.number().int().min(1).max(100).parse(context.limit ?? 25);
   const nowIso = now.toISOString();
   try {
     return await withDocsAgentDatabase(async (db) => db.transaction(async (tx) => {
@@ -133,7 +135,10 @@ export async function flushReadyWatchObservationWindows(
         eq(watchObservationWindows.workspaceId, DEFAULT_WORKSPACE_ID),
         eq(watchObservationWindows.status, "collecting"),
         lte(watchObservationWindows.closesAt, nowIso),
-      ));
+      )).orderBy(
+        asc(watchObservationWindows.closesAt),
+        asc(watchObservationWindows.id),
+      ).limit(limit);
       const handoffs: WatchObservationHandoff[] = [];
       for (const row of rows) {
         const authority = await readAuthority(
@@ -423,6 +428,7 @@ async function handOffWindow(
     effectiveRevisionId: row.effectiveRevisionId,
     source: {
       provider: row.provider,
+      providerWorkspaceId: observations[0]!.source.providerWorkspaceId,
       resource: { type: row.resourceType, id: row.resourceId },
     },
     claimIds,

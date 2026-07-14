@@ -97,8 +97,8 @@ assert.equal(
 );
 assert.equal(
   authoredNames.length,
-  23,
-  "The accepted authored capability surface must contain all 23 dynamic tools.",
+  26,
+  "The accepted authored capability surface must contain all 26 dynamic tools and framework overrides.",
 );
 assert.deepEqual(
   manifest.tools,
@@ -116,12 +116,33 @@ for (const tool of manifest.dynamicTools) {
   assert.match(source, /defineDynamic\s*\(/u, `${tool.slug} must be dynamic.`);
   assert.match(source, /["']step\.started["']/u, `${tool.slug} must resolve at step start.`);
   assert.match(source, /return\s+defineTool\s*\(/u, `${tool.slug} must construct its tool in the resolver.`);
+  if (tool.slug === "web_search") {
+    assert.match(
+      source,
+      /resolveFrameworkKnowledgeReadVisibility/u,
+      "web_search must hide provider search unless exact watch knowledge.read authority resolves.",
+    );
+    assert.match(
+      source,
+      /execute:\s*_providerManagedStub/u,
+      "web_search must remove the documented local throwing stub so Eve can inject its provider executor.",
+    );
+    continue;
+  }
   assert.match(source, /async\s+execute\s*\(/u, `${tool.slug} must define execute inline for Eve replay serialization.`);
-  assert.match(
-    source,
-    new RegExp(`requireCapabilityToolExecution\\(["']${tool.slug}["'],\\s*ctx\\)`),
-    `${tool.slug} must re-check authority inside execute.`,
-  );
+  if (tool.slug === "web_fetch") {
+    assert.match(
+      source,
+      /requireFrameworkKnowledgeReadExecution\(ctx\)/u,
+      "web_fetch must re-check exact watch knowledge.read authority inside the framework executor.",
+    );
+  } else {
+    assert.match(
+      source,
+      new RegExp(`requireCapabilityToolExecution\\(["']${tool.slug}["'],\\s*ctx\\)`),
+      `${tool.slug} must re-check authority inside execute.`,
+    );
+  }
   const replaySource = await transformDynamicToolExecute(sourcePath, source);
   assert.ok(
     replaySource,
@@ -183,10 +204,11 @@ assert.deepEqual(
     "docs-maintenance",
     "docs-signal-intake",
     "internal-working-document",
+    "watch-execution",
     "watched-repository-scan",
     "workspace-knowledge",
   ],
-  "The five capability-gated procedures must remain dynamic skills.",
+  "The six capability-gated procedures must remain dynamic skills.",
 );
 for (const skill of manifest.dynamicSkills) {
   assert.deepEqual(

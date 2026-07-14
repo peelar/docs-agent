@@ -103,7 +103,8 @@ export async function resolveActiveWatchEventAdmissions(
   if (
     authorization.data.provider !== parsed.source.provider ||
     authorization.data.providerWorkspaceId !==
-      parsed.providerWorkspaceId
+      parsed.providerWorkspaceId ||
+    parsed.source.providerWorkspaceId !== parsed.providerWorkspaceId
   ) {
     throw new WatchEventAdmissionError(
       "provider-authorization-unavailable",
@@ -214,7 +215,7 @@ export async function resolveActiveWatchEventAdmissions(
 
         if (
           policy.trigger.type !== "on_event" ||
-          stable(policy.source) !== stable(parsed.source) ||
+          !sourceMatches(policy.source, parsed.source, parsed.providerWorkspaceId) ||
           !policy.context.eventTypes.includes(parsed.eventType)
         ) {
           return [];
@@ -226,7 +227,7 @@ export async function resolveActiveWatchEventAdmissions(
           watchId: row.watchId,
           stateRevision: row.stateRevision,
           effectiveRevision: effective.data,
-          source: parsed.source,
+          source: policy.source,
           eventType: parsed.eventType,
           admittedAt,
         })];
@@ -248,4 +249,14 @@ function invalidWatchState(message: string): WatchEventAdmissionError {
 
 function stable(value: unknown): string {
   return JSON.stringify(value);
+}
+
+function sourceMatches(
+  policy: z.infer<typeof watchSourceSchema>,
+  admitted: z.infer<typeof watchSourceSchema>,
+  providerWorkspaceId: string,
+): boolean {
+  return policy.provider === admitted.provider &&
+    stable(policy.resource) === stable(admitted.resource) &&
+    policy.providerWorkspaceId === providerWorkspaceId;
 }

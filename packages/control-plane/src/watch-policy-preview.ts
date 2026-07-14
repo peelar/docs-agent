@@ -221,13 +221,6 @@ export function previewWatchPolicy(
       "A delivering watch requires a positive delivery budget.",
     );
   }
-  if (trigger.type === "on_schedule" && evaluation.mode !== "windowed") {
-    incompatible(
-      issues,
-      "policy.evaluation",
-      "A scheduled trigger requires windowed evaluation.",
-    );
-  }
   if (
     evaluation.mode === "windowed" &&
     retention.rawObservationSeconds < evaluation.windowSeconds
@@ -276,7 +269,6 @@ export function previewWatchPolicy(
     operatorConsequences: buildConsequences(effectivePolicy),
   });
 }
-
 function parseInput(input: unknown) {
   const result = watchPolicyPreviewInputSchema.safeParse(input);
   if (!result.success) throw zodValidationError(result.error);
@@ -370,4 +362,3 @@ function buildConsequences(policy: ProposedWatchPolicy) {
     },
   ];
 }
-

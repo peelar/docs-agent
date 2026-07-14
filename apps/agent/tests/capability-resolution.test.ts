@@ -2,8 +2,10 @@ import assert from "node:assert/strict";
 import { test } from "vitest";
 
 import {
+  canExposeFrameworkKnowledgeRead,
   canExecuteApprovedPublicationResume,
   resolveCapabilityMatrix,
+  watchDispatchClaimFromAuth,
 } from "../agent/lib/capability-resolution";
 
 const local = {
@@ -113,7 +115,9 @@ test("setup and prepared draft identity narrow repository mutation and publicati
 
 test("watch tools derive only from exact server-resolved grants", () => {
   const reservationId = "a".repeat(64);
+  const claimToken = "11111111-1111-4111-8111-111111111111";
   const principal = {
+    attributes: { watchDispatchClaimToken: claimToken },
     authenticator: "paige-watch-dispatch",
     issuer: "paige",
     principalId: `paige:watch-dispatch:${reservationId}`,
@@ -123,7 +127,7 @@ test("watch tools derive only from exact server-resolved grants", () => {
     reservationId,
     watchId: "11111111-1111-4111-8111-111111111111",
     effectiveRevisionId: "22222222-2222-4222-8222-222222222222",
-    capabilityGrants: ["knowledge.read", "docs_work.manage"] as const,
+    capabilityGrants: ["knowledge.read", "docs_work.manage", "provider.deliver"] as const,
   };
   const watched = resolveCapabilityMatrix(input({
     current: principal,
@@ -135,9 +139,14 @@ test("watch tools derive only from exact server-resolved grants", () => {
     preparedDraftReady: true,
   }));
   assert.equal(watched.contextClass, "watch");
-  assert.deepEqual(watched.capabilityFamilies, ["docs_work.manage", "knowledge.read"]);
+  assert.deepEqual(watched.capabilityFamilies, [
+    "docs_work.manage",
+    "knowledge.read",
+    "provider.deliver",
+  ]);
   assert.ok(watched.toolNames.includes("workspace_knowledge"));
   assert.ok(watched.toolNames.includes("docs_work_manage"));
+  assert.ok(watched.toolNames.includes("provider_delivery"));
   assert.ok(!watched.toolNames.includes("working_repository"));
   assert.ok(!watched.toolNames.includes("authoring_workspace"));
   assert.ok(!watched.toolNames.includes("publish_working_repository_pr"));
@@ -151,6 +160,39 @@ test("watch tools derive only from exact server-resolved grants", () => {
   }));
   assert.equal(denied.status, "denied");
   assert.deepEqual(denied.toolNames, []);
+  assert.deepEqual(watchDispatchClaimFromAuth({
+    current: principal,
+    initiator: principal,
+  }), { reservationId, claimToken });
+  assert.equal(watchDispatchClaimFromAuth({
+    current: principal,
+    initiator: {
+      ...principal,
+      attributes: { watchDispatchClaimToken: "22222222-2222-4222-8222-222222222222" },
+    },
+  }), null);
+  assert.equal(canExposeFrameworkKnowledgeRead({
+    current: principal,
+    initiator: principal,
+  }, watched), true);
+  assert.equal(canExposeFrameworkKnowledgeRead({
+    current: principal,
+    initiator: principal,
+  }, resolveCapabilityMatrix(input({
+    current: principal,
+    initiator: principal,
+    channelKind: "chat-sdk",
+    watchReservationId: reservationId,
+    watchAuthority: { ...watchAuthority, capabilityGrants: ["docs_work.manage"] },
+  }))), false);
+  assert.equal(canExposeFrameworkKnowledgeRead({
+    current: principal,
+    initiator: principal,
+  }, null), false, "watch resolver failure hides framework reads");
+  assert.equal(canExposeFrameworkKnowledgeRead({
+    current: local,
+    initiator: local,
+  }, null), true, "ordinary framework web visibility is unchanged");
 });
 
 test("unknown, null, mismatched, runtime, and resolver-failure contexts fail closed", () => {

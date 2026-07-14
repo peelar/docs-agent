@@ -105,6 +105,7 @@ function fixturePolicy(): ProposedWatchPolicy {
   return {
     source: {
       provider: "slack",
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "channel", id: "C-DOCS-FEEDBACK" },
     },
     goal: "Find evidence-backed documentation gaps discussed in this channel.",

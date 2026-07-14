@@ -85,9 +85,15 @@ test("dispatch readiness returns exact approved authority and idempotently reser
     );
     assert.equal(reservations.length, 1, "failed budget reservation rolls back");
     assert.equal(buckets[0]?.reservedRuns, 1);
+    assert.equal(
+      reservations[0]?.payloadExpiresAt,
+      "2026-07-13T22:30:00.000Z",
+      "the raw handoff remains durable only through approved raw retention",
+    );
+    assert.match(JSON.stringify(reservations[0]?.handoffPayload), /first bounded dispatch/u);
     assert.doesNotMatch(
       JSON.stringify({ reservations, buckets }),
-      /first bounded dispatch|second over budget|U-PRIVATE|xoxb/u,
+      /second over budget|xoxb/u,
     );
     assert.doesNotMatch(
       JSON.stringify(ready),
@@ -403,7 +409,7 @@ function policy(overrides: Partial<ProposedWatchPolicy> = {}): ProposedWatchPoli
       maxCharacters: 1_000,
     },
     capabilityGrants: ["knowledge.read"],
-    retention: { rawObservationSeconds: 0, auditDays: 30 },
+    retention: { rawObservationSeconds: 1_800, auditDays: 30 },
     budgets: {
       observationsPerHour: 60,
       processingRunsPerHour: 12,
@@ -418,6 +424,7 @@ function policy(overrides: Partial<ProposedWatchPolicy> = {}): ProposedWatchPoli
 function source(channelId: string) {
   return {
     provider: "slack" as const,
+      providerWorkspaceId: "T-DOCS",
     resource: { type: "channel" as const, id: channelId },
   };
 }

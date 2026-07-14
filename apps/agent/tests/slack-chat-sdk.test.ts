@@ -5,6 +5,7 @@ import type { Message, Thread, WebhookOptions } from "chat";
 
 import type {
   EphemeralWatchObservation,
+  PreparedWatchProviderDelivery,
   WatchEventAdmission,
   WatchDispatchReadyHandoff,
   WatchObservationAssemblyResult,
@@ -53,6 +54,9 @@ class TestSlackAdapter extends SubscriptionFilteredSlackAdapter {
     prepareWatchDispatch?: (
       handoff: WatchObservationHandoff,
     ) => Promise<WatchDispatchReadyHandoff>;
+    dispatchWatchTurn?: (
+      ready: WatchDispatchReadyHandoff,
+    ) => Promise<void>;
   } = {}) {
     super({ botToken: "xoxb-test", webhookVerifier: () => true }, options);
   }
@@ -91,6 +95,31 @@ class AsyncForwardingTestSlackAdapter extends TestSlackAdapter {
     await new Promise((resolve) => setTimeout(resolve, 0));
     await super.forwardAcceptedMessageToChatSdk(event);
     this.completed = true;
+  }
+}
+
+class DeliveryTestSlackAdapter extends TestSlackAdapter {
+  readonly apiCalls: Array<{ method: string; body?: Record<string, unknown> }> = [];
+  readonly installationIds: string[] = [];
+
+  constructor(private readonly identityWorkspaceId = "T123") {
+    super();
+  }
+
+  override get webClient() {
+    return {
+      apiCall: async (method: string, body?: Record<string, unknown>) => {
+        this.apiCalls.push({ method, body });
+        return method === "auth.test"
+          ? { ok: true, team_id: this.identityWorkspaceId }
+          : { ok: true };
+      },
+    } as never;
+  }
+
+  protected override async resolveTokenForTeam(installationId: string) {
+    this.installationIds.push(installationId);
+    return { token: "xoxb-installed", botUserId: "U_BOT" };
   }
 }
 
@@ -185,9 +214,11 @@ const normalizedInputs: SlackWatchObservationInput[] = [];
 const claimedInputs: ClaimNormalizedWatchObservationInput[] = [];
 const assembledInputs: AssembleClaimedWatchObservationInput[] = [];
 const preparedHandoffs: WatchObservationHandoff[] = [];
+const dispatchedTurns: WatchDispatchReadyHandoff[] = [];
 const normalizedObservation = {} as EphemeralWatchObservation;
 const claimResult = {} as WatchObservationClaimResult;
 const assembledHandoff = {} as WatchObservationHandoff;
+const readyDispatch = {} as WatchDispatchReadyHandoff;
 const normalizingWatchAdapter = new TestSlackAdapter({
   admitWatchEvent: async () => [{} as WatchEventAdmission],
   normalizeWatchEvent: async (input) => {
@@ -207,7 +238,10 @@ const normalizingWatchAdapter = new TestSlackAdapter({
   },
   prepareWatchDispatch: async (handoff) => {
     preparedHandoffs.push(handoff);
-    return {} as WatchDispatchReadyHandoff;
+    return readyDispatch;
+  },
+  dispatchWatchTurn: async (ready) => {
+    dispatchedTurns.push(ready);
   },
 });
 await normalizingWatchAdapter.emit(event({ text: "normalize after admission" }));
@@ -225,6 +259,46 @@ assert.equal(assembledInputs.length, 1);
 assert.equal(assembledInputs[0]?.claimResult, claimResult);
 assert.equal(assembledInputs[0]?.observation, normalizedObservation);
 assert.deepEqual(preparedHandoffs, [assembledHandoff]);
+assert.deepEqual(dispatchedTurns, [readyDispatch]);
+
+const preparedDelivery = {
+  deliveryIds: ["a".repeat(64)],
+  reservationId: "b".repeat(64),
+  provider: "slack",
+  providerWorkspaceId: "T123",
+  resourceType: "channel",
+  resourceId: "C123",
+  mode: "immediate",
+  clientMessageId: "11111111-1111-4111-8111-111111111111",
+  claimToken: "22222222-2222-4222-8222-222222222222",
+  content: "A source-bound watch result.",
+} satisfies PreparedWatchProviderDelivery;
+const deliveryAdapter = new DeliveryTestSlackAdapter();
+await deliveryAdapter.postPreparedWatchDelivery(preparedDelivery);
+assert.deepEqual(deliveryAdapter.installationIds, ["T123"]);
+assert.deepEqual(deliveryAdapter.apiCalls, [
+  { method: "auth.test", body: undefined },
+  {
+    method: "chat.postMessage",
+    body: {
+      channel: "C123",
+      markdown_text: "A source-bound watch result.",
+      client_msg_id: preparedDelivery.clientMessageId,
+      unfurl_links: false,
+      unfurl_media: false,
+    },
+  },
+]);
+const wrongWorkspaceAdapter = new DeliveryTestSlackAdapter("T999");
+await assert.rejects(
+  () => wrongWorkspaceAdapter.postPreparedWatchDelivery(preparedDelivery),
+  /not bound to the approved workspace/u,
+);
+assert.deepEqual(
+  wrongWorkspaceAdapter.apiCalls.map(({ method }) => method),
+  ["auth.test"],
+  "workspace identity failure blocks the provider send",
+);
 
 await watchFiltered.emit(event({ type: "app_mention", text: "@Paige direct path" }));
 await watchFiltered.emit(event({ channel: "D123", channel_type: "im", text: "DM path" }));

@@ -37,6 +37,7 @@ export function resolveSlackWatchEventAdmissions(
     providerWorkspaceId: scope.providerWorkspaceId,
     source: {
       provider: "slack",
+      providerWorkspaceId: scope.providerWorkspaceId,
       resource: scope.resource,
     },
     eventType: scope.eventType,

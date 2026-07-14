@@ -120,6 +120,7 @@ test("rejects missing provenance, invalid revisions, provider payloads, and unsa
       ...input,
       source: {
         provider: "slack",
+      providerWorkspaceId: "T-DOCS",
         resource: { type: "channel", id: "C-OTHER" },
       },
     }, effectiveRevision()),
@@ -216,6 +217,7 @@ function effectivePolicy(): ProposedWatchPolicy {
   return {
     source: {
       provider: "slack",
+      providerWorkspaceId: "T-DOCS",
       resource: { type: "channel", id: "C-DOCS-FEEDBACK" },
     },
     goal: "Find evidence-backed documentation gaps discussed in this channel.",
