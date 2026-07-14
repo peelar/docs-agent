@@ -59,14 +59,18 @@
   live Slack, Linear, Eve, schedule, watch, and approval eval matrix was not
   executed because the Eve microsandbox session-start blocker is unchanged.
   Keep #85 open and do not retry until that cause changes.
-- Runtime diagnosis - The freeze occurs after eval discovery, server health,
-  and template provisioning, inside Eve's snapshot-backed microsandbox binding
-  while awaiting sandbox readiness. No model request, tool call, repository
-  clone, or eval assertion starts. A fresh run-owned `MSB_HOME` reproduced the
-  failure with both microsandbox 0.5.10 and a coherent exact 0.5.5 Eve peer and
-  native runtime, so retained global state and the 0.5.10 upgrade are not the
-  cause. Both probes stopped after 120 seconds without semantic progress and
-  removed their processes, sandboxes, and temporary state.
+- Runtime diagnosis - The freeze occurs after eval discovery and server health,
+  inside Eve's microsandbox binding while awaiting sandbox readiness. The
+  current manifest has no bootstrap or seeded workspace content, so Eve sets no
+  template key and takes its direct image-backed `.image(...)` path rather than
+  snapshot restore. No model request, tool call, repository clone, or eval
+  assertion starts. A fresh run-owned `MSB_HOME` reproduced the failure with
+  both microsandbox 0.5.10 and a coherent exact 0.5.5 Eve peer and native
+  runtime, so retained global state, snapshot restoration, and the 0.5.10
+  upgrade are not the cause. Both probes stopped after 120 seconds without
+  semantic progress and removed their processes, sandboxes, and temporary
+  state. Eve 0.23 exposes no supported alternate sandbox-startup mode; the next
+  diagnostic belongs upstream rather than in another Paige eval retry.
 - #86 - Assumed: the still-live repository-scenario decision mappings remain
   documented until their eval-fixture and writeback consumers are removed in
   #88. Setup and situational skills describe available surfaces and procedures
