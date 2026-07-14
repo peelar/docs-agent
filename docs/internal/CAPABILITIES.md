@@ -109,7 +109,7 @@ conditional is resolved by Eve per session and is not an authority grant.
 
 ## Behavioral Proof Boundary
 
-`pnpm --filter docs-agent eval --list` currently discovers 32 cases across the
+`pnpm --filter docs-agent eval --list` currently discovers 34 cases across the
 conversation, documentation, provider, watched-repository, memory, authoring,
 and approval surfaces. #63 changes only architecture, inventory checking, and
 validation wiring.

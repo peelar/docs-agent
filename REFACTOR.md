@@ -1,7 +1,8 @@
 # Paige Capability Architecture Refactoring Plan
 
-Status: Proposed
+Status: Accepted architecture; tracked by #78; execution pending
 Created: 2026-07-13
+Last Refreshed: 2026-07-14
 Scope: Agent runtime, knowledge and repository capabilities, durable docs work,
 behavioral proof, and the operator control plane.
 
@@ -82,7 +83,14 @@ The current implementation already contains much of the right substrate:
 - Slack context retrieval, workspace memory, source evidence, and current docs
   already have explicit trust boundaries;
 - setup, signals, memory, approvals, runs, and assurance use app-owned typed
-  services rather than prompt-only state.
+  services rather than prompt-only state;
+- #63 completed the stable capability contract and checked migration inventory;
+- #58, #59, and their implementation issues #64-#75 completed watch policy,
+  lifecycle, Slack admission, deduplication, bounded windows, and dispatch
+  readiness without adding a watch-specific workflow tool;
+- #76 added the general `internal_document` primitive under
+  `docs_work.manage`, with bounded revisions, typed attachments, retention,
+  provenance, idempotency, optimistic concurrency, and behavioral proof.
 
 The main architectural debt is in the model-facing surface:
 
@@ -111,10 +119,16 @@ budgets, delivery, lifecycle, expiry, and approval. The M5 watch epic (#57
 through #62) is therefore part of the target architecture, not a parallel
 workflow system.
 
-The current uncommitted EditorJS manual Slack scenario is evidence for the
-target direction. It deliberately uses the generic authoring path instead of
-adding a third hard-coded runtime fixture. Preserve that work and promote it
-into executable behavioral proof during this program.
+The committed EditorJS manual Slack scenario is evidence for the target
+direction. It deliberately uses the generic authoring path instead of adding a
+third hard-coded runtime fixture. Promote it into executable behavioral proof
+during this program.
+
+The refreshed validation baseline is 36 authored tools, 12 framework tools,
+and 34 discovered Eve eval cases. `pnpm capability:check` passes. The authored
+tool surface remains static: the landed watch capability registry constrains
+policy and dispatch readiness, but it does not yet resolve Eve tools by
+channel, principal, setup, or work state.
 
 ## Non-Negotiable Invariants
 
@@ -139,10 +153,11 @@ Every slice in this plan must preserve these rules.
     process-memory substitute, fake success, or silent fallback may be added.
 11. Runtime code rechecks authority at execution time even when dynamic tool
     visibility has already hidden an unavailable capability.
-12. `pnpm check` remains the complete repository handoff gate.
+12. `pnpm check` remains the fast affected-package gate and
+    `pnpm check:full` remains the complete repository handoff gate.
 13. Behavior changes receive live Eve eval coverage; deterministic checks do
     not substitute for model-behavior proof.
-14. The current dirty worktree is user-owned and must be preserved.
+14. Any pre-existing dirty worktree is user-owned and must be preserved.
 
 ## Capability Design Rules
 
@@ -252,19 +267,21 @@ auth, setup, lifecycle, and repository policy inside `execute`.
 
 ## Program Queue
 
+Tracked by #78. GitHub issues are the implementation source of truth.
+
 | Order | Slice | Outcome | Depends on | Status |
 | --- | --- | --- | --- | --- |
-| CR0 | Record the architecture contract and migration inventory | One accepted capability model and checked migration inventory | None | Complete |
-| CR1 | Remove fixture workflows from the production tool surface | Runtime behavior no longer depends on Saleor-specific scenario code | CR0 | Proposed |
-| CR2 | Build the read-only working-repository capability kernel | One composable repository inspection surface | CR0, CR1 | Proposed |
-| CR3 | Converge all documentation mutation on `authoring_workspace` | One reversible, concurrency-safe draft path | CR2 | Proposed |
-| CR4 | Add a workspace knowledge source registry and context repositories | General, provenance-bearing read access across configured sources | CR2 | Proposed |
-| CR5 | Make knowledge answers a first-class agent behavior | Paige can answer, abstain, or continue into docs work | CR4 | Proposed |
-| CR6 | Rationalize durable docs-work capabilities | One coherent work resource instead of workflow-specific state tools | CR3, CR4 | Proposed |
-| CR7 | Resolve capabilities dynamically by channel, principal, setup, and work state | Irrelevant and privileged tools are not ambient | CR2, CR3, CR4, CR6 | Proposed |
-| CR8 | Reframe instructions, skills, and public product docs | Model context and product language match the new contract | CR5, CR7 | Proposed |
-| CR9 | Align the control plane with sources, capabilities, and drafts | Operators can understand effective authority and evidence | CR4, CR6, CR7 | Proposed |
-| CR10 | Complete behavioral proof and remove compatibility seams | No legacy workflow surface or unproved capability remains | CR1-CR9 | Proposed |
+| CR0 | Record the architecture contract and migration inventory | One accepted capability model and checked migration inventory | None | Complete in #63 |
+| CR1 / #79 | Remove fixture workflows from the production tool surface | Runtime behavior no longer depends on Saleor-specific scenario code | CR0 | Ready |
+| CR2 / #80 | Build the read-only working-repository capability kernel | One composable repository inspection surface | CR0, CR1 | Pending CR1 |
+| CR3 / #81 | Converge all documentation mutation on `authoring_workspace` | One reversible, concurrency-safe draft path | CR2 | Pending CR2 |
+| CR4 / #82 | Add a workspace knowledge source registry and context repositories | General, provenance-bearing read access across configured sources | CR2 | Pending CR2 |
+| CR5 / #83 | Make knowledge answers a first-class agent behavior | Paige can answer, abstain, or continue into docs work | CR4 | Pending CR4 |
+| CR6 / #84 | Rationalize durable docs-work capabilities | One coherent work resource instead of workflow-specific state tools | CR3, CR4 | Foundation landed in #76; consolidation pending |
+| CR7 / #85 | Resolve capabilities dynamically by channel, principal, setup, and work state | Irrelevant and privileged tools are not ambient | CR2, CR3, CR4, CR6 | Watch policy foundation landed in #64-#75; Eve resolution pending |
+| CR8 / #86 | Reframe instructions, skills, and public product docs | Model context and product language match the new contract | CR5, CR7 | Pending CR5 and CR7 |
+| CR9 / #87 | Align the control plane with sources, capabilities, and drafts | Operators can understand effective authority and evidence | CR4, CR6, CR7 | Pending CR4, CR6, and CR7 |
+| CR10 / #88 | Complete behavioral proof and remove compatibility seams | No legacy workflow surface or unproved capability remains | CR1-CR9 | Pending CR1-CR9 |
 
 ## Relationship To M5 Policy-Bound Watches
 
@@ -274,20 +291,25 @@ with it deliberately.
 
 | Watch work | Capability-refactor relationship |
 | --- | --- |
-| #58 Persist a bounded watch contract | Supplies typed policy, lifecycle, audit, budget, and expiry inputs to CR6 and CR7. It may proceed after CR0 without waiting for repository refactors. |
-| #59 Admit configured Slack events | Supplies provider-specific admission and normalized observations to CR4 and CR7. It must not add general Slack history access or purpose-specific workflow tools. |
+| #58 Persist a bounded watch contract | Complete. Supplies typed policy, lifecycle, audit, budget, and expiry inputs to CR6 and CR7. |
+| #59 Admit configured Slack events | Complete. Supplies provider-specific admission, normalized observations, deduplication, bounded windows, and dispatch readiness to CR4 and CR7. |
 | #60 Execute watch goals | Must consume the canonical knowledge, repository, draft, and docs-work capabilities from CR2-CR7. Avoid building permanent adapters around the current fragmented tool surface. |
 | #61 Configure and govern watches | Aligns with CR9. Reuse shared policy services and operator identity rather than building a separate watch admin boundary. |
 | #62 Prove release and docs-feedback scenarios | Supplies CR5 and CR10 behavioral proof that different goals use one runtime and generic capabilities. Assertions should target outcomes and policy boundaries. |
+| #76 Add durable internal working documents | Complete. Supplies the canonical general document primitive within `docs_work.manage`; CR6 must preserve it rather than add another document or journal surface. |
+| #77 Preserve watch findings across sessions | Consumes #76 through the watch-execution skill and #60 runtime; it must not define a separate authority or persistence path. |
 
 Recommended sequencing:
 
-1. finish CR0 before implementing watch execution;
-2. #58 and the provider-admission portion of #59 may proceed alongside CR1 and
-   CR2 because they establish independent policy and privacy boundaries;
-3. land CR2, CR3, CR4, and CR6 before finalizing #60 so watch execution does not
-   institutionalize compatibility wrappers;
-4. converge #61 with CR9 and #62 with CR10 instead of implementing duplicate UI
+1. Treat CR0, #58, #59, and #76 as completed foundations.
+2. Land CR1 and CR2 first, then advance CR3 and CR4 from the canonical
+   repository surface.
+3. Land CR5 and CR6 before CR7; preserve `internal_document` as the general
+   durable-document primitive while consolidating the remaining docs-work
+   tools.
+4. Finalize #60 and #77 only against the CR2-CR7 capabilities so watch
+   execution does not institutionalize compatibility wrappers.
+5. Converge #61 with CR9 and #62 with CR10 instead of implementing duplicate UI
    or eval slices.
 
 ## CR0: Record The Architecture Contract And Behavioral Baseline
@@ -662,6 +684,9 @@ mirror individual historical workflow slices.
 - Keep provider capture tools responsible for provider-specific provenance.
 - Keep schedule dispatch internal and visible only to the schedule principal.
 - Keep publication separate.
+- Keep the landed `internal_document` surface as the general document primitive
+  inside `docs_work.manage`; do not replace it with a signal, plan, owned-work,
+  or watch-specific document model.
 - Preserve append-only events, idempotency, optimistic revisions, server-owned
   actors, and transition authorities.
 - Do not force every quick question or localized edit into substantial owned
@@ -706,6 +731,9 @@ and make effective authority inspectable.
   - schedule principal;
   - effective approved watch contract and allowed action set;
   - prepared draft and pending approval state.
+- Reuse the server-owned watch capability registry and dispatch-readiness
+  checks from #64-#75 as inputs. Do not confuse policy availability with the
+  Eve tool set actually exposed to a turn.
 - Do not use fragile keyword matching or an unverified model classifier to
   decide authority.
 - Re-resolve at the narrowest stable scope. Use turn-level resolution for
@@ -906,7 +934,7 @@ The final suite must cover:
 ### Proof
 
 - Focused checks for every migrated boundary.
-- Complete `pnpm check` under Node 24.18.0.
+- Complete `pnpm check:full` under Node 24.18.0.
 - Full runnable Eve eval suite.
 - Real Slack/Linear/GitHub deployment smokes where required.
 - Clean repository search for removed compatibility names.
@@ -989,10 +1017,11 @@ When this plan is approved for implementation:
 4. Update the queue status only for the slice actually completed.
 5. Run focused deterministic checks while developing.
 6. Run the relevant live behavioral eval for every model-behavior change.
-7. Run root `pnpm check` before handoff.
+7. Run root `pnpm check` for fast feedback and `pnpm check:full` before handoff.
 8. Do not weaken an assertion merely to make a migration pass.
 9. Record external proof that cannot run locally as a concrete blocker.
-10. Use one conventional commit per coherent slice after user approval.
+10. Use one conventional commit per coherent slice under the named loop's
+    advance approval contract.
 
 ## Completion Definition
 

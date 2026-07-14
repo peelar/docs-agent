@@ -34,6 +34,11 @@ authoring, and follow-up capabilities. Watches keep source, action, retention,
 budget, delivery, and approval authority structured; release-channel review and
 docs-feedback triage are proof scenarios, not separate runtime workflows.
 
+The capability-architecture program tracked by #78 is the ordered prerequisite
+for the remaining watch executor. It replaces fixture and workflow-shaped model
+surfaces with the canonical knowledge, repository, draft, docs-work, and dynamic
+capabilities that #60 must consume.
+
 The first delivery remains the local read-only baseline. Production
 authentication, guided setup, connector handoffs, workspace-memory review, run
 history, approvals, assurance, and behavior settings now build on it.
@@ -97,6 +102,30 @@ one coherent draft to the next human boundary.
 | Complete | #55 Choose the right editorial intervention | Lets Paige patch, add, restructure, consolidate, remove, wait, or ask based on the reader problem. | #52, #53, #54 (complete) |
 | Complete | #56 Own substantial documentation work asynchronously | Carries investigation, planning, drafting, validation, and continuation as one durable work item. | #41, #53, #54, #55 (complete) |
 
+### Capability Architecture
+
+This cross-cutting program migrates Paige to the accepted capability contract
+before the remaining watch runtime becomes dependent on compatibility tools.
+Tracked by #78 and defined locally in
+`docs/internal/loops/capability-architecture/`.
+
+| Order | Issue | Why Next | Depends On |
+| --- | --- | --- | --- |
+| 1 | #79 Remove fixture workflows from production | Removes fixture answers before the canonical repository surface replaces them. | #63 (complete) |
+| 2 | #80 Add one read-only working-repository capability | Gives every later knowledge and draft slice one repository inspection path. | #79 |
+| 3 | #81 Converge documentation mutation on `authoring_workspace` | Removes the parallel exact-replacement draft path. | #80 |
+| 4 | #82 Add the workspace knowledge source registry | Establishes bounded provenance-bearing reads across configured sources. | #80 |
+| 5 | #83 Make sourced knowledge answers first-class | Lets Paige answer, abstain, or recommend without manufacturing docs work. | #82 |
+| 6 | #84 Rationalize durable documentation-work capabilities | Consolidates workflow-shaped state tools while preserving the #76 document primitive. | #81, #82, #76 (complete) |
+| 7 | #85 Resolve capabilities dynamically | Narrows tools and skills from verified channel, principal, setup, watch, and work state. | #80, #81, #82, #84 |
+| 8 | #86 Align instructions, skills, and product docs | Makes model-visible and public guidance match the canonical runtime. | #83, #85 |
+| 9 | #60 Execute watch goals with composable docs capabilities | Runs watches only after the canonical capability foundation exists. | #79-#86, #58, #59 (complete) |
+| 10 | #77 Preserve watch findings across sessions | Applies the general internal-document primitive to fresh watch sessions. | #76 (complete), #60 foundation |
+| 11 | #87 Align the control plane with sources, capabilities, and drafts | Supplies shared operator projections before watch governance. | #82, #84, #85 |
+| 12 | #61 Configure and govern watches | Reuses the shared control plane and typed watch services. | #58 (complete), #87 |
+| 13 | #62 Prove release and docs-feedback goals on one runtime | Proves configuration and eval fixtures instead of purpose-specific workflow code. | #60, #61 |
+| 14 | #88 Remove compatibility seams and complete behavioral proof | Leaves one architecture after every runtime and proof consumer has migrated. | #79-#87, #60, #61, #62, #77 |
+
 ### Policy-Bound Watches
 
 This epic gives Paige a reusable proactive-attention primitive without adding a
@@ -106,24 +135,27 @@ channel use cases prove the same runtime.
 
 Tracked by #57.
 
+The remaining implementation order is shared with the capability-architecture
+loop above. This section retains the M5 product and dependency context.
+
 | Order | Issue | Why Next | Depends On |
 | --- | --- | --- | --- |
 | Gate | #63 Record Paige's capability contract and migration baseline (complete) | Settles stable capability identifiers and migration destinations before persistence can encode them. This is supervised work, not part of the bounded loop. | None; ADR-0004 is accepted |
-| Tracking | #58 Persist a bounded watch contract | Tracks the six persistence and policy slices without acting as an implementation task itself. | #63 (complete), #64–#69 |
+| Complete | #58 Persist a bounded watch contract | Tracks the six persistence and policy slices without acting as an implementation task itself. | #63, #64–#69 (complete) |
 | 1 | #64 Persist and retrieve a proposed policy-bound watch | Establishes the durable proposed-watch and revision boundary. | #63 (complete), #28, #38 (complete) |
 | 2 | #65 Preview and validate an effective watch policy | Resolves defaults and rejects invalid authority before activation. | #64 |
 | 3 | #66 Approve a watch as an immutable effective revision | Gives admission and execution a frozen approved policy reference. | #65 |
 | 4 | #67 Add audited lifecycle controls for policy-bound watches | Makes pause, resume, expiry, and deletion explicit and concurrency-safe. | #66 |
 | 5 | #68 Require fresh approval for watch goal and authority changes | Prevents edits from silently widening observation or action authority. | #67 |
 | 6 | #69 Fail closed when watch persistence or workspace readiness is unavailable | Completes persistence readiness, failure coverage, and contract documentation. | #68 |
-| Tracking | #59 Admit configured Slack events as observations | Tracks the six provider-admission slices without acting as an implementation task itself. | Starts after #66; admission continues after #69 |
+| Complete | #59 Admit configured Slack events as observations | Tracks the six provider-admission slices without acting as an implementation task itself. | #66, #69–#75 (complete) |
 | 7 | #70 Represent admitted provider events as ephemeral observations | Establishes the provider-neutral, privacy-bounded handoff contract. | #66 |
 | 8 | #71 Admit Slack events only for active configured watches | Extends the pre-model boundary only for explicitly active watch scopes. | #69, #70, #33, #34 |
 | 9 | #72 Normalize supported Slack watch events and reject unsafe subtypes | Keeps bot output, self-authored events, and unsupported subtypes outside observation processing. | #71 |
 | 10 | #73 Deduplicate watched Slack events across retries and restarts | Adds a minimal durable claim without retaining raw provider content. | #72 |
 | 11 | #74 Assemble bounded windows of admitted watch observations | Supports per-event and bounded-window handoff without unbounded ingestion. | #73 |
 | 12 | #75 Recheck watch authority and budgets before observation dispatch | Freezes the final admission boundary without starting the later watch-turn executor. | #74 |
-| 13 | #76 Add durable internal working documents | Establishes the generic `docs_work.manage` resource needed for cross-session agent-authored continuity without a watch-specific journal. | #63 (complete), #38 (complete) |
+| Complete | #76 Add durable internal working documents | Establishes the generic `docs_work.manage` resource needed for cross-session agent-authored continuity without a watch-specific journal. | #63, #38 (complete) |
 | 14 | #60 Execute watch goals with composable docs capabilities | Makes the model compose generic actions while runtime policy constrains authority, timing, and delivery. | #58, #59, #32 implementation, CR2, CR3, CR4, CR6 including #76, CR7 |
 | 15 | #77 Preserve watch findings across sessions | Applies the generic document primitive and a watch-execution skill to one continuity document per watch. | #76, #60 execution foundation |
 | 16 | #61 Configure and govern watches | Adds preview, approval, lifecycle management, and reapproval for authority expansion over shared services. | #58; authenticated web management also needs #37 |
