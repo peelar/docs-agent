@@ -17,6 +17,8 @@ package docs are unavailable, use <https://eve.dev/docs> as a fallback.
 - Before changing persistence, deployment, authentication, connectors, or
   workspace scoping, read and preserve the accepted contract in
   `docs/ARCHITECTURE.md` and its linked ADRs.
+- Prefer generic, composable tools and generalizable agent behavior over
+  scenario-specific workflows. See: ADR 0006.
 - Once a scope of work is complete, propose a commit message following conventional commit message conventions. End with "Commit? [Y/n]".
 - Exception: an explicitly authorized `$next` loop follows the bounded
   loop-mode approval contract in `.codex/skills/next/SKILL.md` instead of
