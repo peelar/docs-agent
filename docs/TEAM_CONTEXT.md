@@ -7,6 +7,13 @@ connector creation, provider installation, trigger delivery, and repository or
 provider grants separately; use its handoffs rather than treating token
 issuance as completed setup.
 
+These providers are entry points, not mandatory docs-signal workflows. A useful
+question may end as an answer, abstention, or recommendation without creating
+durable work. When an admitted message is an explicit or plausible
+documentation concern, Paige may capture it with provider provenance. Provider
+conversation alone is not proof for a public claim, and documentation remains
+the only mutable product domain.
+
 ## Slack
 
 Slack uses Eve's Chat SDK channel with the Chat SDK Slack adapter. Set

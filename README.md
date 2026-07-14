@@ -12,10 +12,12 @@ Linear issues, releases, pull requests, and support notes. Paige follows those
 signals, checks what the documentation actually says, and keeps the public story
 accurate.
 
-Paige starts with a documentation impact report. The result may be a small
-Markdown or MDX patch, a changelog entry, no documentation change, or a question
-for a maintainer. Patches are prepared and checked in an isolated repository
-workspace, and publishing remains behind explicit approval.
+A workspace question may end as a sourced answer, an explicit abstention, or a
+recommendation without creating documentation work. When a documentation
+change is requested and supported by evidence, Paige can prepare and check a
+reviewable draft in an isolated repository workspace. Publishing remains behind
+explicit approval. Documentation is Paige's only mutable product domain;
+watched, context, and source repositories remain read-only evidence.
 
 ## Get Started
 
@@ -45,11 +47,15 @@ Portless keeps their local addresses stable while assigning internal ports:
 ```text
 Slack · Linear · Releases · Repositories
                     ↓
-             Provenance and evidence
+       Bounded, attributable evidence
                     ↓
-        Documentation impact decision
+      Answer · Abstain · Recommendation
+                    │ explicit docs request
                     ↓
-    No change · Question · Changelog · Patch
+         Documentation decision
+                    ↓
+       No change · Question · Changelog · Patch
+                    │ patch + approval
                     ↓
              Approved draft PR
 ```

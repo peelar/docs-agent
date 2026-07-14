@@ -101,10 +101,10 @@ Manual prompt files:
 
 For a passing run, the transcript should show:
 
-- `configure_working_repository` called before docs maintenance starts;
+- workspace setup becoming ready before repository-backed documentation work;
 - repository work happening inside `/workspace/working-docs` during the
-  maintenance workflow;
-- an impact report before any patch;
+  documentation task;
+- an evidence-backed documentation decision before any patch;
 - evidence citations back to attached context and inspected docs pages;
 - either a minimal diff for the correct scenario or an explicit no-change
   decision for the false alarm;
@@ -155,9 +155,9 @@ Slack thread remains complementary provider-intake coverage.
 `apps/agent/evals/watched-repositories.eval.ts` registers the first watched-repository
 scan scenario. It configures `peelar/saleor-docs` as the working documentation
 repository and `saleor/saleor` as a read-only watched repository, then asserts
-the agent loads the `watched-repository-scan` skill, uses
-`scan_watched_repositories`, and does not call patch or writeback tools for
-watched evidence. The scan may use either GitHub App access when the watched
+the agent loads the `watched-repository-scan` skill, preserves distinct release,
+source, and current-docs evidence, and does not call authoring or writeback tools
+for watched evidence. The scan may use either GitHub App access when the watched
 repository is granted to the connector, or public GitHub access when the watched
 repository is public and not granted.
 
@@ -176,7 +176,7 @@ pnpm eval:safe -- docs-signal-workflows --skip-report --verbose
 
 That command validates:
 
-- configure the working repository before running docs maintenance;
+- make workspace setup ready before repository-backed documentation work;
 - clone, refresh, or reuse the GitHub working repository;
 - the model composes the reusable repository and authoring capabilities;
 - the model loads the watched-repository scan skill for watched source scans;
@@ -184,8 +184,8 @@ That command validates:
 - inspect and patch files inside the sandbox;
 - run bounded checks inside the sandbox;
 - export diffs;
-- keep raw Eve sandbox/file tools disabled for the workflow.
-- keep watched repository scans read-only and report-only.
+- keep raw Eve sandbox/file tools disabled for repository work;
+- keep watched repository scans read-only and answer-or-recommend by default;
 - support watched repository release scans with either GitHub App access or
   explicit public GitHub access.
 - capture Slack and Linear docs signals through provider-specific intake tools.
@@ -978,14 +978,20 @@ and abandons back to a clean checkout. It runs through `pnpm check`.
 
 Issue #32 moved universal rules into `instructions/principles.md` and
 situational repository and provider-intake procedures into load-on-demand
-skills. Issue #83 adds the workspace-knowledge answer procedure without changing
-`identity.md`; dynamic setup now explicitly leaves greetings, planning, general
-explanations, and proportional unverified answers available. Dynamic
-workspace-memory instructions remain unchanged.
+skills. Issue #83 added the workspace-knowledge answer procedure; issue #85
+made all five capability-gated skills turn-start dynamic. Issue #86 changes the
+small permanent identity only to name Paige's knowledge-and-documentation remit
+and removes the assumption that a useful answer becomes an impact report. The
+third `identity` eval covers that behavior before the identity text changes.
+Dynamic setup still leaves greetings, planning, general explanations, and
+proportional unverified answers available. Setup, memory, behavior, and channel
+participation procedures remain outside permanent identity.
+
 `apps/agent/tests/instruction-boundaries.test.ts` keeps the monolith absent, the
-identity byte-for-byte stable, the standing context below 220 words, and the
-four workflow skills present. `apps/agent/tests/setup-state-db.test.ts` proves
-the missing-setup answer boundary through `pnpm check`.
+standing context below 220 words, permanent principles authority-safe, all five
+skills dynamic, and obsolete workflow names absent. The workspace-knowledge,
+identity, behavior-settings, docs-work, and setup suites cover the corresponding
+behavior boundaries.
 
 The required live baseline was run before the refactor. `docs-signal-workflows`
 completed its Slack path and missed only the existing Linear final-reply gate.

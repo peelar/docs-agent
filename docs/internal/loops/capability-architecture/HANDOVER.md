@@ -49,3 +49,30 @@
   executed while the inherited Eve microsandbox session-start blocker remains
   unchanged. Keep #84 open until that live proof can run through the supervised
   evaluator.
+- #85 - Assumed: an approval resume is available only to the original verified
+  human initiator through the Eve Vercel OIDC runtime, for the exact approved
+  session, run, call, and tool, while schedule and watch principals can never
+  inherit that authority. Watch execution re-reads the opaque reservation and
+  exact effective grants before every tool call.
+- #85 - Blocker: the deterministic capability matrix, replay build, compiled
+  manifest inspection, and complete repository gate pass, but the required
+  live Slack, Linear, Eve, schedule, watch, and approval eval matrix was not
+  executed because the Eve microsandbox session-start blocker is unchanged.
+  Keep #85 open and do not retry until that cause changes.
+- Runtime diagnosis - The freeze occurs after eval discovery, server health,
+  and template provisioning, inside Eve's snapshot-backed microsandbox binding
+  while awaiting sandbox readiness. No model request, tool call, repository
+  clone, or eval assertion starts. A fresh run-owned `MSB_HOME` reproduced the
+  failure with both microsandbox 0.5.10 and a coherent exact 0.5.5 Eve peer and
+  native runtime, so retained global state and the 0.5.10 upgrade are not the
+  cause. Both probes stopped after 120 seconds without semantic progress and
+  removed their processes, sandboxes, and temporary state.
+- #86 - Assumed: the still-live repository-scenario decision mappings remain
+  documented until their eval-fixture and writeback consumers are removed in
+  #88. Setup and situational skills describe available surfaces and procedures
+  but cannot add authority beyond the dynamic resolver and executor checks.
+- #86 - Blocker: instruction boundaries, eval discovery, capability inventory,
+  brand checks, `pnpm check`, and `pnpm check:full` pass, but the identity,
+  behavior-settings, skill-routing, general-answer, and docs-work evals cannot
+  run through the snapshot-backed session-start failure. Keep #86 open until
+  that live proof can execute.

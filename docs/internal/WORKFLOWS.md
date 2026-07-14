@@ -1,8 +1,11 @@
 # Paige Workflows
 
-Paige work starts from a docs signal and ends with a report, a lifecycle
-state change, a patch handoff, or a maintainer question. Current-docs
-verification is one capability inside these workflows, not the whole product.
+A Paige interaction may end with a sourced answer, explicit abstention, or
+recommendation without creating durable documentation work. When a user or an
+approved runtime context does request documentation work, Paige may create or
+update a bounded work resource, prepare a reversible draft, ask a maintainer, or
+conclude that no change is needed. Documentation is the only mutable product
+domain.
 
 Stable capability-family identifiers, authority semantics, and the exhaustive
 current-to-target tool migration live in
@@ -12,13 +15,23 @@ policy.
 
 ## Workflow Model
 
+### Workspace Knowledge Question
+
+A user asks what the configured workspace currently documents, implements, or
+has released. Paige inspects only the sources needed for the question, preserves
+their identities, evidence classes, revisions, paths or URLs, freshness, and
+conflicts, then answers, abstains, or recommends a next step. The turn does not
+create a docs signal, plan, draft, internal document, or workspace memory unless
+a later explicit request changes the task into documentation work.
+
 ### Mentioned In Context
 
 A user brings the agent into a Slack thread or Linear Agent Session. The channel
-captures the thread or issue as structured source provenance, creates or dedupes
-a docs signal, and runs decision/triage. The agent replies with what it captured,
-what evidence is missing, whether current docs were verified, and the next
-action.
+may answer a useful question directly. When the admitted context is an explicit
+or plausible documentation concern, the provider adapter captures it as
+structured source provenance and creates or dedupes a docs signal before shared
+decision and triage. Provider conversation remains provenance, not independent
+proof for a public claim.
 
 An accepted Slack mention also establishes scoped thread presence independently
 of signal state. Later human replies in that thread continue the same Eve
@@ -31,8 +44,10 @@ docs signal, or seven days of inactivity.
 ### Periodic Scan
 
 A user or future schedule asks the agent to check configured sources such as
-watched repositories, release feeds, or channel/project scopes. The scan creates
-or updates docs signals. It does not write docs directly.
+watched repositories, release feeds, or channel/project scopes. A user-triggered
+investigation may end as a sourced answer, abstention, or recommendation. A
+policy-authorized docs concern may create or update durable docs work. Source
+inspection does not write documentation directly.
 
 ### Policy-Bound Proactive Attention
 
@@ -77,15 +92,16 @@ whether the current working docs already cover the change.
 ### Current-Docs Verification
 
 The agent materializes the configured working documentation repository in the
-sandbox and verifies current docs for one signal or scenario. This capability
-can return already-covered, likely-stale, patch-recommended, changelog-only, or
-ask-maintainer decisions. It does not publish.
+sandbox and verifies current docs for a direct task or durable work item. This
+capability can return already-covered, likely-stale, patch-recommended,
+changelog-only, or ask-maintainer decisions. It does not publish.
 
 ### Patch Handoff
 
-When verification supports a docs patch, the agent prepares a minimal patch,
-runs checks, exports a diff, and records the signal lifecycle state. Draft PR
-publishing remains a separate explicit approval through
+When an evidence-backed documentation decision supports a patch, the agent
+prepares a minimal patch, runs checks, exports a diff, and records any linked
+signal lifecycle state. Draft PR publishing remains a separate explicit
+approval through
 `publish_working_repository_pr`.
 
 ## Runtime Boundaries
@@ -122,7 +138,11 @@ cookie or silently inherit web authentication.
 | Draft authoring | Create, revise, inspect, check, prepare, or abandon the one working-repository draft through content-bound atomic operations. | `authoring_workspace`; `working_repository` full-file hashes; `get_docs_profile` for conventions; optional signal, owned-work, recommendation, and ready-plan links. | Open a PR, clobber stale content, leave a partial batch, or write to watched/source repositories. |
 | Writeback | Publish an approved prepared draft PR to the working docs repository. | `publish_working_repository_pr` consumes the stable prepared draft identity, exact base/check/diff snapshot, and its derived signal relation. | Run without explicit approval, attach a different signal, publish an editing or failed-check draft, or target another repository. |
 
-## Tool Mapping
+## Current Capability Surfaces
+
+These implementation names are resolved dynamically and remain subordinate to
+the stable capability families in `CAPABILITIES.md`. They are not workflow or
+watch-policy identifiers.
 
 - `retrieve_slack_context`: search Slack's Real-time Search API once during an
   active user-triggered Slack turn when a named context gap blocks a useful

@@ -9,7 +9,7 @@ export default defineDynamic({ events: { "turn.started": async (event, context) 
     resolution.capabilityFamilies.includes("draft.edit");
   if (!humanContext && !repositoryContext) return null;
   return defineSkill({
-    description: "Always load before a documentation-impact or working-repository workflow. Use for repository-backed docs investigation, decisions, drafting, and checked diffs.",
+    description: "Use for repository-backed documentation investigation, intervention decisions, reversible drafting, and checked diffs.",
     markdown: [
       "# Docs Maintenance",
       "",
@@ -33,7 +33,7 @@ export default defineDynamic({ events: { "turn.started": async (event, context) 
       "",
       "## Report and publish",
       "",
-      "Report the decision, evidence, pages considered, checks, changed files or clean diff, and remaining uncertainty. Sandbox drafting needs no approval. Publishing always requires explicit approval through `publish_working_repository_pr`. Publication derives any signal relation from the prepared draft; do not attach a different signal during writeback.",
+      "Answer the request or state the documentation decision first. Include the evidence, pages considered, checks, changed files or clean diff, and remaining uncertainty that support it. Sandbox drafting needs no approval. Publishing always requires explicit approval through `publish_working_repository_pr`. Publication derives any signal relation from the prepared draft; do not attach a different signal during writeback.",
     ].join("\n"),
   });
 } } });

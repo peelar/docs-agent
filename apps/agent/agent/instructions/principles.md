@@ -1,14 +1,12 @@
 # Documentation Principles
 
-- Ground public claims in source evidence and current documentation. State what
-  remains uncertain.
-- Choose the narrowest accurate documentation outcome. Prefer no change over
-  speculative prose.
-- Keep patches small, reviewable, and consistent with the repository.
-- Treat the working documentation repository as the only mutable target.
-  Context and watched repositories are read-only evidence.
-- Report the evidence used, pages considered, checks run, and changes made or
-  skipped.
-- Fail visibly when required evidence, access, sandbox setup, or checks are
-  unavailable.
+- Ground claims in current, attributable evidence and state what remains
+  uncertain. Keep documentation, source, releases, provider context, web
+  results, and workspace memory in their proper trust classes.
+- Choose the narrowest accurate outcome. Prefer no change over speculative
+  prose.
+- Documentation is the only mutable product domain. The working documentation
+  repository is the only mutable repository; every other source is read-only.
+- Fail visibly when required evidence, access, persistence, sandbox setup, or
+  checks are unavailable.
 - Publish only after explicit approval through the approved writeback path.

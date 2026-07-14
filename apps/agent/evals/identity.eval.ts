@@ -45,6 +45,27 @@ export default [
       );
     },
   }),
+  defineEval({
+    description: "Paige answers a general product question without manufacturing documentation work",
+    tags: ["identity", "conversation", "general-answer", "issue-86"],
+    timeoutMs: 180_000,
+    async test(t) {
+      await t.send([
+        "Answer this general software-product question in two or three short sentences without tools:",
+        "What is the difference between a semantic-versioning major release and a minor release?",
+      ].join("\n"));
+
+      t.succeeded();
+      t.usedNoTools();
+      t.check(
+        t.reply,
+        satisfies(
+          (reply) => matchesGeneralAnswer(reply),
+          "a useful knowledge answer can end directly without an impact report or docs-work artifact",
+        ),
+      );
+    },
+  }),
 ];
 
 function matchesBareMentionReply(reply: unknown): boolean {
@@ -84,6 +105,25 @@ function matchesIncompleteThoughtReply(reply: unknown): boolean {
       "setup mode",
       "fully formed task",
       "documentation-related content",
+    ]);
+}
+
+function matchesGeneralAnswer(reply: unknown): boolean {
+  const text = String(reply).trim();
+  const lower = text.toLowerCase();
+
+  return text.length > 0 &&
+    text.length <= 700 &&
+    includesAny(lower, ["breaking", "incompatible"]) &&
+    includesAny(lower, ["backward-compatible", "backwards-compatible", "compatible", "functionality", "feature"]) &&
+    !includesAny(lower, [
+      "documentation impact report",
+      "docs impact report",
+      "docs signal",
+      "working documentation repository",
+      "setup",
+      "patch",
+      "draft pr",
     ]);
 }
 

@@ -2,11 +2,12 @@
 
 ## Product Stance
 
-Paige is an open-source agent for software teams that keep product
-documentation in Git. Its first job is not to broadly generate prose. Its job is
-to inspect engineering context, decide whether documentation is affected, and
-make the smallest reviewable intervention that solves the reader's problem when
-the evidence supports it.
+Paige is an open-source knowledge and documentation agent for software teams
+that keep product documentation in Git. It answers product and documentation
+questions from current, attributable workspace evidence. A useful interaction
+may end as a sourced answer, an explicit abstention, or a recommendation; when
+the request becomes documentation work, Paige makes the smallest reviewable
+intervention that solves the reader's problem.
 
 The agent should be present where work happens. Product decisions, release
 intent, support signals, and behavior clarifications often appear in Slack and
@@ -28,32 +29,35 @@ clear whether docs are stale, which page should change, or whether a docs patch
 is safe to merge.
 
 Reviewers need an agent that behaves like a careful documentation coworker: it
-should assemble the relevant context, explain the docs impact, and avoid writing
-when the right answer is no change, changelog only, or ask a maintainer.
+should assemble the relevant context, answer what the evidence supports, state
+what remains uncertain, and avoid writing when the right answer is no change,
+changelog only, or ask a maintainer.
 
 ## MVP
 
-The current foundation proves the sandboxed GitHub repository work loop. Given a
-configured GitHub working documentation repository, PR-like change context,
-structured issue or product context, and optional read-only watched or context
-repositories, the agent clones or materializes repositories into the Eve
-sandbox, emits a documentation impact report, prepares a minimal Markdown or
-MDX patch when warranted, runs checks, exports a diff, and can push an approved
-branch or draft PR back to the same working repository.
+The current foundation provides bounded workspace-knowledge reads across the
+configured working documentation repository and optional read-only watched or
+context repositories. Paige can answer directly from inspected evidence without
+creating durable work. For an explicit documentation task, it materializes the
+working repository in the Eve sandbox, records the documentation decision,
+prepares a minimal Markdown or MDX draft when warranted, runs checks, exports a
+diff, and can publish an approved branch and draft PR back to that same
+repository.
 
 The current product also captures explicit Slack threads and Linear Agent
 Sessions as durable docs signals. The next product slice adds explicitly
 configured, policy-bound watches so an operator can delegate ongoing attention
 to one provider resource without introducing a purpose-specific workflow. This
-does not make the agent a broad chat bot or ticketing assistant. The configured
-working documentation repository remains the only mutable target, and
-writeback remains approval gated.
+does not make the agent a broad chat bot or ticketing assistant. Documentation
+is the only mutable product domain, the configured working documentation
+repository remains the only mutable repository, and writeback remains approval
+gated.
 
 The authenticated web control plane shows setup readiness, the docs-signal work
 queue, provenance and lifecycle, memories, runs, approvals, assurance, and
-structured behavior settings. Slack and Linear remain the places where
-documentation work starts. Behavior settings can tune voice and participation,
-but cannot change evidence, safety, or publishing authority.
+structured behavior settings. Slack and Linear remain places where questions or
+documentation work may start. Behavior settings can tune voice and
+participation, but cannot change evidence, safety, or publishing authority.
 
 ## Repository Model
 
@@ -141,8 +145,9 @@ docs change.
 ## Principles
 
 - Prefer no docs change over a weak or generic docs patch.
-- Treat the documentation impact report as the core output; patches are a
-  consequence of the report, not the other way around.
+- Treat the evidence-backed answer or decision as the core output. Durable work
+  and patches are consequences of an explicit request and supported need, not
+  mandatory artifacts.
 - Keep patches small enough for a human reviewer to understand quickly.
 - Cite the evidence used: code diff, structured issue context, existing page
   pattern, considered pages, and remaining uncertainty.
@@ -174,7 +179,7 @@ docs change.
   server-side configuration; future shared runtime must authenticate the agent
   before binding its exclusive database.
 
-## Repository Workflow
+## Documentation Repository Workflow
 
 A maintainer gives the agent a scenario containing:
 
@@ -183,12 +188,13 @@ A maintainer gives the agent a scenario containing:
 - linked structured issue or product context;
 - optional existing docs conventions or expected style notes.
 
-The agent inspects the scenario in an Eve sandbox, identifies affected docs
-surfaces in the working documentation repository, decides whether a docs change
-is needed, and emits a documentation impact report. It then chooses the smallest
-editorial intervention that solves the reader problem, creates a content plan
-for substantial work, prepares the complete reversible draft, records checks,
-and exports a diff. Approved changes publish back to the same GitHub repository.
+For this explicit documentation task, the agent inspects the scenario in an Eve
+sandbox, identifies affected docs surfaces in the working documentation
+repository, and decides whether a docs change is needed. It then chooses the
+smallest editorial intervention that solves the reader problem, creates a
+content plan for substantial work, prepares the complete reversible draft,
+records checks, and exports a diff. Approved changes publish back to the same
+GitHub repository.
 
 ## Signal Workflow
 
@@ -204,8 +210,8 @@ The agent captures structured external context, records provenance, identifies
 the likely docs task, and decides whether current docs verification is needed.
 For substantive product, API, release, or behavior signals, the normal path is
 to materialize the configured working documentation repository, inspect relevant
-docs, and return a documentation impact report. The agent may skip sandboxed
-repository inspection only when it gives a concrete reason, such as internal-only
+docs, and return an evidence-backed documentation decision. The agent may skip
+sandboxed repository inspection only when it gives a concrete reason, such as internal-only
 discussion, duplicate noise, insufficient information to identify a docs concern,
 or an explicit need to wait for source or release evidence.
 
@@ -328,8 +334,8 @@ approval gated.
   contract.
 - `docs/internal/USER_TESTING.md`: manual user-test scenarios, expected
   outcomes, and eval readiness notes.
-- `docs/internal/WORKFLOWS.md`: docs-signal workflow model, runtime boundaries,
-  and tool mapping for channel, scan, verification, patch, and writeback work.
+- `docs/internal/WORKFLOWS.md`: answer and documentation-work composition,
+  runtime boundaries, and current capability surfaces.
 - `docs/internal/ADMIN_UI.md`: operator control-plane scope, onboarding
   boundary, and delivery order.
 - `docs/DEVELOPMENT.md`, `docs/DEPLOYMENT.md`, and `docs/TEAM_CONTEXT.md`: local

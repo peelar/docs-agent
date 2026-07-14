@@ -2,10 +2,11 @@
 
 ## Current Appetite
 
-The sandboxed working-repository loop, watched-repository evidence, durable docs
-signals, Slack and Linear intake, patch handoff, and workspace memories are now
-implemented. The product has useful state, but operators cannot see it without
-asking the agent or inspecting runtime and database internals.
+Bounded workspace-knowledge answers, the sandboxed working-repository loop,
+watched and context repository evidence, durable docs work, Slack and Linear
+intake, reversible drafting, and workspace memories are implemented. A question
+can end as a sourced answer, explicit abstention, or recommendation without
+creating docs work; documentation remains the only mutable product domain.
 
 The first local-only web control-plane delivery is complete: the Turborepo
 boundary, operator shell, one agent-owned database shared by that agent's two
@@ -35,9 +36,9 @@ budget, delivery, and approval authority structured; release-channel review and
 docs-feedback triage are proof scenarios, not separate runtime workflows.
 
 The capability-architecture program tracked by #78 is the ordered prerequisite
-for the remaining watch executor. It replaces fixture and workflow-shaped model
-surfaces with the canonical knowledge, repository, draft, docs-work, and dynamic
-capabilities that #60 must consume.
+for the remaining watch executor. Through #85 it has established the canonical
+knowledge, repository, draft, docs-work, and dynamic capability runtime; #86
+aligns model-visible and product guidance before #60 consumes that surface.
 
 The first delivery remains the local read-only baseline. Production
 authentication, guided setup, connector handoffs, workspace-memory review, run
@@ -191,7 +192,8 @@ loop above. This section retains the M5 product and dependency context.
 - Operator mutations for signal priority, lifecycle, and next action.
 - Notifications, usage, retention, and data-management controls beyond the
   bounded scheduled follow-up and watch policies.
-- Broader source and context repository access beyond watched release scans.
+- Broader provider and non-repository knowledge sources beyond the configured
+  repository and bounded provider-native surfaces.
 - Discord, Notion, support systems, or other team surfaces.
 - Scheduled stale-doc detection beyond explicitly configured scans.
 - Multi-docs-platform support.

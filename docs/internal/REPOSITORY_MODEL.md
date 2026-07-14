@@ -3,9 +3,10 @@
 The agent works from one required **working documentation repository**, optional
 read-only **watched repositories** and **context repositories**, and zero or more
 external evidence sources.
-The working documentation repository is the only mutable target. Everything else
-is evidence for the documentation impact report or for a durable docs signal that
-may later trigger verification and patch work.
+The working documentation repository is the only mutable repository. Everything
+else is read-only evidence for a sourced answer, explicit abstention,
+recommendation, or later documentation work. Inspecting evidence does not create
+a docs signal, plan, draft, or memory by default.
 
 ## Working Documentation Repository
 
@@ -20,8 +21,8 @@ The repository input contract captures:
 - `source.url`: `https://github.com/<owner>/<repo>[.git]`.
 - `ref`: optional branch, tag, or commit to inspect. Defaults to `main`.
 - `docsRoot`: optional repository-relative docs root, such as `docs` or `.`. If
-  omitted, the workflow detects a Docusaurus-style docs root from the sandbox
-  checkout.
+  omitted, repository materialization detects a Docusaurus-style docs root from
+  the sandbox checkout.
 - `sandboxPath`: `/workspace/working-docs`.
 - `accessMode`: `sandbox-write`.
 - `allowedActions`: clone, read, search, patch, run checks, and export diff.
@@ -47,9 +48,10 @@ diff, or validator operation materializes the persisted repository without
 asking the user for the same GitHub URL again. Setup mutation and repository
 inspection remain separate surfaces.
 
-Host local paths are not supported as repository sources for the main workflow.
+Host local paths are not supported as repository sources for the product.
 Local development and production use the same sandbox-first contract: GitHub URL
-to Eve sandbox to report, diff artifact, and approved GitHub writeback.
+to Eve sandbox to a sourced answer or, for explicit documentation work, a
+checked diff and approved GitHub writeback.
 
 ## Approved GitHub Writeback
 
@@ -64,9 +66,9 @@ the prepared sandbox diff, and open a draft PR. The credential stays in the
 trusted runtime: it is not passed into the sandbox, model context, prompt, or
 durable report artifact.
 
-The tool publishes only the last prepared workflow diff. It refuses to publish
+The tool publishes only the last prepared draft diff. It refuses to publish
 when there is no diff, checks failed or were not recorded, the sandbox diff no
-longer matches the workflow result, the base branch moved, the publish branch
+longer matches the prepared draft, the base branch moved, the publish branch
 already exists, or the working tree contains staged, untracked, deleted, renamed,
 copied, binary, or unsupported-mode changes.
 
@@ -92,14 +94,14 @@ Both supported backends enforce the same initial network policy: GitHub and
 GitHub content domains needed for repository materialization are allowed, and
 the npm registry domains needed for locked dependency installation are allowed
 so sandboxed docs checks can run. Provider and arbitrary internet egress remain
-out of scope until a later workflow explicitly requires them.
+out of scope until a later capability explicitly requires them.
 
 Materialization may reuse an existing sandbox checkout when the remote matches
 the requested working repository. It may also restore a matching sandbox-local
 repository cache after a prior materialization wrote a ready marker. Reuse still
 resets tracked changes and cleans untracked non-ignored files before analysis.
 If neither cache is available, or the checkout belongs to another repository,
-the workflow clones a fresh copy and promotes the resolved checkout into the
+repository materialization clones a fresh copy and promotes the resolved checkout into the
 repository cache for future sessions.
 
 Dependency installation uses a sandbox-local cache marker outside the working
@@ -112,7 +114,7 @@ them.
 
 If the sandbox cannot be created, the repository cannot be cloned, refreshed, or
 materialized, or the input uses an unsupported source such as a host local path,
-the workflow must fail visibly. It must not fall back to a local checkout, stub
+the repository capability must fail visibly. It must not fall back to a local checkout, stub
 repository, fake diff, or false-success report.
 
 ## Context Repositories
@@ -127,7 +129,7 @@ writeback paths.
 
 The `workspace_knowledge` capability lists the configured source registry and
 performs bounded search or line-range reads without starting a release scan or
-documentation workflow. Every excerpt preserves source identity, requested ref
+durable documentation work. Every excerpt preserves source identity, requested ref
 and resolved revision, path, evidence class, and an untrusted-data marker.
 Obvious credential material is redacted before model output. Missing provider
 access, stale or missing refs, and unavailable repositories are visible source
@@ -146,7 +148,7 @@ Watched repository provenance must be labeled separately from working
 documentation repository provenance. The configured provenance label uses
 `watched-repository:<owner>/<repo>`.
 
-The first watched-repository workflow is prompt-triggered release scanning:
+The first watched-repository procedure is prompt-triggered release research:
 
 1. Load the configured working documentation repository and watched repository
    list from setup state.
@@ -163,10 +165,11 @@ The first watched-repository workflow is prompt-triggered release scanning:
 5. Search watched source files through read-only policy checks to verify
    candidate terms.
 6. Search the working documentation repository for matching docs evidence.
-7. Emit a documentation impact report with separate GitHub signal,
-   watched-repository, and working-documentation-repository evidence.
-8. Do not write to watched repositories. Any later docs patch or draft PR must
-   target only the working documentation repository.
+7. Answer the request with separate GitHub release, watched-repository, and
+   working-documentation-repository evidence. A likely gap may remain a
+   recommendation; it does not become durable work by default.
+8. Do not write to watched repositories. Any later explicit docs draft or draft
+   PR must target only the working documentation repository.
 
 ## External Context
 
@@ -450,7 +453,7 @@ that exact prepared draft through `publish_working_repository_pr`.
 Substantial documentation work extends its originating docs signal with one
 provider-neutral owned-work record. The record keeps a stable work id, Eve
 session id, starting and latest turn/run ids, originating conversation, intended
-outcome, current status and revision, and references to the impact report,
+outcome, current status and revision, and references to the documentation decision,
 editorial recommendation, content plan, draft, validation, approval, and
 publication artifacts. A unique signal constraint makes start idempotent.
 
@@ -736,7 +739,7 @@ only this typed projection, never the database client, tables, or Eve reporter.
 ## Docs Impact Decision Model
 
 Paige uses a shared decision contract for signal triage, watched-release
-findings, scenario workflows, and future Slack/Linear intake. The shared
+findings, explicit documentation tasks, and Slack/Linear intake. The shared
 decision record carries:
 
 - decision;
@@ -770,11 +773,12 @@ would otherwise become an unsupported public docs claim. Trivial, internal-only,
 or noisy signals can skip repository inspection only through
 `verification-skipped` with an explicit reason.
 
-The older repository-scenario decisions remain as compatibility output for the
-current evals and writeback path: `docs-patch` maps to
+The current repository-scenario compatibility outputs remain live for eval
+fixtures and the writeback path: `docs-patch` maps to
 `docs-patch-recommended`, `no-docs-change` maps to `already-covered`,
 `changelog-only` stays `changelog-only`, and `ask-maintainer` maps to
-`needs-maintainer-answer`.
+`needs-maintainer-answer`. Removing those mappings belongs to the final
+compatibility cleanup after their consumers migrate.
 
 Persistence failures must fail visibly. If the database is missing, unavailable,
 corrupt, or behind the expected schema, the app should refuse signal capture,

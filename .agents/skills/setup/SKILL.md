@@ -16,7 +16,8 @@ Automate every safe local step. Pause only for a missing user choice, secret,
 browser consent, provider administration, or other action that must belong to a
 person. Never ask the user to paste a token or secret into chat. Never report a
 connector, installation, trigger, grant, or runtime as ready until a check
-proves it.
+proves it. Setup records sources and readiness; it does not grant model
+authority, make a read-only source mutable, or waive publication approval.
 
 ## Find or create the checkout
 
@@ -26,7 +27,7 @@ proves it.
    `https://github.com/peelar/docs-maintainer-agent.git`. Do not choose a nested
    destination without confirmation. Clone it and continue from that root.
 3. Preserve existing setup. Reconfigure only missing or explicitly requested
-   capabilities; never delete `.docs-agent`, `.eve`, `.workflow-data`,
+   surfaces; never delete `.docs-agent`, `.eve`, `.workflow-data`,
    `.vercel`, or `.env.local` during ordinary setup.
 
 ## Bootstrap locally
