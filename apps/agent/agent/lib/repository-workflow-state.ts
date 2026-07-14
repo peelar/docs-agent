@@ -17,6 +17,7 @@ import {
   type WorkflowState,
 } from "./repository-workflow-contract";
 import { repositoryActionRecordSchema } from "./repository-materialization";
+import { workingRepositoryValidationProfileSchema } from "./working-repository-service";
 
 const repositoryWorkflowState = defineState<WorkflowState | null>(
   "docs-agent.repository-workflow-state",
@@ -45,6 +46,10 @@ export async function loadRepositoryWorkflowState(): Promise<WorkflowState> {
     repositoryInput,
     materialization: repositoryMaterializationSchema.parse(state.materialization),
     actionProvenance: z.array(repositoryActionRecordSchema).parse(state.actionProvenance),
+    repositoryValidationProfile:
+      state.repositoryValidationProfile === undefined
+        ? undefined
+        : workingRepositoryValidationProfileSchema.parse(state.repositoryValidationProfile),
     lastResult:
       state.lastResult === undefined
         ? undefined

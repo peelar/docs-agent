@@ -61,6 +61,61 @@ const docsRootDetectionResultSchema = z.object({
 
 type DocsRootDetectionResult = z.infer<typeof docsRootDetectionResultSchema>;
 
+const materializationFlights = new Map<string, Promise<void>>();
+const workingRepositoryOperationTails = new Map<string, Promise<void>>();
+
+export function workingRepositoryOperationKey(
+  sessionId: string,
+  repository: WorkingDocumentationRepository,
+): string {
+  return JSON.stringify({
+    sessionId,
+    repositoryUrl: repository.source.url,
+    ref: repository.ref,
+    sandboxPath: repository.sandboxPath,
+  });
+}
+
+export async function runWorkingRepositoryOperationSerially<T>(
+  key: string,
+  operation: () => Promise<T>,
+): Promise<T> {
+  const predecessor = workingRepositoryOperationTails.get(key) ?? Promise.resolve();
+  let release!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    release = resolve;
+  });
+  const tail = predecessor.then(() => gate);
+  workingRepositoryOperationTails.set(key, tail);
+  await predecessor;
+  try {
+    return await operation();
+  } finally {
+    release();
+    if (workingRepositoryOperationTails.get(key) === tail) {
+      workingRepositoryOperationTails.delete(key);
+    }
+  }
+}
+
+export async function runRepositoryMaterializationFlight(
+  key: string,
+  materialize: () => Promise<void>,
+): Promise<void> {
+  let flight = materializationFlights.get(key);
+  if (flight === undefined) {
+    flight = Promise.resolve().then(materialize);
+    materializationFlights.set(key, flight);
+  }
+  try {
+    await flight;
+  } finally {
+    if (materializationFlights.get(key) === flight) {
+      materializationFlights.delete(key);
+    }
+  }
+}
+
 export async function materializeWorkingRepository(
   ctx: ToolContext,
   repositoryInput: RepositoryInput,
@@ -99,6 +154,12 @@ export async function materializeWorkingRepository(
     ctx,
     repository: resolvedRepository,
     materialization,
+    actionProvenance,
+  });
+  await saveRepositoryWorkflowState({
+    repositoryInput: resolvedRepositoryInput,
+    materialization,
+    actionProvenance,
   });
 
   return materialization;
@@ -131,19 +192,26 @@ export async function loadOrMaterializeRepositoryWorkflowState(
   } catch {
     const setup = await requireSetupReady("docs-maintenance");
     const repositoryInput = materializationInputForSetup(setup.workingRepositoryInput);
-    const materialization = await materializeWorkingRepository(ctx, repositoryInput, []);
-    if (
-      setup.workingRepositoryInput.workingDocumentationRepository.docsRoot !==
-      materialization.docsRoot
-    ) {
-      await saveWorkingRepositorySetup({
-        ...setup.workingRepositoryInput,
-        workingDocumentationRepository: {
-          ...setup.workingRepositoryInput.workingDocumentationRepository,
-          docsRoot: materialization.docsRoot,
-        },
-      });
-    }
+    const sandbox = await ctx.getSandbox();
+    const flightKey = JSON.stringify({ sandboxId: sandbox.id, repositoryInput });
+    await runRepositoryMaterializationFlight(
+      flightKey,
+      async () => {
+        const materialization = await materializeWorkingRepository(ctx, repositoryInput, []);
+        if (
+          setup.workingRepositoryInput.workingDocumentationRepository.docsRoot !==
+          materialization.docsRoot
+        ) {
+          await saveWorkingRepositorySetup({
+            ...setup.workingRepositoryInput,
+            workingDocumentationRepository: {
+              ...setup.workingRepositoryInput.workingDocumentationRepository,
+              docsRoot: materialization.docsRoot,
+            },
+          });
+        }
+      },
+    );
     return loadRepositoryWorkflowState();
   }
 }

@@ -6,3 +6,8 @@
 - #79 - Gap: the repo-local `.workflow-data` journal contains stale active runs
   and hit `EMFILE` during Eve development snapshot pruning. Live proof used an
   isolated `WORKFLOW_LOCAL_DATA_DIR`; all four strict behavior cases passed.
+- #80 - Assumed: package scripts in the operator-configured working repository
+  are trusted validator sources only after typed discovery and source-hash
+  binding; documented checks add provenance but never become executable model
+  input. Gap: legacy draft mutation consumers retain the internal fixed check
+  aliases until #81 converges preparation on `authoring_workspace`.

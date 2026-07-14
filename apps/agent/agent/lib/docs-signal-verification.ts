@@ -7,19 +7,14 @@ import {
   transitionDocsSignalLifecycle,
 } from "./docs-signals";
 import { assertDocsSignalTransitionReady } from "./docs-signal-lifecycle";
-import {
-  exportRepositoryDiff,
-  listChangedFiles,
-  readRepositoryFile,
-  runRepositoryCheck,
-  searchRepository,
-} from "./repository-operations";
 import { repositoryActionRecordSchema } from "./repository-materialization";
 import {
   repositoryCheckResultSchema,
   repositoryMaterializationSchema,
 } from "./repository-workflow-contract";
 import { loadOrMaterializeRepositoryWorkflowState } from "./working-repository-lifecycle";
+import { saveRepositoryWorkflowState } from "./repository-workflow-state";
+import { WorkingRepositoryService } from "./working-repository-service";
 
 const currentDocsPageVerificationSchema = z.object({
   path: z.string(),
@@ -76,6 +71,12 @@ export async function verifyDocsSignalCurrentDocs(
   const state = await loadOrMaterializeRepositoryWorkflowState(ctx);
   const repository = state.repositoryInput.workingDocumentationRepository;
   const actionProvenance = [...state.actionProvenance];
+  const service = new WorkingRepositoryService({
+    ctx,
+    repository,
+    materialization: state.materialization,
+    actionProvenance,
+  });
 
   const docsPages = unique([
     ...parsed.docsPages,
@@ -97,11 +98,11 @@ export async function verifyDocsSignalCurrentDocs(
   const consideredPages = [];
   for (const page of docsPages) {
     try {
-      const content = await readRepositoryFile(ctx, repository, page, actionProvenance);
+      const content = await service.read({ path: page, maxCharacters: 2_000 });
       consideredPages.push({
         path: page,
         found: true,
-        contentPreview: truncate(content, 2_000),
+        contentPreview: content.content,
       });
     } catch (error) {
       consideredPages.push({
@@ -115,11 +116,14 @@ export async function verifyDocsSignalCurrentDocs(
   const searchResults = [];
   for (const query of searchQueries) {
     try {
-      const output = await searchRepository(ctx, repository, query, actionProvenance);
+      const output = await service.search({ query, kind: "literal", limit: 20 });
+      const outputPreview = output.matches
+        .map((match) => `${match.path}:${match.line}:${match.excerpt}`)
+        .join("\n");
       searchResults.push({
         query,
-        matched: output.trim().length > 0,
-        outputPreview: truncate(output, 2_000),
+        matched: output.matches.length > 0,
+        outputPreview: truncate(outputPreview, 2_000),
       });
     } catch (error) {
       searchResults.push({
@@ -131,9 +135,17 @@ export async function verifyDocsSignalCurrentDocs(
     }
   }
 
-  const checks = [await runRepositoryCheck(ctx, repository, "status", actionProvenance)];
-  const changedFiles = await listChangedFiles(ctx, repository, actionProvenance);
-  const diff = await exportRepositoryDiff(ctx, repository, actionProvenance);
+  const status = await service.status(4_000);
+  const checks = [{
+    name: "status" as const,
+    command: "git status --short --untracked-files=all",
+    exitCode: 0,
+    status: "passed" as const,
+    stdout: status.status,
+    stderr: "",
+  }];
+  const diff = await service.diff();
+  const changedFiles = diff.changedFiles;
   const verificationSummary = [
     `Verified current docs for signal ${signal.id} in ${repository.source.url}.`,
     `${consideredPages.filter((page) => page.found).length}/${consideredPages.length} likely docs pages were readable.`,
@@ -172,7 +184,7 @@ export async function verifyDocsSignalCurrentDocs(
             status: check.status,
             exitCode: check.exitCode,
           })),
-          noDiff: diff.trim().length === 0 && changedFiles.length === 0,
+          noDiff: diff.noDiff,
         },
       },
     ],
@@ -180,21 +192,23 @@ export async function verifyDocsSignalCurrentDocs(
       repositoryUrl: repository.source.url,
       ref: repository.ref,
       docsRoot: repository.docsRoot,
-      noDiff: diff.trim().length === 0 && changedFiles.length === 0,
+      noDiff: diff.noDiff,
     },
   }, "verification");
 
-  return verifyDocsSignalCurrentDocsResultSchema.parse({
+  const result = verifyDocsSignalCurrentDocsResultSchema.parse({
     signal: updatedSignal,
     materialization: state.materialization,
     consideredPages,
     searchResults,
     checks,
     changedFiles,
-    noDiff: diff.trim().length === 0 && changedFiles.length === 0,
+    noDiff: diff.noDiff,
     actionProvenance,
     verificationSummary,
   });
+  await saveRepositoryWorkflowState({ ...state, actionProvenance });
+  return result;
 }
 
 function unique(values: string[]): string[] {

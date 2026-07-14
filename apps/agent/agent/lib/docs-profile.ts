@@ -10,7 +10,9 @@ import {
 import type { ToolContext } from "eve/tools";
 
 import type { ResolvedWorkingDocumentationRepository } from "./repository-contract";
+import type { RepositoryActionRecord } from "./repository-materialization";
 import type { DocsMaintenanceWorkflowResult } from "./repository-workflow-contract";
+import { WorkingRepositoryService } from "./working-repository-service";
 
 export type DocsProfileRefreshReason = "maintainer-correction" | "contradiction" | "manual-refresh";
 
@@ -18,9 +20,16 @@ export async function ensureDocsProfile(input: {
   ctx: ToolContext;
   repository: ResolvedWorkingDocumentationRepository;
   materialization: DocsMaintenanceWorkflowResult["materialization"];
+  actionProvenance?: RepositoryActionRecord[];
   refreshReason?: DocsProfileRefreshReason;
 }): Promise<CachedDocsProfile> {
-  const inspection = await inspectProfileSources(input.ctx, input.repository);
+  const service = new WorkingRepositoryService({
+    ctx: input.ctx,
+    repository: input.repository,
+    materialization: input.materialization,
+    actionProvenance: input.actionProvenance ?? [],
+  });
+  const inspection = await inspectProfileSources(service, input.repository);
   const identity = {
     repositoryUrl: input.repository.source.url,
     requestedRef: input.repository.ref,
@@ -47,29 +56,30 @@ export async function ensureDocsProfile(input: {
 export async function loadTaskExamples(input: {
   ctx: ToolContext;
   repository: ResolvedWorkingDocumentationRepository;
+  materialization: DocsMaintenanceWorkflowResult["materialization"];
+  actionProvenance?: RepositoryActionRecord[];
   paths: string[];
 }): Promise<Array<{ path: string; excerpt: string }>> {
-  const sandbox = await input.ctx.getSandbox();
+  const service = new WorkingRepositoryService({
+    ctx: input.ctx,
+    repository: input.repository,
+    materialization: input.materialization,
+    actionProvenance: input.actionProvenance ?? [],
+  });
   const examples: Array<{ path: string; excerpt: string }> = [];
   for (const path of [...new Set(input.paths)].slice(0, 5)) {
-    if (path.startsWith("/") || path.split("/").includes("..")) continue;
-    const absolute = `${input.repository.sandboxPath}/${path}`;
-    const content = await sandbox.readTextFile({ path: absolute, abortSignal: input.ctx.abortSignal });
-    if (content !== null) examples.push({ path, excerpt: content.slice(0, 4_000) });
+    const read = await service.read({ path, maxCharacters: 4_000 });
+    examples.push({ path, excerpt: read.content });
   }
   return examples;
 }
 
-async function inspectProfileSources(ctx: ToolContext, repository: ResolvedWorkingDocumentationRepository) {
-  const sandbox = await ctx.getSandbox();
-  const listing = await sandbox.run({
-    command: "find . -maxdepth 4 -type f | sed 's#^./##' | sort | head -200",
-    workingDirectory: repository.sandboxPath,
-    abortSignal: ctx.abortSignal,
-  });
-  if (listing.exitCode !== 0) throw new Error(`Docs profile source discovery failed: ${listing.stderr}`);
-
-  const all = listing.stdout.split("\n").filter(Boolean);
+async function inspectProfileSources(
+  service: WorkingRepositoryService,
+  repository: ResolvedWorkingDocumentationRepository,
+) {
+  const listing = await service.list({ pattern: "**/*", limit: 200, maxDepth: 4 });
+  const all = listing.entries.filter(({ type }) => type === "file").map(({ path }) => path);
   const explicit = all.filter((path) => /(^|\/)(AGENTS\.md|CONTRIBUTING\.md|STYLE[^/]*\.md|README\.md|package\.json|sidebars\.[^/]+|docusaurus\.config\.[^/]+)$/i.test(path));
   const representative = all.filter((path) => path.startsWith(`${repository.docsRoot === "." ? "" : `${repository.docsRoot}/`}`) && /\.mdx?$/.test(path));
   const selected = [...new Set([...explicit, ...representative.slice(0, 6)])].slice(0, 16);
@@ -77,8 +87,8 @@ async function inspectProfileSources(ctx: ToolContext, repository: ResolvedWorki
 
   const files: Array<{ path: string; content: string }> = [];
   for (const path of selected) {
-    const content = await sandbox.readTextFile({ path: `${repository.sandboxPath}/${path}`, abortSignal: ctx.abortSignal });
-    if (content !== null) files.push({ path, content: content.slice(0, 12_000) });
+    const read = await service.read({ path, maxCharacters: 12_000 });
+    files.push({ path, content: read.content });
   }
   const fingerprint = createHash("sha256").update(files.map(({ path, content }) => `${path}\0${content}`).join("\0")).digest("hex");
   return { files, fingerprint };

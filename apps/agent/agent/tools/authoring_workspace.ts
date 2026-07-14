@@ -27,7 +27,7 @@ const outputSchema = z.union([
 ]);
 
 export default defineTool({
-  description: "Create, revise, inspect, prepare, or abandon one multi-file draft in the working documentation repository. Apply batches can write text or base64 binary files, copy, move, and delete anywhere inside the repository. Sandbox edits are reversible; prepare records checks and a complete diff, while GitHub publication remains separately approval-gated.",
+  description: "Create, revise, inspect, prepare, or abandon one requested multi-file draft in the working documentation repository. Use working_repository for read-only investigation, status, diff, and validators. Authoring modes require an existing draft or requested edits; never prepare an empty draft. Apply batches can write text or base64 binary files, copy, move, and delete anywhere inside the repository. Sandbox edits are reversible; prepare records checks and a complete diff, while GitHub publication remains separately approval-gated.",
   inputSchema,
   outputSchema,
   async execute(input, ctx) {

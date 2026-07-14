@@ -54,7 +54,7 @@ export default defineEval({
 function renderPrompt(): string {
   return [
     "Run the watched repository scan for recent release signals and possible docs gaps.",
-    "First call configure_working_repository with prepareNow false and the full config below.",
+    "First call configure_working_repository with the full config below.",
     "Then call scan_watched_repositories with maxReleasesPerRepository 1.",
     "Use watched repositories only as read-only source evidence. Do not patch, push, or open a PR.",
     "",
@@ -103,7 +103,7 @@ function matchesConfigureInput(input: unknown): boolean {
     Array.isArray(watchedRepository.allowedActions) &&
     !watchedRepository.allowedActions.includes("patch") &&
     !watchedRepository.allowedActions.includes("publish-pr") &&
-    input.prepareNow === false
+    input.prepareNow === undefined
   );
 }
 

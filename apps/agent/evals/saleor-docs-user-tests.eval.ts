@@ -37,23 +37,25 @@ export default [
           count: 1,
         });
         for (const path of scenario.expected.inspectedPaths) {
-          t.calledTool("repo_read_file", { input: { path } });
+          t.calledTool("working_repository", { input: { mode: "read", path } });
+        }
+        t.calledTool("working_repository", { input: { mode: "validators" } });
+        t.calledTool("working_repository", {
+          input: { mode: "run_validators" },
+          output: hasSuccessfulRepositoryCheck,
+        });
+        t.calledTool("working_repository", {
+          input: { mode: "diff" },
+          output: scenario.expected.outcome === "docs-patch"
+            ? (output) => matchesPreparedDiff(output, scenario)
+            : matchesEmptyDiff,
+        });
+        if (scenario.id === "repository-generic-pagination-limit-no-change") {
+          t.calledTool("working_repository", { input: { mode: "search" } });
         }
         if (scenario.expected.outcome === "docs-patch") {
           t.calledTool("get_docs_profile");
-          t.calledTool("repo_run_checks", {
-            output: hasSuccessfulRepositoryCheck,
-          });
-          t.calledTool("repo_export_diff", {
-            output: (output) => matchesPreparedDiff(output, scenario),
-          });
         } else {
-          t.calledTool("repo_run_checks", {
-            output: hasSuccessfulRepositoryCheck,
-          });
-          t.calledTool("repo_export_diff", {
-            output: matchesEmptyDiff,
-          });
           t.notCalledTool("authoring_workspace");
           t.notCalledTool("repo_replace_text");
         }
@@ -124,7 +126,7 @@ function matchesConfigureInput(input: unknown, scenario: Scenario): boolean {
     workingRepository.accessMode === repository.accessMode &&
     includesAll(workingRepository.allowedActions, [...repository.allowedActions]) &&
     workingRepository.provenanceLabel === repository.provenanceLabel &&
-    input.prepareNow === false
+    input.prepareNow === undefined
   );
 }
 
@@ -173,8 +175,8 @@ function hasSuccessfulRepositoryCheck(output: unknown): boolean {
   output = unwrapModelOutput(output);
   return (
     isRecord(output) &&
-    Array.isArray(output.checks) &&
-    output.checks.some(
+    Array.isArray(output.results) &&
+    output.results.some(
       (entry) =>
         isRecord(entry) && entry.status === "passed" && entry.exitCode === 0,
     )

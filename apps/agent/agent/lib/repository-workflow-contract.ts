@@ -4,6 +4,7 @@ import { legacyImpactDecisionSchema } from "./docs-impact-decision";
 import { repositoryActionRecordSchema } from "./repository-materialization";
 import type { RepositoryActionRecord } from "./repository-materialization";
 import type { ResolvedRepositoryInput } from "./repository-contract";
+import type { WorkingRepositoryValidationProfile } from "./working-repository-service";
 
 export const repositoryCheckNameSchema = z.enum([
   "install",
@@ -161,6 +162,7 @@ export interface WorkflowState {
   repositoryInput: ResolvedRepositoryInput;
   materialization: DocsMaintenanceWorkflowResult["materialization"];
   actionProvenance: RepositoryActionRecord[];
+  repositoryValidationProfile?: WorkingRepositoryValidationProfile;
   lastResult?: DocsMaintenanceWorkflowResult;
   editorialRecommendation?: z.infer<typeof editorialRecommendationSchema>;
   contentPlan?: z.infer<typeof contentPlanSchema>;

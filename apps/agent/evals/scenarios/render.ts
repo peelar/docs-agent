@@ -80,7 +80,7 @@ export function renderScenarioPrompt(scenario: UserTestScenario): string {
     scenario.userPrompt,
     "Work only from the working documentation repository and attached context below.",
     "Load the docs-maintenance skill before repository work.",
-    "First call configure_working_repository with prepareNow false, the working repository details below, and the attached context. Do not start docs maintenance until setup succeeds.",
+    "First call configure_working_repository with the working repository details below and the attached context. Do not start docs maintenance until setup succeeds.",
     "This is direct session-local documentation maintenance, not provider or signal intake. Do not create a docs signal or use signal-specific verification or patch tools.",
     "Compose the available repository search, file-read, named-check, and reversible authoring capabilities around the evidence this case needs. Do not use raw shell or unrestricted filesystem tools.",
     `Likely current-documentation paths: ${scenario.expected.inspectedPaths.join(", ")}. Verify them rather than assuming they are correct.`,

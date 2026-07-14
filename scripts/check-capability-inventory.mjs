@@ -74,6 +74,24 @@ assert.equal(
   authoredNames.length,
   "The authored capability migration inventory contains duplicate tools.",
 );
+assert.ok(
+  authoredNames.includes("working_repository"),
+  "The canonical working_repository capability must be present in the compiled manifest.",
+);
+for (const removedRepositoryTool of [
+  "prepare_configured_working_repository",
+  "prepare_working_repository",
+  "repo_export_diff",
+  "repo_read_file",
+  "repo_run_checks",
+  "repo_search",
+]) {
+  assert.equal(
+    authoredNames.includes(removedRepositoryTool),
+    false,
+    `${removedRepositoryTool} must not remain model-facing after working_repository replaces it.`,
+  );
+}
 assert.deepEqual(
   manifest.dynamicTools,
   [],

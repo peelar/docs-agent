@@ -698,11 +698,21 @@ detail outcomes match the recorded Eve summary.
 
 ## Repository Docs Profile
 
-Fast repository setup with `configure_working_repository` and `prepareNow:
-false` should validate and persist setup without cloning or building a profile.
+Fast repository setup with `configure_working_repository` should validate and
+persist setup without cloning or building a profile.
 The first workflow that materializes `/workspace/working-docs` should build the
 profile from a bounded set of repository instruction, configuration,
 navigation, package-script, and representative docs files.
+
+Use `working_repository` to discover an unfamiliar repository: list a bounded
+prefix, search a literal or regular expression, then read only the needed line
+range. Confirm every result carries the configured repository, resolved
+revision, path, and provenance label. Absolute paths, traversal, backslashes,
+control characters, invalid patterns, and symlink reads must fail visibly.
+Validation accepts ids, never commands. `validators` optionally inspects ids;
+`run_validators` atomically discovers and persists the current source-bound
+profile, then executes selected ids. A changed package-script source is stale
+and requires a new atomic discovery/run.
 
 Call `get_docs_profile` with up to five nearby `taskPaths`. Confirm the response
 names likely audiences, navigation, page types, style and terminology patterns,

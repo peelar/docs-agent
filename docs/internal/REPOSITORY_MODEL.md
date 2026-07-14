@@ -35,14 +35,16 @@ available. Calling `configure_working_repository` validates the repository input
 through the configured app-scoped GitHub connector and saves only the reusable
 repository setup. It also records the full per-session repository input in Eve
 state so the next workflow call can use attached context without re-asking for
-setup. It does not materialize the sandbox checkout unless explicitly requested.
-One-off scenario context is not persisted as workspace setup.
+setup. It does not materialize the sandbox checkout; repository inspection does
+that implicitly when first needed. One-off scenario context is not persisted as
+workspace setup.
 
 At the start of each turn, dynamic Eve instructions read setup state and guide
 the model into setup mode when required fields are missing or stale. When setup
-already exists, `prepare_configured_working_repository` and the docs workflow
-can materialize the persisted repository without asking the user for the same
-GitHub URL again.
+already exists, the first `working_repository` list, search, read, status,
+diff, or validator operation materializes the persisted repository without
+asking the user for the same GitHub URL again. Setup mutation and repository
+inspection remain separate surfaces.
 
 Host local paths are not supported as repository sources for the main workflow.
 Local development and production use the same sandbox-first contract: GitHub URL

@@ -49,7 +49,8 @@ const maintenance = await readFile(
   "utf8",
 );
 assert.match(maintenance, /name: docs-maintenance/);
-assert.match(maintenance, /Compose the\s+available repository reads and named checks/);
+assert.match(maintenance, /`working_repository` list, search, and line-range read modes/);
+assert.match(maintenance, /`run_validators` is atomic read-only inspection/);
 assert.doesNotMatch(maintenance, /run_docs_maintenance_scenario/);
 assert.match(maintenance, /clean diff/);
 assert.match(maintenance, /explicit approval/);

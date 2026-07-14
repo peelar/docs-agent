@@ -43,7 +43,7 @@ for (const tool of [
 }
 
 assert.equal(workflows.includes("run_docs_maintenance_scenario"), false);
-assert.match(workflows, /composable repository reads and named checks/);
+assert.match(workflows, /bounded `working_repository` list.*named validation modes/);
 assert.match(workflows, /Draft PR publishing waits for explicit approval/);
 assert.match(workflows, /No sandbox verification runs yet/);
 assert.match(workflows, /Slack Mention With Source Evidence/);

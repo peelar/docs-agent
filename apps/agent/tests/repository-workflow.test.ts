@@ -73,6 +73,102 @@ assert.equal(facade.runRepositoryCheck, operations.runRepositoryCheck);
 assert.equal(facade.exportRepositoryDiff, operations.exportRepositoryDiff);
 assert.equal(facade.listChangedFiles, operations.listChangedFiles);
 
+{
+  let materializations = 0;
+  let releaseMaterialization!: () => void;
+  const gate = new Promise<void>((resolve) => {
+    releaseMaterialization = resolve;
+  });
+  const materialize = async () => {
+    materializations += 1;
+    await gate;
+  };
+  const first = lifecycle.runRepositoryMaterializationFlight("parallel-first-call", materialize);
+  const second = lifecycle.runRepositoryMaterializationFlight("parallel-first-call", materialize);
+  await Promise.resolve();
+  assert.equal(materializations, 1);
+  releaseMaterialization();
+  await Promise.all([first, second]);
+  await lifecycle.runRepositoryMaterializationFlight("parallel-first-call", async () => {
+    materializations += 1;
+  });
+  assert.equal(materializations, 2);
+}
+
+{
+  const configuredRepository = repositoryInputSchema.parse({
+    workingDocumentationRepository: {
+      source: { type: "github-url", url: "https://github.com/example/docs.git" },
+      ref: "main",
+      docsRoot: "docs",
+      sandboxPath: "/workspace/working-docs",
+    },
+    externalContext: [],
+  }).workingDocumentationRepository;
+  const canonicalToolKey = lifecycle.workingRepositoryOperationKey(
+    "shared-session",
+    configuredRepository,
+  );
+  const docsProfileToolKey = lifecycle.workingRepositoryOperationKey(
+    "shared-session",
+    configuredRepository,
+  );
+  assert.equal(canonicalToolKey, docsProfileToolKey);
+  assert.notEqual(
+    canonicalToolKey,
+    lifecycle.workingRepositoryOperationKey("other-session", configuredRepository),
+  );
+
+  const order: string[] = [];
+  let releaseFirst!: () => void;
+  let markFirstStarted!: () => void;
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  const firstStarted = new Promise<void>((resolve) => {
+    markFirstStarted = resolve;
+  });
+  const first = lifecycle.runWorkingRepositoryOperationSerially(
+    canonicalToolKey,
+    async () => {
+      order.push("first:start");
+      markFirstStarted();
+      await firstGate;
+      order.push("first:end");
+    },
+  );
+  const second = lifecycle.runWorkingRepositoryOperationSerially(
+    docsProfileToolKey,
+    async () => {
+      order.push("second:start");
+      order.push("second:end");
+    },
+  );
+  await firstStarted;
+  assert.deepEqual(order, ["first:start"]);
+  releaseFirst();
+  await Promise.all([first, second]);
+  assert.deepEqual(order, ["first:start", "first:end", "second:start", "second:end"]);
+
+  await assert.rejects(
+    lifecycle.runWorkingRepositoryOperationSerially(
+      "failure-release-test",
+      async () => {
+        throw new Error("expected operation failure");
+      },
+    ),
+    /expected operation failure/,
+  );
+  let ranAfterFailure = false;
+  await lifecycle.runWorkingRepositoryOperationSerially(
+    "failure-release-test",
+    async () => {
+      ranAfterFailure = true;
+    },
+  );
+  assert.equal(ranAfterFailure, true);
+}
+
 const stateSource = await readFile(
   new URL("../agent/lib/repository-workflow-state.ts", import.meta.url),
   "utf8",
@@ -107,6 +203,16 @@ assert.match(lifecycleSource, /function detectDocsRoot/);
 assert.match(lifecycleSource, /repositoryCacheMarkerSchema/);
 assert.equal(lifecycleSource.includes("runPrivateMetadataFilteringScenario"), false);
 assert.equal(lifecycleSource.includes("export async function readRepositoryFile"), false);
+
+for (const toolPath of [
+  "../agent/tools/working_repository.ts",
+  "../agent/tools/get_docs_profile.ts",
+]) {
+  const toolSource = await readFile(new URL(toolPath, import.meta.url), "utf8");
+  assert.match(toolSource, /workingRepositoryOperationKey\(ctx\.session\.id, configuredRepository\)/);
+  assert.match(toolSource, /runWorkingRepositoryOperationSerially\(\s*operationKey/);
+  assert.equal(toolSource.includes("ctx.getSandbox()"), false);
+}
 
 const operationsSource = await readFile(
   new URL("../agent/lib/repository-operations.ts", import.meta.url),

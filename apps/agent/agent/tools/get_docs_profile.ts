@@ -3,7 +3,13 @@ import { cachedDocsProfileSchema } from "@docs-agent/control-plane/agent";
 import { z } from "zod";
 
 import { ensureDocsProfile, loadTaskExamples } from "../lib/docs-profile";
-import { loadOrMaterializeRepositoryWorkflowState } from "../lib/working-repository-lifecycle";
+import { saveRepositoryWorkflowState } from "../lib/repository-workflow-state";
+import { requireSetupReady } from "../lib/setup-state";
+import {
+  loadOrMaterializeRepositoryWorkflowState,
+  runWorkingRepositoryOperationSerially,
+  workingRepositoryOperationKey,
+} from "../lib/working-repository-lifecycle";
 
 const inputSchema = z.object({
   taskPaths: z.array(z.string().trim().min(1)).max(5).default([]),
@@ -19,10 +25,28 @@ export default defineTool({
   inputSchema,
   outputSchema,
   async execute(input, ctx) {
-    const state = await loadOrMaterializeRepositoryWorkflowState(ctx);
-    const repository = state.repositoryInput.workingDocumentationRepository;
-    const profile = await ensureDocsProfile({ ctx, repository, materialization: state.materialization, refreshReason: input.refreshReason });
-    const taskExamples = await loadTaskExamples({ ctx, repository, paths: input.taskPaths });
-    return { profile, taskExamples };
+    const setup = await requireSetupReady("docs-maintenance");
+    const configuredRepository = setup.workingRepositoryInput.workingDocumentationRepository;
+    const operationKey = workingRepositoryOperationKey(ctx.session.id, configuredRepository);
+    return runWorkingRepositoryOperationSerially(operationKey, async () => {
+      const state = await loadOrMaterializeRepositoryWorkflowState(ctx);
+      const repository = state.repositoryInput.workingDocumentationRepository;
+      const profile = await ensureDocsProfile({
+        ctx,
+        repository,
+        materialization: state.materialization,
+        actionProvenance: state.actionProvenance,
+        refreshReason: input.refreshReason,
+      });
+      const taskExamples = await loadTaskExamples({
+        ctx,
+        repository,
+        materialization: state.materialization,
+        actionProvenance: state.actionProvenance,
+        paths: input.taskPaths,
+      });
+      await saveRepositoryWorkflowState(state);
+      return { profile, taskExamples };
+    });
   },
 });

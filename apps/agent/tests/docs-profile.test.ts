@@ -20,7 +20,24 @@ const files = new Map([
   ["/workspace/working-docs/docs/guides/nearby.mdx", "# Nearby pattern\n\nLead with the reader outcome."],
 ]);
 const sandbox = {
-  async run() { return { exitCode: 0, stdout: "AGENTS.md\npackage.json\ndocs/guides/example.mdx\ndocs/guides/nearby.mdx\n", stderr: "" }; },
+  async run({ command }: { command: string }) {
+    if (command.includes('const operation = "list"')) {
+      return {
+        exitCode: 0,
+        stdout: JSON.stringify({
+          entries: [...files.keys()].map((path) => ({
+            path: path.replace("/workspace/working-docs/", ""),
+            type: "file",
+          })),
+          truncated: false,
+          omittedSymlinks: 0,
+          examined: files.size,
+        }),
+        stderr: "",
+      };
+    }
+    return { exitCode: 0, stdout: "", stderr: "" };
+  },
   async readTextFile({ path }: { path: string }) { return files.get(path) ?? null; },
 };
 const ctx = { getSandbox: async () => sandbox, abortSignal: new AbortController().signal } as unknown as ToolContext;
@@ -40,10 +57,32 @@ try {
   assert.equal((await ensureDocsProfile({ ctx, repository, materialization })).reused, false);
   assert.equal((await ensureDocsProfile({ ctx, repository, materialization: { ...materialization, resolvedCommit: "def456" } })).reused, false);
   assert.equal((await ensureDocsProfile({ ctx, repository, materialization: { ...materialization, resolvedCommit: "def456" }, refreshReason: "contradiction" })).reused, false);
-  const examples = await loadTaskExamples({ ctx, repository, paths: ["docs/guides/nearby.mdx", "../secret"] });
+  const examples = await loadTaskExamples({
+    ctx,
+    repository,
+    materialization: { ...materialization, resolvedCommit: "def456" },
+    paths: ["docs/guides/nearby.mdx"],
+  });
   assert.deepEqual(examples.map(({ path }) => path), ["docs/guides/nearby.mdx"]);
   assert.match(examples[0]!.excerpt, /reader outcome/);
-  const emptyCtx = { getSandbox: async () => ({ ...sandbox, run: async () => ({ exitCode: 0, stdout: "", stderr: "" }) }), abortSignal: new AbortController().signal } as unknown as ToolContext;
+  await assert.rejects(
+    loadTaskExamples({
+      ctx,
+      repository,
+      materialization,
+      paths: ["../secret"],
+    }),
+    /escape|relative path/i,
+  );
+  const emptyCtx = {
+    getSandbox: async () => ({
+      ...sandbox,
+      run: async ({ command }: { command: string }) => command.includes('const operation = "list"')
+        ? { exitCode: 0, stdout: JSON.stringify({ entries: [], truncated: false, omittedSymlinks: 0, examined: 0 }), stderr: "" }
+        : { exitCode: 0, stdout: "", stderr: "" },
+    }),
+    abortSignal: new AbortController().signal,
+  } as unknown as ToolContext;
   await assert.rejects(ensureDocsProfile({ ctx: emptyCtx, repository, materialization }), /found no instruction, configuration, or representative documentation files/);
 } finally {
   if (previous === undefined) delete process.env.DOCS_AGENT_DATABASE_URL; else process.env.DOCS_AGENT_DATABASE_URL = previous;
