@@ -20,9 +20,9 @@ package docs are unavailable, use <https://eve.dev/docs> as a fallback.
 - Prefer generic, composable tools and generalizable agent behavior over
   scenario-specific workflows. See: ADR 0006.
 - Once a scope of work is complete, propose a commit message following conventional commit message conventions. End with "Commit? [Y/n]".
-- Exception: an explicitly authorized `$next` loop follows the bounded
-  loop-mode approval contract in `.codex/skills/next/SKILL.md` instead of
-  pausing for per-issue approval.
+- Exception: an explicitly authorized named loop follows the scope and approval
+  contract in `.codex/skills/loop/SKILL.md` instead of pausing for per-issue
+  approval.
 - We'll be often using peelar/saleor-docs as the working documentation repository. It is our dogfooding project. Avoid overfitting to this repository. It's only an example we need to generalize from.
 
 ## Identity Instructions

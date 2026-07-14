@@ -6,10 +6,10 @@ description: >-
   in this repository. Inspect the ordered issue backlog, planning docs, repo
   instructions, Eve docs for changed runtime surfaces, and current main branch
   state before choosing one issue. Normally propose the smallest coherent slice
-  and wait for approval. When the user explicitly activates loop mode with a
-  bounded issue scope, implement and ship those issues without per-issue approval
-  pauses. Verify each issue, and when agent behavior changes, add an executable
-  eval or present an end-user scenario the user can run manually.
+  and wait for approval. When the $loop skill delegates one linked issue,
+  implement and ship that issue under the named loop's advance approval. Verify
+  each issue, and when agent behavior changes, add an executable eval or present
+  an end-user scenario the user can run manually.
 ---
 
 # Next
@@ -25,61 +25,8 @@ GitHub Issues are the backlog source of truth. `docs/internal/ROADMAP.md` is the
 fallback ordering source when GitHub Projects or custom priority fields are not
 available.
 
-## Loop Mode
-
-Loop mode is an explicit exception to the normal design and commit approval
-pauses. It does not weaken scope, dependency, validation, safety, or write
-boundaries.
-
-Activate loop mode only when the user's objective:
-
-- explicitly says to run `$next` in loop mode;
-- names this repository;
-- names the exact allowed issue set, range, or ordered queue;
-- names any exclusions; and
-- authorizes implementation, commits, pushes, issue comments, and issue closure
-  for that bounded scope without further approval.
-
-Treat that objective as advance approval for each in-scope issue. Do not pause
-for a design check, ask `Commit? [Y/n]`, or wait for approval between issues.
-Still state the selected issue and intended slice briefly before editing so the
-loop remains inspectable.
-
-Before the first issue, require:
-
-- `main` checked out with a clean worktree;
-- local `main` aligned with `origin/main` after fetching;
-- a self-contained, dependency-ordered queue with a verification mechanism for
-  every issue; and
-- no excluded or unrelated work in the selected issue's dependency path.
-
-For each issue:
-
-1. Re-read the live issue, current roadmap order, dependencies, and relevant
-   repository contracts.
-2. Implement only the smallest coherent issue slice.
-3. Run focused checks, required behavior proof, `pnpm check`, and the complete
-   `pnpm check:full` handoff gate.
-4. Commit with a conventional commit message, push `main`, comment with the
-   implementation and verification evidence, and close the issue.
-5. Compact the working context before selecting the next issue when compaction
-   is available.
-
-Stop loop mode instead of guessing when:
-
-- the next issue is ambiguous, stale, not self-contained, or requires an
-  unresolved product decision;
-- a dependency is missing, incomplete, excluded, or only implemented outside
-  the aligned `main` branch;
-- unrelated work appears or `main` diverges from `origin/main`;
-- required validation or behavior proof cannot pass without widening scope;
-- required credentials, provider access, or manual external proof are missing;
-- a commit, push, GitHub comment, or issue closure fails; or
-- the authorized issue scope is exhausted.
-
-Report the exact blocker and leave later issues untouched. Never expand the
-authorized issue scope, refine the backlog, or create replacement work while
-loop mode is active unless the objective explicitly authorizes it.
+The `$loop` skill is the single source of truth for defining and running named
+multi-issue loops. This skill owns exactly one selected or delegated issue.
 
 ## Workflow
 
@@ -91,10 +38,11 @@ loop mode is active unless the objective explicitly authorizes it.
 2. Inspect local state before planning.
    - Run `git status --short`, `git branch --show-current`, and inspect the
      upstream/main state.
-   - This repo ships directly from `main`. If not on `main`, switch to `main`
-     only when the worktree is clean or the dirty changes are clearly yours and
-     safe to carry. If user or unrelated changes would be disturbed, report the
-     blocking state and wait.
+   - Outside a named loop, this repo ships directly from `main`. If not on
+     `main`, switch only when user or unrelated changes will not be disturbed.
+   - When `$loop` delegated the issue, treat the existing worktree as a baseline,
+     preserve unrelated changes, and follow its non-blocking and path-scoped
+     commit contract.
    - Pull or otherwise verify current `origin/main` before editing when network
      and credentials allow it.
 3. Read planning and operating context.
@@ -115,6 +63,9 @@ loop mode is active unless the objective explicitly authorizes it.
      fixtures, or manual scenarios instead.
 4. Inspect the ordered GitHub issue backlog.
    - Use GitHub tools when available; otherwise use `gh`.
+   - For a loop-delegated issue, inspect that issue, its linked loop queue, and
+     its dependencies. Treat the orchestrator's assignment as fixed; do not
+     substitute or close a different issue.
    - Prefer the agreed ordered backlog view, project view, priority field, or
      milestone order when one exists.
    - If no richer GitHub ordering is available, use the ordered issue table in
@@ -124,25 +75,28 @@ loop mode is active unless the objective explicitly authorizes it.
    - Do not treat GitHub's default issue list as product order unless the repo
      explicitly adopted that ordering.
 5. Reconcile earlier ordered issues before selecting new work.
-   - Walk open issues from the top of the active backlog.
-   - If an earlier issue is already satisfied on `main`, verify its acceptance
-     criteria against source, docs, tests, evals, and recent commits.
-   - When completion is evidence-backed on `main`, add a short issue comment
-     with implementation and verification evidence, then close the issue if it
-     is still open.
-   - If completion is only local, on another branch, or otherwise unmerged to
-     `main`, treat it as not complete for this workflow. Do not skip dependent
-     work unless the user explicitly confirms the dependency is safe to bypass.
-   - If completion is ambiguous, report a backlog problem instead of guessing.
+   - Outside a named loop, walk open issues from the top of the active backlog.
+     If an earlier issue is already satisfied on `main`, verify its acceptance
+     criteria against source, docs, tests, evals, and recent commits. Comment
+     with that evidence and close it only when completion is proven on `main`.
+     Treat local-only or ambiguous completion as a backlog problem.
+   - For a loop-delegated issue, skip backlog reconciliation. Verify dependency
+     state and return evidence to the orchestrator when the assignment is not
+     dependency-ready.
 6. Assess whether the next open issue is still coherent.
    - Check that dependencies appear before dependent work.
    - Check for duplicate, stale, conditional, vague, or placeholder issues.
    - Check that the issue still matches `docs/internal/MANIFEST.md`,
      `docs/internal/ROADMAP.md`, repo docs, current code, and latest user
      feedback.
-   - Treat material disagreements as backlog problems and suggest `$refine`
-     rather than selecting premature implementation work.
+   - Outside a named loop, treat material disagreements as backlog problems and
+     suggest `$refine` rather than selecting premature implementation work.
+   - For a loop-delegated issue, resolve underspecified details under `$loop`'s
+     assumption and handover contract.
 7. Select exactly one issue when the backlog is coherent.
+   - Outside a named loop, select the next coherent issue.
+   - For a loop-delegated issue, accept the assigned issue after verifying its
+     dependencies.
    - Prefer the smallest vertical slice that proves behavior.
    - Do not widen scope because adjacent cleanup looks convenient.
    - Ignore later-phase issues until the active milestone is complete unless
@@ -154,9 +108,9 @@ loop mode is active unless the objective explicitly authorizes it.
    - Ask at most one scope question at a time. Include a recommended answer.
    - Try to answer questions from the repo, issues, docs, and code before
      asking the user.
-   - Outside loop mode, wait for explicit user approval before implementation.
-   - In loop mode, treat the bounded objective as advance approval and continue
-     without pausing.
+   - Outside a named loop, wait for explicit user approval before implementation.
+   - For a loop-delegated issue, state the intended slice briefly and continue
+     under the named loop's advance approval.
 9. Implement only the accepted slice.
    - Preserve unrelated user or local changes.
    - Follow existing repo patterns and Eve conventions.
@@ -182,13 +136,14 @@ loop mode is active unless the objective explicitly authorizes it.
 12. Ship directly on `main`.
     - Do not open a PR.
     - Do not create or update a draft PR.
-    - Outside loop mode, after checks pass, propose a conventional commit message
-      and end with `Commit? [Y/n]`, as required by `AGENTS.md`.
-    - Outside loop mode, on approval, commit on `main`, push `origin main`,
+    - Outside a named loop, after checks pass, propose a conventional commit
+      message and end with `Commit? [Y/n]`, as required by `AGENTS.md`.
+    - Outside a named loop, on approval, commit on `main`, push `origin main`,
       comment on the GitHub issue with the commit, checks, eval or scenario
       evidence, and close the issue.
-    - In loop mode, use the advance approval to commit, push, comment, and close
-      without prompting, then continue to the next authorized issue.
+    - For a loop-delegated issue, use `$loop`'s advance approval to commit, push,
+      comment, and close without prompting, then return the verified result to
+      the loop orchestrator.
     - If pushing or issue updates fail, report the failure visibly with the
       exact command or API error. Do not pretend the issue was shipped.
 13. Summarize what changed, what was verified, what eval or scenario covers the
@@ -196,8 +151,9 @@ loop mode is active unless the objective explicitly authorizes it.
 
 ## Backlog Problem Format
 
-If the backlog has ordering, dependency, duplication, stale-state, or
-product-shape problems, do not propose a next task. Respond with:
+Use this format outside a named loop. If the backlog has ordering, dependency,
+duplication, stale-state, or product-shape problems, do not propose a next task.
+Respond with:
 
 ```markdown
 **Backlog Assessment**
@@ -215,7 +171,8 @@ approved.
 
 ## Design Proposal Format
 
-When the backlog is coherent, respond before implementation with:
+Outside a named loop, when the backlog is coherent, respond before
+implementation with:
 
 ```markdown
 **Next Task**
