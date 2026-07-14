@@ -19,7 +19,6 @@ export {
   exportRepositoryDiff,
   listChangedFiles,
   readRepositoryFile,
-  replaceRepositoryText,
   runRepositoryCheck,
   searchRepository,
 } from "./repository-operations";

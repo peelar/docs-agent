@@ -17,7 +17,9 @@ description: Always load before capturing a Slack or Linear docs signal. Use whe
    - if setup is ready, call `verify_docs_signal_current_docs` and answer from
      the recorded evidence.
 5. Do not patch during intake. After verification, a separate request may use
-   `prepare_docs_signal_patch` for a signal that needs a documentation change.
+   `authoring_workspace` with the verified `signalId`, current content hash,
+   ordinary authoring operations, and the shared preparation mode. A localized
+   patch does not require a content plan.
 6. Keep provider identifiers and internal decision values out of the human
    reply when they do not help the reader.
 7. Publishing remains a separate, explicitly approved call to

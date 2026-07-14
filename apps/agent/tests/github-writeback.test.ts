@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 
 import type { ToolContext } from "eve/tools";
 
@@ -13,6 +14,7 @@ import {
 } from "../agent/lib/github-writeback";
 import type { DocsSignalDetail } from "../agent/lib/docs-signals";
 import type { WorkflowState } from "../agent/lib/repository-workflow-contract";
+import { runWorkingRepositoryOperationSerially, workingRepositoryOperationKey } from "../agent/lib/working-repository-lifecycle";
 import { test } from "vitest";
 
 test("github writeback", async () => {
@@ -195,9 +197,14 @@ const publishInput = {
   const savedProvenance: WorkflowState["actionProvenance"][] = [];
   const transitionInputs: unknown[] = [];
   let publishAttempts = 0;
+  let holdFileCollection = false;
+  let markFileCollectionStarted!: () => void;
+  let releaseFileCollection!: () => void;
+  const fileCollectionStarted = new Promise<void>((resolve) => { markFileCollectionStarted = resolve; });
+  const fileCollectionGate = new Promise<void>((resolve) => { releaseFileCollection = resolve; });
   const dependencies = {
     async requireSetupReady() {
-      return {};
+      return { workingRepositoryInput: state.repositoryInput };
     },
     async preflightGitHubWritebackSetup() {
       return {
@@ -218,6 +225,10 @@ const publishInput = {
       return state.lastResult?.diff ?? "";
     },
     async collectChangedFileEntries() {
+      if (holdFileCollection) {
+        markFileCollectionStarted();
+        await fileCollectionGate;
+      }
       return [{ path: "docs/guide.md", mode: "100644" as const, content: "# Guide\n" }];
     },
     async resolveGitHubToken() {
@@ -250,6 +261,7 @@ const publishInput = {
   } as unknown as GitHubWritebackCoordinatorDependencies;
   const ctx = {
     abortSignal,
+    session: { id: "github-writeback-session" },
     async getSandbox() {
       return {
         async run() {
@@ -263,8 +275,39 @@ const publishInput = {
     branchName: "docs-agent/main/publish-test",
     title: "Publish test",
     commitMessage: "docs: publish test",
-    signalId: signal.id,
   };
+
+  const preparedResult = state.lastResult!;
+  state.lastResult = {
+    ...preparedResult,
+    materialization: { ...preparedResult.materialization, resolvedCommit: "tampered-base" },
+  };
+  await assert.rejects(
+    () => publishWorkingRepositoryPr(input, ctx, dependencies),
+    /prepared workflow base tampered-base does not match draft base base-sha/i,
+  );
+  assert.equal(publishAttempts, 0);
+  state.lastResult = {
+    ...preparedResult,
+    report: {
+      ...preparedResult.report,
+      checks: preparedResult.report.checks.map(check => ({ ...check, stdout: "tampered check output" })),
+    },
+  };
+  await assert.rejects(
+    () => publishWorkingRepositoryPr(input, ctx, dependencies),
+    /does not match the active draft diff and checks/i,
+  );
+  assert.equal(publishAttempts, 0);
+  state.lastResult = preparedResult;
+
+  await assert.rejects(
+    () => publishWorkingRepositoryPr({ ...input, signalId: "another-signal" }, ctx, dependencies),
+    /prepared draft is linked to signal-writeback-test, not another-signal/i,
+  );
+  assert.equal(publishAttempts, 0, "a mismatched caller signal fails before publication");
+  state.actionProvenance.length = 0;
+  savedProvenance.length = 0;
 
   await assert.rejects(
     () => publishWorkingRepositoryPr(input, ctx, dependencies),
@@ -273,8 +316,22 @@ const publishInput = {
   assert.equal(transitionInputs.length, 0);
   assert.deepEqual(savedProvenance.at(-1)?.map(({ status }) => status), ["failure"]);
 
-  const result = await publishWorkingRepositoryPr(input, ctx, dependencies);
+  holdFileCollection = true;
+  const publishing = publishWorkingRepositoryPr(input, ctx, dependencies);
+  await fileCollectionStarted;
+  let authoringStarted = false;
+  const operationKey = workingRepositoryOperationKey(ctx.session.id, state.repositoryInput.workingDocumentationRepository);
+  const concurrentAuthoring = runWorkingRepositoryOperationSerially(operationKey, async () => {
+    authoringStarted = true;
+  });
+  await Promise.resolve();
+  assert.equal(authoringStarted, false, "authoring cannot enter after publish identity checks and before file collection");
+  releaseFileCollection();
+  const [result] = await Promise.all([publishing, concurrentAuthoring]);
+  assert.equal(authoringStarted, true);
   assert.equal(result.signal?.status, "draft-pr-opened");
+  assert.equal(result.draftId, state.draft?.id);
+  assert.equal(result.diffHash, state.draft?.preparedDiffHash, "published diff identity is the prepared draft identity");
   assert.equal(transitionInputs.length, 1);
   assert.deepEqual(state.actionProvenance.map(({ status }) => status), [
     "failure",
@@ -430,6 +487,10 @@ function workflowStateFixture(): WorkflowState {
     sandboxPath,
     status: "materialized" as const,
   };
+  const diff = "diff --git a/docs/guide.md b/docs/guide.md\n";
+  const preparedDiffHash = createHash("sha256").update(diff).digest("hex");
+  const preparedAt = "2026-07-13T10:30:00.000Z";
+  const draftId = "authoring-draft-writeback-test";
 
   return {
     repositoryInput: {
@@ -456,7 +517,39 @@ function workflowStateFixture(): WorkflowState {
     },
     materialization,
     actionProvenance: [],
+    draft: {
+      id: draftId,
+      status: "prepared",
+      baseRevision: "base-sha",
+      taskReferences: ["signal-writeback-test"],
+      signalId: "signal-writeback-test",
+      operationCount: 1,
+      operations: [{
+        index: 0,
+        kind: "write-text",
+        status: "applied",
+        targetPath: "docs/guide.md",
+        expectedContentHash: "a".repeat(64),
+        beforeContentHash: "a".repeat(64),
+        afterContentHash: "b".repeat(64),
+      }],
+      checks: [{
+        name: "diff-check",
+        command: "git diff --check",
+        exitCode: 0,
+        status: "passed",
+        stdout: "",
+        stderr: "",
+      }],
+      changedFiles: ["docs/guide.md"],
+      diff,
+      preparedAt,
+      preparedDiffHash,
+    },
     lastResult: {
+      draftId,
+      preparedAt,
+      preparedDiffHash,
       ok: true,
       materialization,
       report: {
@@ -477,7 +570,7 @@ function workflowStateFixture(): WorkflowState {
         }],
       },
       changedFiles: ["docs/guide.md"],
-      diff: "diff --git a/docs/guide.md b/docs/guide.md\n",
+      diff,
       noDiff: false,
       actionProvenance: [],
       rawSandboxToolsPolicy: "Authored repository tools only.",

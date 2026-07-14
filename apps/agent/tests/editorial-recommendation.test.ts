@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -49,25 +50,24 @@ try {
     alternatives: [{ intervention: "new-document", reasonRejected: "docs/canonical.mdx already owns this reader task." }],
   }, state, noPersist);
   assert.match(duplicateRequest.summary, /duplicate the canonical guide/);
-  const focusedDraft = await applyAuthoringDraft({ taskReferences: ["DOCS-DUPLICATE"], operations: [{ kind: "write-text", path: "docs/canonical.mdx", content: "# Canonical\n\nExisting guidance with the small missing detail.\n" }] }, ctx, state, noPersist);
-  assert.equal(focusedDraft?.editorialRecommendationId, duplicateRequest.recommendation.id);
-  assert.equal(focusedDraft?.contentPlanId, undefined, "focused patches do not require a content plan");
-  await abandonAuthoringDraft(ctx, state, noPersist);
+  const focusedDraft = await applyAuthoringDraft({ taskReferences: ["DOCS-DUPLICATE"], operations: [{ kind: "write-text", path: "docs/canonical.mdx", content: "# Canonical\n\nExisting guidance with the small missing detail.\n", expectedContentHash: hash("# Canonical\n\nExisting guidance.\n") }] }, ctx, state, noPersist);
+  assert.equal(focusedDraft.draft?.editorialRecommendationId, duplicateRequest.recommendation.id);
+  assert.equal(focusedDraft.draft?.contentPlanId, undefined, "focused patches do not require a content plan");
+  await abandonAuthoringDraft({ draftId: focusedDraft.draft!.id }, ctx, state, noPersist);
 
   const consolidation = await createEditorialRecommendation({
     ...inputFor("consolidate", "DOCS-CONSOLIDATE"),
     rationale: "Canonical and obsolete pages conflict; consolidate the reader path and remove obsolete duplication.",
     alternatives: [{ intervention: "focused-patch", reasonRejected: "Another patch would preserve two competing explanations." }],
   }, state, noPersist);
-  await assert.rejects(
-    applyAuthoringDraft({ taskReferences: ["DOCS-CONSOLIDATE"], operations: [{ kind: "delete", path: "docs/obsolete.mdx" }] }, ctx, state, noPersist),
-    /requires a matching ready content plan/i,
-  );
+  const missingPlan = await applyAuthoringDraft({ taskReferences: ["DOCS-CONSOLIDATE"], operations: [{ kind: "delete", path: "docs/obsolete.mdx", expectedContentHash: hash("# Obsolete\n\nDuplicated guidance.\n") }] }, ctx, state, noPersist);
+  assert.equal(missingPlan.ok, false);
+  assert.match(missingPlan.error, /content plan required/i);
   const plan = await createContentPlan({ sourceDecisionReference: "docs-impact:DOCS-CONSOLIDATE", taskReferences: ["DOCS-CONSOLIDATE"], reader: "Developers", desiredOutcome: "find one canonical explanation", contentType: "consolidation", placement: "docs/canonical.mdx", affectedSurfaces: [{ action: "change", path: "docs/canonical.mdx" }, { action: "remove", path: "docs/obsolete.mdx" }], outline: ["Canonical guidance"], requiredEvidence: [], examples: ["docs/canonical.mdx"], assets: [], unresolvedDecisions: [], validation: ["diff-check"], definitionOfDone: ["Only one canonical explanation remains"] }, state, noPersist);
-  const consolidatedDraft = await applyAuthoringDraft({ taskReferences: ["DOCS-CONSOLIDATE"], operations: [{ kind: "write-text", path: "docs/canonical.mdx", content: "# Canonical\n\nConsolidated guidance.\n" }, { kind: "delete", path: "docs/obsolete.mdx" }] }, ctx, state, noPersist);
-  assert.equal(consolidatedDraft?.editorialRecommendationId, consolidation.recommendation.id);
-  assert.equal(consolidatedDraft?.contentPlanId, plan.plan.id);
-  await abandonAuthoringDraft(ctx, state, noPersist);
+  const consolidatedDraft = await applyAuthoringDraft({ taskReferences: ["DOCS-CONSOLIDATE"], operations: [{ kind: "write-text", path: "docs/canonical.mdx", content: "# Canonical\n\nConsolidated guidance.\n", expectedContentHash: hash("# Canonical\n\nExisting guidance.\n") }, { kind: "delete", path: "docs/obsolete.mdx", expectedContentHash: hash("# Obsolete\n\nDuplicated guidance.\n") }] }, ctx, state, noPersist);
+  assert.equal(consolidatedDraft.draft?.editorialRecommendationId, consolidation.recommendation.id);
+  assert.equal(consolidatedDraft.draft?.contentPlanId, plan.plan.id);
+  await abandonAuthoringDraft({ draftId: consolidatedDraft.draft!.id }, ctx, state, noPersist);
 
   await assert.rejects(
     createEditorialRecommendation({ ...inputFor("focused-patch", "DOCS-REAFFIRMED"), maintainerDirection: { requestedIntervention: "new-document", reaffirmed: true } }, state, noPersist),
@@ -80,10 +80,9 @@ try {
 
   const waiting = await createEditorialRecommendation(inputFor("wait-for-evidence", "DOCS-MISSING"), state, noPersist);
   assert.equal(waiting.recommendation.status, "blocked");
-  await assert.rejects(
-    applyAuthoringDraft({ taskReferences: ["DOCS-MISSING"], operations: [{ kind: "write-text", path: "docs/canonical.mdx", content: "# Unsupported claim\n" }] }, ctx, state, noPersist),
-    /pauses drafting/i,
-  );
+  const blockedDraft = await applyAuthoringDraft({ taskReferences: ["DOCS-MISSING"], operations: [{ kind: "write-text", path: "docs/canonical.mdx", content: "# Unsupported claim\n", expectedContentHash: hash("# Canonical\n\nExisting guidance.\n") }] }, ctx, state, noPersist);
+  assert.equal(blockedDraft.ok, false);
+  assert.match(blockedDraft.error, /pauses drafting/i);
   assert.equal(git("status", "--porcelain").trim(), "", "missing evidence pauses before mutation");
 } finally { await rm(root, { recursive: true, force: true }); }
 
@@ -97,4 +96,5 @@ function inputFor(intervention: Intervention, task: string) {
   } as const;
 }
 function git(...args: string[]) { return execFileSync("git", args, { cwd: root, encoding: "utf8" }); }
+function hash(value: string) { return createHash("sha256").update(value).digest("hex"); }
 });

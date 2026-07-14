@@ -19,9 +19,8 @@ const { captureSlackDocsSignal } = await import("../agent/lib/slack-docs-signal"
 const { captureLinearDocsSignal } = await import("../agent/lib/linear-docs-signal");
 const { getDocsSignal } = await import("../agent/lib/docs-signals");
 const {
-  SignalPatchHandoffError,
-  assertSignalCanEnterPatchHandoff,
-} = await import("../agent/lib/docs-signal-patch-handoff");
+  assertSignalCanBackAuthoringDraft,
+} = await import("../agent/lib/authoring-workspace");
 
 const slackVerificationRequired = await captureSlackDocsSignal({
   teamId: "T_DOCS",
@@ -80,8 +79,8 @@ assert.match(
 assert.equal(slackVerificationRequired.signal.status, "captured");
 assert.equal(slackVerificationRequired.signal.artifacts.length, 0);
 assert.throws(
-  () => assertSignalCanEnterPatchHandoff(slackVerificationRequired.signal, "prepare-patch"),
-  SignalPatchHandoffError,
+  () => assertSignalCanBackAuthoringDraft(slackVerificationRequired.signal),
+  /verify current docs first/,
 );
 
 const persistedSlackSignal = await getDocsSignal({
@@ -127,8 +126,8 @@ assert.equal(slackSkipped.verificationStatus.state, "not-needed");
 assert.equal(slackSkipped.signal.status, "verification-skipped");
 assert.match(slackSkipped.replyGuidance.join("\n"), /skipped-verification reason/);
 assert.throws(
-  () => assertSignalCanEnterPatchHandoff(slackSkipped.signal, "prepare-patch"),
-  SignalPatchHandoffError,
+  () => assertSignalCanBackAuthoringDraft(slackSkipped.signal),
+  /verify current docs first/,
 );
 
 const linearNeedsSource = await captureLinearDocsSignal({
@@ -181,7 +180,7 @@ assert.match(
   /discussion context alone is not enough proof/,
 );
 assert.throws(
-  () => assertSignalCanEnterPatchHandoff(linearNeedsSource.signal, "prepare-patch"),
+  () => assertSignalCanBackAuthoringDraft(linearNeedsSource.signal),
   /source evidence is still insufficient/,
 );
 
@@ -223,7 +222,7 @@ assert.equal(linearPatchRecommended.decision.decision, "docs-patch-recommended")
 assert.equal(linearPatchRecommended.shouldVerifyCurrentDocs, false);
 assert.equal(linearPatchRecommended.signal.status, "docs-verified");
 assert.doesNotThrow(() =>
-  assertSignalCanEnterPatchHandoff(linearPatchRecommended.signal, "prepare-patch"),
+  assertSignalCanBackAuthoringDraft(linearPatchRecommended.signal),
 );
 assert.equal(linearPatchRecommended.signal.artifacts.length, 0);
 assert.equal(

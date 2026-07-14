@@ -68,7 +68,6 @@ assert.equal(
 assert.equal(facade.validateWorkingRepositorySetup, lifecycle.validateWorkingRepositorySetup);
 assert.equal(facade.readRepositoryFile, operations.readRepositoryFile);
 assert.equal(facade.searchRepository, operations.searchRepository);
-assert.equal(facade.replaceRepositoryText, operations.replaceRepositoryText);
 assert.equal(facade.runRepositoryCheck, operations.runRepositoryCheck);
 assert.equal(facade.exportRepositoryDiff, operations.exportRepositoryDiff);
 assert.equal(facade.listChangedFiles, operations.listChangedFiles);
@@ -207,12 +206,30 @@ assert.equal(lifecycleSource.includes("export async function readRepositoryFile"
 for (const toolPath of [
   "../agent/tools/working_repository.ts",
   "../agent/tools/get_docs_profile.ts",
+  "../agent/tools/authoring_workspace.ts",
 ]) {
   const toolSource = await readFile(new URL(toolPath, import.meta.url), "utf8");
   assert.match(toolSource, /workingRepositoryOperationKey\(ctx\.session\.id, configuredRepository\)/);
   assert.match(toolSource, /runWorkingRepositoryOperationSerially\(\s*operationKey/);
   assert.equal(toolSource.includes("ctx.getSandbox()"), false);
 }
+const publishToolSource = await readFile(
+  new URL("../agent/tools/publish_working_repository_pr.ts", import.meta.url),
+  "utf8",
+);
+assert.match(publishToolSource, /execute: publishWorkingRepositoryPr/);
+const publishCoordinatorSource = await readFile(
+  new URL("../agent/lib/github-writeback.ts", import.meta.url),
+  "utf8",
+);
+assert.match(publishCoordinatorSource, /workingRepositoryOperationKey\(ctx\.session\.id, configuredRepository\)/);
+assert.match(publishCoordinatorSource, /runWorkingRepositoryOperationSerially\(operationKey/);
+const authoringToolSource = await readFile(
+  new URL("../agent/tools/authoring_workspace.ts", import.meta.url),
+  "utf8",
+);
+assert.match(authoringToolSource, /toModelOutput: authoringWorkspaceModelOutput/);
+assert.match(authoringToolSource, /MAX_MODEL_DIFF_CHARACTERS/);
 
 const operationsSource = await readFile(
   new URL("../agent/lib/repository-operations.ts", import.meta.url),
@@ -243,8 +260,8 @@ const resolvedRepositoryInput = {
   const original =
     "Objects with metadata interface can be filtered by their values. Filtering is only available for public metadata.";
   const sandbox = new FakeSandbox({
-    runResults: [commandResult(0, "metadata match\n"), commandResult(0)],
-    readResults: [original, original],
+    runResults: [commandResult(0, "metadata match\n"), commandResult(0), commandResult(0), commandResult(0)],
+    readResults: [original],
   });
   const actionProvenance: facade.RepositoryActionRecord[] = [];
   const report = await runScenarioFixture(
@@ -257,7 +274,9 @@ const resolvedRepositoryInput = {
   assert.equal(report.decision, "docs-patch");
   assert.deepEqual(report.affectedPages, ["docs/api-usage/metadata.mdx"]);
   assert.match(sandbox.commands[0], /^rg -n/);
-  assert.equal(sandbox.commands[1], "git diff --check");
+  assert.match(sandbox.commands[1], /^mkdir -p/);
+  assert.match(sandbox.commands[2], /^git add --intent-to-add/);
+  assert.equal(sandbox.commands[3], "git diff --check");
   assert.equal(sandbox.writes.length, 1);
   assert.equal(sandbox.writes[0].path, "/workspace/working-docs/docs/api-usage/metadata.mdx");
   assert.match(sandbox.writes[0].content, /Private metadata filtering is available/);
@@ -265,7 +284,6 @@ const resolvedRepositoryInput = {
     actionProvenance.map(({ action, status }) => ({ action, status })),
     [
       { action: "search", status: "success" },
-      { action: "read", status: "success" },
       { action: "read", status: "success" },
       { action: "patch", status: "success" },
       { action: "run-checks", status: "success" },

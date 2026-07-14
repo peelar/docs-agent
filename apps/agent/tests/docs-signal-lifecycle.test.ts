@@ -50,6 +50,8 @@ const expectedTransitions = [
   "patch-handoff:patch-failed->patch-failed",
   "patch-handoff:patch-failed->patch-prepared",
   "patch-handoff:patch-failed->closed-already-covered",
+  "patch-handoff:patch-prepared->patch-failed",
+  "patch-handoff:patch-prepared->patch-prepared",
   "writeback:patch-prepared->draft-pr-opened",
 ].sort();
 

@@ -414,9 +414,10 @@ The model-facing queue tools are deliberately small:
 - `verify_docs_signal_current_docs`: inspect the configured working
   documentation repository for one signal, record verification evidence, and
   leave patch/writeback to later approved handoff.
-- `prepare_docs_signal_patch`: turn an existing verified signal into a
-  sandbox-local patch/check/diff result or an explicit no-patch/failed-check
-  lifecycle event, while preserving original signal provenance.
+- `authoring_workspace`: create, revise, inspect, prepare, or abandon the one
+  sandbox-local draft. A verified `signalId` may back the same draft used for
+  ordinary focused or substantial work; preparation records its exact checked
+  diff and updates the signal lifecycle while preserving source provenance.
 - `create_docs_signal`: capture or dedupe a structured signal.
 - `list_docs_signals`: list open or filtered signals by status/source kind.
 - `get_docs_signal`: read one signal with provenance, links, artifacts, and
@@ -428,9 +429,9 @@ The generic queue tools do not add Slack, Linear, scheduled scan, patch, or
 writeback behavior by themselves. Slack intake now calls the queue through
 `capture_slack_docs_signal`, Linear intake calls the queue through
 `capture_linear_docs_signal`, and signal verification uses
-`verify_docs_signal_current_docs`. Patch handoff uses
-`prepare_docs_signal_patch` and approved draft PR publishing remains isolated in
-`publish_working_repository_pr`.
+`verify_docs_signal_current_docs`. Patch handoff uses `authoring_workspace`
+with the verified signal relation, and approved draft PR publishing consumes
+that exact prepared draft through `publish_working_repository_pr`.
 
 ## Owned Documentation Work
 
@@ -557,8 +558,11 @@ inside the materialized working documentation repository. A single batch can
 write full text files or base64 binary assets, copy, move, and delete files
 anywhere under the repository root. It is intentionally not limited to
 `docsRoot`: navigation, configuration, redirects, examples, and repository-owned
-assets are valid draft surfaces. Repository-relative path validation prevents
-escape; watched and context repositories never enter this write path.
+assets are valid draft surfaces. Full-file raw-byte hashes support existing
+text and binary updates without returning binary content. Repository-relative
+path and realpath validation reject direct and ancestor symlinks, including
+create targets below a linked directory; watched and context repositories
+never enter this write path.
 
 The sandbox working tree keeps the draft reversible across turns. Draft state
 records the resolved base revision, task references, associated editorial
@@ -567,6 +571,13 @@ changed files, checks, complete binary-aware diff, and preparation time. Inspect
 the current draft, prepare runs selected repository checks and freezes the
 reviewable result for writeback, and abandon restores the sandbox checkout to
 its base without touching GitHub.
+
+Repository inspection, authoring, preparation, abandon, and approved
+publication use one FIFO keyed by Eve session and configured repository. The
+publication coordinator holds that queue from prepared-identity validation
+through exact file collection, remote writeback, workflow-state persistence,
+and linked signal transition, so authoring cannot invalidate the checked diff
+mid-publication.
 
 New files use intent-to-add only so they appear in an unstaged review diff.
 GitHub writeback still requires explicit approval and verifies that the remote

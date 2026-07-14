@@ -38,6 +38,10 @@ const sandbox = {
     }
     return { exitCode: 0, stdout: "", stderr: "" };
   },
+  async readBinaryFile({ path }: { path: string }) {
+    const content = files.get(path);
+    return content === undefined ? null : Buffer.from(content);
+  },
   async readTextFile({ path }: { path: string }) { return files.get(path) ?? null; },
 };
 const ctx = { getSandbox: async () => sandbox, abortSignal: new AbortController().signal } as unknown as ToolContext;

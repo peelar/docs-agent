@@ -12,6 +12,7 @@ import type { RepositoryActionRecord } from "./repository-materialization";
 import {
   repositoryCheckResultSchema,
   type DocsMaintenanceWorkflowResult,
+  type WorkflowState,
 } from "./repository-workflow-contract";
 import {
   loadRepositoryWorkflowState,
@@ -41,6 +42,10 @@ import {
   type ChangedFileEntry,
   type GitHubWritebackClient,
 } from "./github-writeback-client";
+import {
+  runWorkingRepositoryOperationSerially,
+  workingRepositoryOperationKey,
+} from "./working-repository-lifecycle";
 
 const branchNameSchema = z
   .string()
@@ -76,11 +81,12 @@ export const publishWorkingRepositoryPrInputSchema = z.object({
     .optional()
     .describe("Optional commit message override. Omit it unless the user supplied one."),
   signalId: z.string().trim().min(1).optional()
-    .describe("Originating docs signal id, when publishing a signal-backed prepared patch."),
+    .describe("Optional confirmation of the originating docs signal already linked to the prepared draft. A different or newly supplied signal is rejected."),
 });
 
 export const publishWorkingRepositoryPrOutputSchema = z.object({
   published: z.literal(true),
+  draftId: z.string(),
   repository: z.string(),
   baseBranch: z.string(),
   branchName: z.string(),
@@ -149,11 +155,13 @@ export async function publishWorkingRepositoryPr(
       `GitHub writeback setup is not ready: ${setupStatus.githubWriteback.preflight.message}`,
     );
   }
+  const configuredRepository = setup.workingRepositoryInput.workingDocumentationRepository;
+  const operationKey = workingRepositoryOperationKey(ctx.session.id, configuredRepository);
+  return runWorkingRepositoryOperationSerially(operationKey, async () => {
+    const state = await dependencies.loadRepositoryWorkflowState();
+    const repository = state.repositoryInput.workingDocumentationRepository;
 
-  const state = await dependencies.loadRepositoryWorkflowState();
-  const repository = state.repositoryInput.workingDocumentationRepository;
-
-  try {
+    try {
     assertPublishAllowed(repository);
 
     const preparedResult = state.lastResult;
@@ -163,7 +171,13 @@ export async function publishWorkingRepositoryPr(
       );
     }
 
-    assertPreparedResultIsPublishable(preparedResult, repository);
+    const preparedDraft = state.draft;
+    assertPreparedDraftIsPublishable(preparedDraft, preparedResult, repository);
+    if (input.signalId !== undefined && input.signalId !== preparedDraft.signalId) {
+      throw new GitHubWritebackError(
+        `The prepared draft is linked to ${preparedDraft.signalId ?? "no docs signal"}, not ${input.signalId}. Publication cannot attach a different signal.`,
+      );
+    }
 
     const currentChangedFiles = await dependencies.listChangedFiles(
       ctx,
@@ -175,7 +189,7 @@ export async function publishWorkingRepositoryPr(
       repository,
       state.actionProvenance,
     );
-    assertDiffMatchesPreparedResult(preparedResult, currentChangedFiles, currentDiff);
+    assertDiffMatchesPreparedDraft(preparedDraft, preparedResult, currentChangedFiles, currentDiff);
 
     await assertNoUnsupportedWorkingTreeState(ctx, repository);
 
@@ -203,9 +217,9 @@ export async function publishWorkingRepositoryPr(
     const commitMessage = normalizeCommitMessage(
       input.commitMessage ?? buildDefaultCommitMessage(preparedResult),
     );
-    const originatingSignal = input.signalId === undefined
+    const originatingSignal = preparedDraft.signalId === undefined
       ? undefined
-      : await readPublishableSignal(input.signalId, dependencies.getDocsSignal);
+      : await readPublishableSignal(preparedDraft.signalId, dependencies.getDocsSignal);
     const body = buildPullRequestBody({
       result: preparedResult,
       baseBranch,
@@ -268,6 +282,7 @@ export async function publishWorkingRepositoryPr(
 
     return {
       published: true,
+      draftId: preparedDraft.id,
       repository: repository.source.url,
       baseBranch,
       branchName,
@@ -282,15 +297,16 @@ export async function publishWorkingRepositoryPr(
       approvalPolicy: "always",
       credentialProvider: "vercel-connect-app-scoped",
     };
-  } catch (error) {
-    state.actionProvenance.push(
-      recordPublishAction(repository, "failure", {
-        reason: error instanceof Error ? error.message : String(error),
-      }),
-    );
-    await dependencies.saveRepositoryWorkflowState(state);
-    throw error;
-  }
+    } catch (error) {
+      state.actionProvenance.push(
+        recordPublishAction(repository, "failure", {
+          reason: error instanceof Error ? error.message : String(error),
+        }),
+      );
+      await dependencies.saveRepositoryWorkflowState(state);
+      throw error;
+    }
+  });
 }
 
 function assertPublishAllowed(repository: WorkingDocumentationRepository): void {
@@ -299,10 +315,39 @@ function assertPublishAllowed(repository: WorkingDocumentationRepository): void 
   }
 }
 
-function assertPreparedResultIsPublishable(
+function assertPreparedDraftIsPublishable(
+  draft: WorkflowState["draft"],
   result: DocsMaintenanceWorkflowResult,
   repository: WorkingDocumentationRepository,
-): void {
+): asserts draft is NonNullable<WorkflowState["draft"]> {
+  if (draft === undefined) {
+    throw new GitHubWritebackError("No prepared authoring draft exists in this session.");
+  }
+  if (draft.status !== "prepared" || draft.preparedAt === undefined || draft.preparedDiffHash === undefined) {
+    throw new GitHubWritebackError(`Authoring draft ${draft.id} is ${draft.status}, not a prepared checked draft.`);
+  }
+  if (
+    result.draftId !== draft.id ||
+    result.preparedAt !== draft.preparedAt ||
+    result.preparedDiffHash !== draft.preparedDiffHash
+  ) {
+    throw new GitHubWritebackError("Prepared workflow result does not belong to the active prepared authoring draft.");
+  }
+  if (result.materialization.resolvedCommit !== draft.baseRevision) {
+    throw new GitHubWritebackError(
+      `Prepared workflow base ${result.materialization.resolvedCommit ?? "unknown"} does not match draft base ${draft.baseRevision}.`,
+    );
+  }
+  if (
+    result.diff !== draft.diff ||
+    !sameStringSet(result.changedFiles, draft.changedFiles) ||
+    !samePreparedChecks(result.report.checks, draft.checks)
+  ) {
+    throw new GitHubWritebackError("Prepared workflow result does not match the active draft diff and checks.");
+  }
+  if (hashText(draft.diff) !== draft.preparedDiffHash) {
+    throw new GitHubWritebackError("Prepared authoring draft diff hash is stale.");
+  }
   if (
     normalizeRepositoryUrl(result.materialization.repositoryUrl) !==
     normalizeRepositoryUrl(repository.source.url)
@@ -338,12 +383,19 @@ function assertPreparedResultIsPublishable(
   }
 }
 
-function assertDiffMatchesPreparedResult(
+function assertDiffMatchesPreparedDraft(
+  draft: NonNullable<WorkflowState["draft"]>,
   result: DocsMaintenanceWorkflowResult,
   currentChangedFiles: string[],
   currentDiff: string,
 ): void {
-  if (!sameStringSet(result.changedFiles, currentChangedFiles) || result.diff !== currentDiff) {
+  if (
+    !sameStringSet(result.changedFiles, currentChangedFiles) ||
+    !sameStringSet(draft.changedFiles, currentChangedFiles) ||
+    result.diff !== currentDiff ||
+    draft.diff !== currentDiff ||
+    hashText(currentDiff) !== draft.preparedDiffHash
+  ) {
     throw new GitHubWritebackError(
       "Current sandbox diff does not match the prepared workflow result. Re-run the patch/check/diff workflow before publishing.",
     );
@@ -666,6 +718,23 @@ function sameStringSet(left: string[], right: string[]): boolean {
   const normalizedLeft = [...left].sort();
   const normalizedRight = [...right].sort();
   return normalizedLeft.every((value, index) => value === normalizedRight[index]);
+}
+
+function samePreparedChecks(
+  left: DocsMaintenanceWorkflowResult["report"]["checks"],
+  right: NonNullable<WorkflowState["draft"]>["checks"],
+): boolean {
+  if (left.length !== right.length) return false;
+  return left.every((check, index) => {
+    const candidate = right[index];
+    return candidate !== undefined &&
+      check.name === candidate.name &&
+      check.command === candidate.command &&
+      check.exitCode === candidate.exitCode &&
+      check.status === candidate.status &&
+      check.stdout === candidate.stdout &&
+      check.stderr === candidate.stderr;
+  });
 }
 
 function slugifyBranchSegment(value: string): string {

@@ -120,8 +120,8 @@ cookie or silently inherit web authentication.
 | Current-docs verification | Inspect the configured working documentation repository in the sandbox. | `verify_docs_signal_current_docs` for captured signals; bounded `working_repository` list, search, line-range read, status, diff, validator discovery, and named validation modes for direct investigations. | Supply a command, follow a symlink, escape the configured checkout, publish, or write outside `/workspace/working-docs`. |
 | Editorial recommendation | Choose the smallest intervention that solves the reader problem and explain evidence plus important alternatives. | `editorial_recommendation`, linked to current-docs evidence, docs profile, prior impact decision, and later draft. | Turn model judgment into a large rule engine, blindly follow a requested format, or debate routine style. |
 | Content planning | Define the reader outcome, placement, scope, evidence, outline, validation, and done state for substantial work. | `content_plan`, linked to the prior docs-impact decision and authoring draft. | Duplicate impact judgment, gate a ready plan on approval, or require a plan for a localized patch. |
-| Draft authoring | Create, revise, inspect, check, or abandon a complete working-repository draft. | `authoring_workspace`; `get_docs_profile` for conventions and nearby examples; `prepare_docs_signal_patch` for the existing signal-specific handoff. | Open a PR or write to watched/source repositories. |
-| Writeback | Publish an approved draft PR to the working docs repository. | `publish_working_repository_pr`, optionally with `signalId` to mark the originating signal `draft-pr-opened`. | Run without explicit approval or target any repository except the configured working docs repo. |
+| Draft authoring | Create, revise, inspect, check, prepare, or abandon the one working-repository draft through content-bound atomic operations. | `authoring_workspace`; `working_repository` full-file hashes; `get_docs_profile` for conventions; optional signal, owned-work, recommendation, and ready-plan links. | Open a PR, clobber stale content, leave a partial batch, or write to watched/source repositories. |
+| Writeback | Publish an approved prepared draft PR to the working docs repository. | `publish_working_repository_pr` consumes the stable prepared draft identity, exact base/check/diff snapshot, and its derived signal relation. | Run without explicit approval, attach a different signal, publish an editing or failed-check draft, or target another repository. |
 
 ## Tool Mapping
 
@@ -149,11 +149,10 @@ cookie or silently inherit web authentication.
   documentation repository for one signal, read likely docs pages, search likely
   docs terms, record a `docs-verified` lifecycle event, and return evidence
   without patching or publishing.
-- `prepare_docs_signal_patch`: start from an existing `docs-verified` signal,
-  reuse the configured working docs checkout, apply a minimal replacement
-  through the policy-aware repository workflow, run checks, export a diff, save
-  publishable workflow state, and mark the signal `patch-prepared`,
-  `patch-failed`, or closed as no-patch.
+- `authoring_workspace`: link an existing `docs-verified` signal when it
+  originates a draft, apply hash-bound or create-only operations after an
+  ordered virtual-tree preflight, prepare checks and the exact diff, and derive
+  `patch-prepared` or `patch-failed` signal artifacts from that draft.
 - `content_plan`: create, revise, or inspect the living plan for substantial
   work, return a concise maintainer progress update, continue ready plans into
   sandbox authoring, and pause blocked plans before mutation.
@@ -183,11 +182,12 @@ cookie or silently inherit web authentication.
    terms. If setup is missing or stale, the Slack reply says verification is
    blocked by setup instead of guessing repository details.
 7. If docs already cover the behavior, the signal becomes `closed-already-covered`.
-8. If docs are stale, `prepare_docs_signal_patch` prepares a diff in the
-   working docs repo and marks the signal `patch-prepared`.
+8. If docs are stale, `authoring_workspace` links the signal, applies the
+   localized hash-bound edit without a content plan, prepares a checked diff,
+   and marks the signal `patch-prepared`.
 9. Draft PR publishing waits for explicit approval through
-   `publish_working_repository_pr`. Passing the originating `signalId` marks
-   the signal `draft-pr-opened` after a successful approved publish.
+   `publish_working_repository_pr`. The prepared draft supplies its originating
+   signal and marks it `draft-pr-opened` after a successful approved publish.
 
 ### Linear Issue Without Source Evidence
 

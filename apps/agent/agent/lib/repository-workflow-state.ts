@@ -61,6 +61,7 @@ export async function loadRepositoryWorkflowState(): Promise<WorkflowState> {
         ? undefined
         : editorialRecommendationSchema.parse(state.editorialRecommendation),
     draft: state.draft === undefined ? undefined : authoringDraftSchema.parse(state.draft),
+    lastAbandonedDraftId: state.lastAbandonedDraftId,
   };
 }
 

@@ -92,6 +92,16 @@ for (const removedRepositoryTool of [
     `${removedRepositoryTool} must not remain model-facing after working_repository replaces it.`,
   );
 }
+for (const removedMutationTool of [
+  "prepare_docs_signal_patch",
+  "repo_replace_text",
+]) {
+  assert.equal(
+    authoredNames.includes(removedMutationTool),
+    false,
+    `${removedMutationTool} must not remain model-facing after authoring_workspace convergence.`,
+  );
+}
 assert.deepEqual(
   manifest.dynamicTools,
   [],

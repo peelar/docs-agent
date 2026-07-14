@@ -33,9 +33,16 @@ description: Always load before a documentation-impact or working-repository wor
 - Keep localized changes inline. For substantial work, keep the originating
   signal and Eve session, use `owned_docs_work`, and create a `content_plan`
   before drafting.
-- Use `authoring_workspace` for complete multi-file drafts, revision, checks,
-  and one reviewable diff. Do not call it for read-only investigation or when
-  no documentation change is requested.
+- Use `authoring_workspace` for every localized, signal-backed, or multi-file
+  draft. Take each update hash from the full-file `contentHash` returned by
+  `working_repository` read; use `createOnly` only for a new target. Link a
+  verified signal when it originated the draft. Link owned work and the ready
+  content plan for substantial work. A revised plan makes the active draft
+  stale: abandon that draft by id, replan, and author again.
+- Prepare checks and the exact diff through the same authoring draft. Inspect a
+  failed structured batch result before retrying. Do not call the authoring
+  capability for read-only investigation or when no documentation change is
+  requested.
 - Stop when evidence or a consequential product decision is missing.
 
 ## Report and publish
@@ -43,3 +50,5 @@ description: Always load before a documentation-impact or working-repository wor
 Report the decision, evidence, pages considered, checks, changed files or clean
 diff, and remaining uncertainty. Sandbox drafting needs no approval. Publishing
 always requires explicit approval through `publish_working_repository_pr`.
+Publication derives any signal relation from the prepared draft; do not attach
+a different signal during writeback.

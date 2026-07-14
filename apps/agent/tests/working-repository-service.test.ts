@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { exec as execCallback, execFile as execFileCallback } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, symlink, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -87,6 +88,8 @@ test("working repository service", async () => {
     ["# Example", "", "Bounded repository search finds this line.", "Last line."].join("\n"),
   );
   await writeFile(join(repositoryRoot, "docs", "guides", "second.md"), "Search finds a second line.\n");
+  const binaryAsset = Buffer.from([0, 255, 1, 254]);
+  await writeFile(join(repositoryRoot, "docs", "guides", "asset.bin"), binaryAsset);
   await writeFile(outside, "outside the repository\n");
   await symlink(outside, join(repositoryRoot, "docs", "escape.md"));
   const packageSource = JSON.stringify({
@@ -149,7 +152,21 @@ test("working repository service", async () => {
     assert.equal(read.startLine, 2);
     assert.equal(read.endLine, 3);
     assert.equal(read.truncated, true);
-    assert.match(read.content, /truncated/);
+    assert.match(read.content!, /truncated/);
+    assert.equal(
+      read.contentHash,
+      createHash("sha256").update(["# Example", "", "Bounded repository search finds this line.", "Last line."].join("\n")).digest("hex"),
+      "read returns the full-file precondition hash even for a truncated line range",
+    );
+    assert.equal(read.sizeBytes, Buffer.byteLength(["# Example", "", "Bounded repository search finds this line.", "Last line."].join("\n")));
+    assert.equal(read.binary, false);
+
+    const binaryRead = await service.read({ path: "docs/guides/asset.bin" });
+    assert.equal(binaryRead.content, null);
+    assert.equal(binaryRead.binary, true);
+    assert.equal(binaryRead.truncated, false);
+    assert.equal(binaryRead.contentHash, createHash("sha256").update(binaryAsset).digest("hex"));
+    assert.equal(binaryRead.sizeBytes, binaryAsset.byteLength);
 
     const literal = await service.search({ query: "Search finds", kind: "literal", limit: 1 });
     assert.equal(literal.matches.length, 1);
@@ -340,6 +357,11 @@ class LocalSandbox {
     } catch {
       return null;
     }
+  }
+
+  async readBinaryFile(input: { path: string }): Promise<Uint8Array | null> {
+    try { return await readFile(this.map(input.path)); }
+    catch { return null; }
   }
 
   private map(value: string): string {

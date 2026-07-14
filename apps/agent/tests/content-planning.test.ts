@@ -1,4 +1,5 @@
 import assert from "node:assert/strict";
+import { createHash } from "node:crypto";
 import { execFileSync, spawnSync } from "node:child_process";
 import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import { tmpdir } from "node:os";
@@ -32,15 +33,14 @@ const state: WorkflowState = { repositoryInput, materialization: { repositoryUrl
 const noPersist = async () => {};
 
 try {
-  const small = await applyAuthoringDraft({ taskReferences: ["DOCS-SMALL"], operations: [{ kind: "write-text", path: "docs/existing.mdx", content: "# Existing\n\nCorrected sentence.\n" }] }, ctx, state, noPersist);
-  assert.equal(small?.contentPlanId, undefined, "localized patches skip content planning");
+  const small = await applyAuthoringDraft({ taskReferences: ["DOCS-SMALL"], operations: [{ kind: "write-text", path: "docs/existing.mdx", content: "# Existing\n\nCorrected sentence.\n", expectedContentHash: hash("# Existing\n\nOriginal sentence.\n") }] }, ctx, state, noPersist);
+  assert.equal(small.draft?.contentPlanId, undefined, "localized patches skip content planning");
   assert.equal(inspectContentPlan(state), null);
-  await abandonAuthoringDraft(ctx, state, noPersist);
+  await abandonAuthoringDraft({ draftId: small.draft!.id }, ctx, state, noPersist);
 
-  await assert.rejects(
-    applyAuthoringDraft({ taskReferences: ["DOCS-54"], operations: [{ kind: "write-text", path: "docs/new-guide.mdx", content: "# New guide\n" }] }, ctx, state, noPersist),
-    /content plan required/i,
-  );
+  const missingPlan = await applyAuthoringDraft({ taskReferences: ["DOCS-54"], operations: [{ kind: "write-text", path: "docs/new-guide.mdx", content: "# New guide\n", createOnly: true }] }, ctx, state, noPersist);
+  assert.equal(missingPlan.ok, false);
+  assert.match(missingPlan.error, /content plan required/i);
 
   await createEditorialRecommendation({
     sourceDecisionReference: "docs-impact:DOCS-54", taskReferences: ["DOCS-54"], reader: "App developers", readerProblem: "They need a safe upgrade path.", chosenIntervention: "new-document", rationale: "The task is distinct and needs a durable guide.", repositoryEvidence: ["No upgrade guide exists."], docsProfileReferences: ["docs profile: guides"], sourceEvidence: ["DOCS-54"], workspaceMemoryReferences: [], alternatives: [{ intervention: "focused-patch", reasonRejected: "No canonical page covers the task." }], remainingUncertainty: [], blockingDecisions: [],
@@ -65,18 +65,29 @@ try {
   assert.match(created.progressUpdate, /Next: draft in the reversible sandbox/);
 
   const substantial = await applyAuthoringDraft({ taskReferences: ["DOCS-54"], operations: [
-    { kind: "write-text", path: "docs/new-guide.mdx", content: "# New guide\n\nUpgrade safely.\n" },
-    { kind: "write-text", path: "sidebars.js", content: "module.exports = ['docs/existing', 'docs/new-guide'];\n" },
+    { kind: "write-text", path: "docs/new-guide.mdx", content: "# New guide\n\nUpgrade safely.\n", createOnly: true },
+    { kind: "write-text", path: "sidebars.js", content: "module.exports = ['docs/existing', 'docs/new-guide'];\n", expectedContentHash: hash("module.exports = ['docs/existing'];\n") },
   ] }, ctx, state, noPersist);
-  assert.equal(substantial?.contentPlanId, created.plan.id);
-  assert.equal(substantial?.contentPlanRevision, 1);
+  assert.equal(substantial.draft?.contentPlanId, created.plan.id);
+  assert.equal(substantial.draft?.contentPlanRevision, 1);
   assert.equal((await inspectAuthoringDraft({}, ctx, state, noPersist)).changedFiles.length, 2, "ready plans continue directly into drafting");
 
   const revised = await reviseContentPlan({ ...created.plan, planId: created.plan.id, outline: [...created.plan.outline, "Rollback"] }, state, noPersist);
   assert.equal(revised.plan.revision, 2);
-  assert.equal(state.draft?.contentPlanRevision, 2);
+  assert.equal(state.draft?.contentPlanRevision, 1, "a revised plan makes the active draft relation stale");
   assert.equal(inspectContentPlan(state)?.plan.id, created.plan.id);
-  await abandonAuthoringDraft(ctx, state, noPersist);
+  const stalePlan = await applyAuthoringDraft({ taskReferences: ["DOCS-54"], operations: [{ kind: "write-text", path: "docs/new-guide.mdx", content: "# Revised\n", expectedContentHash: hash("# New guide\n\nUpgrade safely.\n") }] }, ctx, state, noPersist);
+  assert.equal(stalePlan.ok, false);
+  assert.match(stalePlan.error, /plan linked to this draft is stale/i);
+  await abandonAuthoringDraft({ draftId: substantial.draft!.id }, ctx, state, noPersist);
+
+  const unrelatedPlan = await applyAuthoringDraft({
+    taskReferences: ["DOCS-OTHER"],
+    operations: [{ kind: "write-text", path: "docs/other-guide.mdx", content: "# Other\n", createOnly: true }],
+  }, ctx, state, noPersist);
+  assert.equal(unrelatedPlan.ok, false);
+  assert.match(unrelatedPlan.error, /content plan is unrelated to this authoring task/i);
+  assert.equal(git("status", "--porcelain").trim(), "", "an unrelated plan fails before mutation");
 
   await createEditorialRecommendation({
     sourceDecisionReference: "docs-impact:DOCS-BLOCKED", taskReferences: ["DOCS-BLOCKED"], reader: "Administrators", readerProblem: "They need the supported deployment mode.", chosenIntervention: "new-document", rationale: "A distinct administrator task needs a guide once evidence exists.", repositoryEvidence: ["No deployment guide exists."], docsProfileReferences: ["docs profile: admin guides"], sourceEvidence: [], workspaceMemoryReferences: [], alternatives: [], remainingUncertainty: [], blockingDecisions: [],
@@ -98,13 +109,13 @@ try {
   }, state, noPersist);
   assert.equal(blocked.continuesToDraft, false);
   assert.equal(blocked.plan.blockers.length, 2);
-  await assert.rejects(
-    applyAuthoringDraft({ taskReferences: ["DOCS-BLOCKED"], operations: [{ kind: "write-text", path: "docs/deployment.mdx", content: "# Deployment\n" }] }, ctx, state, noPersist),
-    /content plan is blocked/i,
-  );
+  const blockedDraft = await applyAuthoringDraft({ taskReferences: ["DOCS-BLOCKED"], operations: [{ kind: "write-text", path: "docs/deployment.mdx", content: "# Deployment\n", createOnly: true }] }, ctx, state, noPersist);
+  assert.equal(blockedDraft.ok, false);
+  assert.match(blockedDraft.error, /content plan is blocked/i);
   assert.equal(git("status", "--porcelain").trim(), "", "blocked plans pause before sandbox mutation");
 } finally { await rm(root, { recursive: true, force: true }); }
 
 console.log("Content planning behavior checks passed.");
 function git(...args: string[]) { return execFileSync("git", args, { cwd: root, encoding: "utf8" }); }
+function hash(value: string) { return createHash("sha256").update(value).digest("hex"); }
 });

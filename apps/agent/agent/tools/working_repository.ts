@@ -132,8 +132,11 @@ const outputSchema = z.discriminatedUnion("mode", [
     path: z.string(),
     startLine: z.number().int().positive(),
     endLine: z.number().int().positive(),
-    content: z.string(),
+    content: z.string().nullable(),
+    binary: z.boolean(),
     truncated: z.boolean(),
+    contentHash: z.string().regex(/^[a-f0-9]{64}$/),
+    sizeBytes: z.number().int().nonnegative(),
   }),
   z.object({
     mode: z.literal("status"),
@@ -228,7 +231,7 @@ export function workingRepositoryModelOutput(output: z.infer<typeof outputSchema
 
 export default defineTool({
   description:
-    "Inspect the configured working documentation repository through one policy-aware read capability. It materializes setup implicitly, lists safe paths, searches bounded text, reads line ranges, and inspects status or the current draft diff. Validators mode optionally lists ids and does not run checks. run_validators is atomic read-only inspection: it discovers and persists the current source-bound trusted profile, executes only requested ids from that profile, accepts no command, and does not mutate the repository.",
+    "Inspect the configured working documentation repository through one policy-aware read capability. It materializes setup implicitly, lists safe paths, searches bounded text, reads line ranges, and returns bounded binary metadata with a full-file SHA-256 hash and null content. Use that hash as the authoring precondition for existing text or binary files. Validators mode optionally lists ids and does not run checks. run_validators is atomic read-only inspection: it discovers and persists the current source-bound trusted profile, executes only requested ids from that profile, accepts no command, and does not mutate the repository.",
   inputSchema,
   outputSchema,
   async execute(input, ctx) {

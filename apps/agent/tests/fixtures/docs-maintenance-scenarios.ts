@@ -7,9 +7,9 @@ import type {
 import type { RepositoryActionRecord } from "../../agent/lib/repository-materialization";
 import {
   readRepositoryFile,
-  replaceRepositoryText,
   runRepositoryCheck,
   searchRepository,
+  writeRepositoryText,
 } from "../../agent/lib/repository-operations";
 import type { DocumentationImpactReport } from "../../agent/lib/repository-workflow-contract";
 
@@ -86,12 +86,11 @@ async function runPrivateMetadataFilteringScenario(
     "Objects that implement the metadata interface can be filtered by their values. Public metadata filtering remains available. Private metadata filtering is available only to authenticated staff users and Apps with permission to access private metadata for that object.";
 
   if (existing.includes(expectedText)) {
-    await replaceRepositoryText(
+    await writeRepositoryText(
       ctx,
       repository,
       targetPath,
-      expectedText,
-      replacementText,
+      existing.replace(expectedText, replacementText),
       actionProvenance,
     );
   } else if (!existing.includes(replacementText)) {

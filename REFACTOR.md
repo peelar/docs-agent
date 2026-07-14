@@ -91,13 +91,12 @@ The current implementation already contains much of the right substrate:
 - #76 added the general `internal_document` primitive under
   `docs_work.manage`, with bounded revisions, typed attachments, retention,
   provenance, idempotency, optimistic concurrency, and behavioral proof.
+- #79-#81 converged editorial recommendation, planning, working-repository
+  inspection, validation discovery, and all documentation mutation on one
+  linked authoring draft contract with exact prepared-diff publication.
 
 The remaining architectural debt is in the model-facing surface:
 
-- repository work is split across preparation tools, five `repo_*` tools,
-  `prepare_docs_signal_patch`, and `authoring_workspace`;
-- `prepare_docs_signal_patch` retains a one-file exact-replacement contract
-  after multi-file authoring became the general path;
 - all authored tools are static; channel-only, schedule-only, setup-only, and
   publication capabilities remain ambient in unrelated turns;
 - context repositories exist in the schema and architecture language but not as

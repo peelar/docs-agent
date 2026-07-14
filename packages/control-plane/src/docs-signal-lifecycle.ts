@@ -65,6 +65,7 @@ export const docsSignalTransitionPolicy = {
   "patch-handoff": {
     "docs-verified": ["patch-failed", "patch-prepared", "closed-already-covered"],
     "patch-failed": ["patch-failed", "patch-prepared", "closed-already-covered"],
+    "patch-prepared": ["patch-failed", "patch-prepared"],
   },
   writeback: {
     "patch-prepared": ["draft-pr-opened"],

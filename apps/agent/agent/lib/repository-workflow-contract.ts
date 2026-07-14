@@ -46,6 +46,9 @@ export const documentationImpactReportSchema = z.object({
 });
 
 export const docsMaintenanceWorkflowResultSchema = z.object({
+  draftId: z.string(),
+  preparedAt: z.string(),
+  preparedDiffHash: z.string().regex(/^[a-f0-9]{64}$/),
   ok: z.boolean(),
   materialization: repositoryMaterializationSchema,
   report: documentationImpactReportSchema,
@@ -56,18 +59,44 @@ export const docsMaintenanceWorkflowResultSchema = z.object({
   rawSandboxToolsPolicy: z.string(),
 });
 
+export const authoringOperationKindSchema = z.enum([
+  "write-text",
+  "write-binary",
+  "move",
+  "copy",
+  "delete",
+]);
+
+export const authoringOperationResultSchema = z.object({
+  index: z.number().int().nonnegative(),
+  kind: authoringOperationKindSchema,
+  status: z.enum(["applied", "preflight-failed", "failed", "rolled-back", "skipped"]),
+  sourcePath: z.string().optional(),
+  targetPath: z.string(),
+  expectedContentHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
+  beforeContentHash: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  afterContentHash: z.string().regex(/^[a-f0-9]{64}$/).nullable(),
+  error: z.string().optional(),
+});
+
 export const authoringDraftSchema = z.object({
+  id: z.string(),
+  status: z.enum(["editing", "prepared", "checks-failed"]),
   baseRevision: z.string(),
   taskReferences: z.array(z.string()),
+  signalId: z.string().optional(),
+  ownedWorkId: z.string().optional(),
   editorialRecommendationId: z.string().optional(),
   editorialRecommendationRevision: z.number().int().positive().optional(),
   contentPlanId: z.string().optional(),
   contentPlanRevision: z.number().int().positive().optional(),
   operationCount: z.number().int().nonnegative(),
+  operations: z.array(authoringOperationResultSchema).max(500),
   checks: z.array(repositoryCheckResultSchema),
   changedFiles: z.array(z.string()),
   diff: z.string(),
   preparedAt: z.string().optional(),
+  preparedDiffHash: z.string().regex(/^[a-f0-9]{64}$/).optional(),
 });
 
 export const contentPlanSurfaceSchema = z.object({
@@ -167,4 +196,5 @@ export interface WorkflowState {
   editorialRecommendation?: z.infer<typeof editorialRecommendationSchema>;
   contentPlan?: z.infer<typeof contentPlanSchema>;
   draft?: z.infer<typeof authoringDraftSchema>;
+  lastAbandonedDraftId?: string;
 }

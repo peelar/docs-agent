@@ -76,36 +76,6 @@ export async function searchRepository(
   return truncate(result.stdout, 12_000);
 }
 
-export async function replaceRepositoryText(
-  ctx: ToolContext,
-  repository: ResolvedWorkingDocumentationRepository,
-  path: string,
-  expectedText: string,
-  replacementText: string,
-  actionProvenance: RepositoryActionRecord[],
-): Promise<void> {
-  assertActionAllowed(repository, "patch");
-  const existing = await readRepositoryFile(ctx, repository, path, actionProvenance);
-
-  if (!existing.includes(expectedText)) {
-    const reason = `Expected text was not found in ${path}`;
-    actionProvenance.push(
-      recordAction(repository, "patch", "failure", { target: path, reason }),
-    );
-    throw new Error(reason);
-  }
-
-  const next = existing.replace(expectedText, replacementText);
-  const sandbox = await ctx.getSandbox();
-  await sandbox.writeTextFile({
-    path: resolveRepositoryPath(repository, path),
-    content: next,
-    abortSignal: ctx.abortSignal,
-  });
-
-  actionProvenance.push(recordAction(repository, "patch", "success", { target: path }));
-}
-
 export async function writeRepositoryText(
   ctx: ToolContext,
   repository: ResolvedWorkingDocumentationRepository,
@@ -146,7 +116,8 @@ export async function writeRepositoryBinary(
 export async function moveRepositoryFile(ctx: ToolContext, repository: ResolvedWorkingDocumentationRepository, from: string, to: string, actionProvenance: RepositoryActionRecord[]): Promise<void> {
   await mutateRepositoryPath(ctx, repository, "mv", from, to);
   const sandbox = await ctx.getSandbox();
-  await sandbox.run({ command: `git reset -- ${sh(from)}`, workingDirectory: repository.sandboxPath, abortSignal: ctx.abortSignal });
+  const reset = await sandbox.run({ command: `git reset -- ${sh(from)}`, workingDirectory: repository.sandboxPath, abortSignal: ctx.abortSignal });
+  if (reset.exitCode !== 0) throw new Error(`Move index reset failed: ${summarizeCommandFailure(reset)}`);
   await markIntentToAdd(ctx, repository, to);
   actionProvenance.push(recordAction(repository, "patch", "success", { target: `${from} -> ${to}` }));
 }
@@ -375,7 +346,8 @@ async function ensureParentDirectory(ctx: ToolContext, repository: WorkingDocume
 
 async function markIntentToAdd(ctx: ToolContext, repository: WorkingDocumentationRepository, path: string): Promise<void> {
   const sandbox = await ctx.getSandbox();
-  await sandbox.run({ command: `git add --intent-to-add -- ${sh(path)}`, workingDirectory: repository.sandboxPath, abortSignal: ctx.abortSignal });
+  const result = await sandbox.run({ command: `git add --intent-to-add -- ${sh(path)}`, workingDirectory: repository.sandboxPath, abortSignal: ctx.abortSignal });
+  if (result.exitCode !== 0) throw new Error(`Intent-to-add failed: ${summarizeCommandFailure(result)}`);
 }
 
 async function mutateRepositoryPath(ctx: ToolContext, repository: ResolvedWorkingDocumentationRepository, command: "cp" | "mv", from: string, to: string): Promise<void> {

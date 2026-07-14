@@ -69,6 +69,7 @@ export async function loadTaskExamples(input: {
   const examples: Array<{ path: string; excerpt: string }> = [];
   for (const path of [...new Set(input.paths)].slice(0, 5)) {
     const read = await service.read({ path, maxCharacters: 4_000 });
+    if (read.content === null) throw new Error(`Task example is binary: ${path}`);
     examples.push({ path, excerpt: read.content });
   }
   return examples;
@@ -88,6 +89,7 @@ async function inspectProfileSources(
   const files: Array<{ path: string; content: string }> = [];
   for (const path of selected) {
     const read = await service.read({ path, maxCharacters: 12_000 });
+    if (read.content === null) throw new Error(`Docs profile source is binary: ${path}`);
     files.push({ path, content: read.content });
   }
   const fingerprint = createHash("sha256").update(files.map(({ path, content }) => `${path}\0${content}`).join("\0")).digest("hex");

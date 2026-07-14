@@ -181,6 +181,20 @@ No current module is a SaaS registry, tenant router, or database provisioner.
 - Repository contents: materialized into isolated Eve sandboxes and excluded
   from the product database except for bounded metadata and artifacts.
 
+Reversible authoring state is session-scoped Eve state over the configured
+working-documentation sandbox. One stable draft identity may link a docs
+signal, owned-work record, editorial recommendation, and content plan. Every
+ordered mutation batch binds existing content by SHA-256 hash or declares a
+new target create-only, rejects direct or ancestor symlinks, preflights against
+a virtual tree, and restores the exact pre-call files, Git index, and draft
+snapshot on failure. Repository inspection, authoring, preparation, abandon,
+and the complete approved publication transaction share one FIFO per Eve
+session and configured repository. Substantial
+work requires the matching ready plan revision; a localized patch does not.
+Preparation rechecks the base revision, records the exact checked diff hash,
+and derives linked signal lifecycle artifacts. Publication accepts only that
+same prepared checked draft after explicit approval.
+
 Deleting, exporting, restoring, or retaining one agent's product state must be
 possible without reading or rewriting another agent's database.
 

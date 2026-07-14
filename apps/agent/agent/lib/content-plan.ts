@@ -91,9 +91,6 @@ export async function reviseContentPlan(
     createdAt: current.createdAt,
     updatedAt: new Date().toISOString(),
   });
-  if (state.draft?.contentPlanId === current.id) {
-    state.draft.contentPlanRevision = state.contentPlan.revision;
-  }
   await persistState(state);
   return contentPlanResult(state.contentPlan);
 }

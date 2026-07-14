@@ -13,6 +13,7 @@ import {
   type RepositoryActionRecord,
 } from "./repository-materialization";
 import type { DocsMaintenanceWorkflowResult } from "./repository-workflow-contract";
+import { assertSafeRepositoryPath } from "./repository-path-policy";
 
 const MAX_LIST_ENTRIES = 200;
 const MAX_LIST_DEPTH = 8;
@@ -223,8 +224,11 @@ export class WorkingRepositoryService {
     path: string;
     startLine: number;
     endLine: number;
-    content: string;
+    content: string | null;
+    binary: boolean;
     truncated: boolean;
+    contentHash: string;
+    sizeBytes: number;
   }> {
     const path = assertSafeRepositoryRelativePath(input.path);
     if (path === ".") throw new RepositoryPolicyError("Read requires a file path.");
@@ -247,16 +251,34 @@ export class WorkingRepositoryService {
     try {
       await this.assertSafeExistingPath(path, "file");
       const sandbox = await this.ctx.getSandbox();
-      const content = await sandbox.readTextFile({
+      const binary = await sandbox.readBinaryFile({
         path: joinSandboxPath(this.repository.sandboxPath, path),
-        startLine,
-        endLine,
         abortSignal: this.commandAbortSignal(MAX_INSPECTION_MILLISECONDS),
       });
-      if (content === null) throw new Error(`File does not exist: ${path}`);
-      const bounded = truncateText(content, maxCharacters);
+      if (binary === null) throw new Error(`File does not exist: ${path}`);
+      const binaryFile = isBinaryContent(binary);
+      const content = binaryFile
+        ? null
+        : await sandbox.readTextFile({
+            path: joinSandboxPath(this.repository.sandboxPath, path),
+            startLine,
+            endLine,
+            abortSignal: this.commandAbortSignal(MAX_INSPECTION_MILLISECONDS),
+          });
+      if (!binaryFile && content === null) throw new Error(`File does not exist: ${path}`);
+      const bounded = content === null
+        ? { content: null, truncated: false }
+        : truncateText(content, maxCharacters);
       this.record("read", "success", { target: `${path}:${startLine}-${endLine}` });
-      return { path, startLine, endLine, ...bounded };
+      return {
+        path,
+        startLine,
+        endLine,
+        ...bounded,
+        binary: binaryFile,
+        contentHash: createHash("sha256").update(binary).digest("hex"),
+        sizeBytes: binary.byteLength,
+      };
     } catch (error) {
       this.fail("read", path, error);
     }
@@ -347,6 +369,7 @@ export class WorkingRepositoryService {
     for (const path of packagePaths) {
       const read = await this.read({ path, maxCharacters: MAX_READ_CHARACTERS });
       try {
+        if (read.content === null) throw new Error("Package manifest is binary.");
         const scripts = z.record(z.string(), z.string()).parse(
           (JSON.parse(read.content) as { scripts?: unknown }).scripts ?? {},
         );
@@ -502,9 +525,10 @@ export class WorkingRepositoryService {
       )
       .map(({ path }) => path)
       .slice(0, 8);
-    const sources = [];
+    const sources: Array<{ path: string; content: string }> = [];
     for (const path of paths) {
-      sources.push({ path, content: (await this.read({ path, maxCharacters: 12_000 })).content });
+      const read = await this.read({ path, maxCharacters: 12_000 });
+      if (read.content !== null) sources.push({ path, content: read.content });
     }
     return sources;
   }
@@ -514,7 +538,7 @@ export class WorkingRepositoryService {
     if (source === undefined || validator.sourceHash === undefined) return false;
     try {
       const current = await this.read({ path: source, maxCharacters: MAX_READ_CHARACTERS });
-      return !current.truncated && hashText(current.content) === validator.sourceHash;
+      return current.content !== null && !current.truncated && hashText(current.content) === validator.sourceHash;
     } catch {
       return false;
     }
@@ -555,14 +579,7 @@ export class WorkingRepositoryService {
   }
 
   private async assertSafeExistingPath(path: string, expected: "file" | "directory"): Promise<void> {
-    const result = await this.runNodeScript(PATH_POLICY_SCRIPT, [
-      this.repository.sandboxPath,
-      path,
-      expected,
-    ]);
-    if (result.exitCode !== 0) {
-      throw new RepositoryPolicyError(summarizeCommandFailure(result));
-    }
+    await assertSafeRepositoryPath(this.ctx, this.repository, path, expected);
   }
 
   private async runNodeScript(script: string, args: string[]) {
@@ -594,6 +611,16 @@ export class WorkingRepositoryService {
     const message = error instanceof Error ? error.message : String(error);
     this.record(action, "failure", { target, reason: message });
     throw error instanceof Error ? error : new Error(message);
+  }
+}
+
+function isBinaryContent(content: Uint8Array): boolean {
+  if (content.includes(0)) return true;
+  try {
+    new TextDecoder("utf-8", { fatal: true }).decode(content);
+    return false;
+  } catch {
+    return true;
   }
 }
 
@@ -719,32 +746,6 @@ function sameRepositoryReference(
     left.provenanceLabel === right.provenanceLabel
   );
 }
-
-const PATH_POLICY_SCRIPT = String.raw`
-const operation = "path-policy";
-const fs = require("node:fs");
-const path = require("node:path");
-const [root, relative, expected] = process.argv.slice(1);
-try {
-  const rootReal = fs.realpathSync(root);
-  const candidate = path.resolve(rootReal, relative === "." ? "" : relative);
-  if (candidate !== rootReal && !candidate.startsWith(rootReal + path.sep)) {
-    throw new Error("Path escapes the configured working repository.");
-  }
-  let current = rootReal;
-  for (const part of relative === "." ? [] : relative.split("/")) {
-    current = path.join(current, part);
-    const stat = fs.lstatSync(current);
-    if (stat.isSymbolicLink()) throw new Error("Symbolic links are not readable through the working repository capability.");
-  }
-  const stat = fs.statSync(candidate);
-  if (expected === "file" && !stat.isFile()) throw new Error("Path is not a regular file.");
-  if (expected === "directory" && !stat.isDirectory()) throw new Error("Path is not a directory.");
-} catch (error) {
-  process.stderr.write(error instanceof Error ? error.message : String(error));
-  process.exit(1);
-}
-`;
 
 const LIST_SCRIPT = String.raw`
 const operation = "list";
