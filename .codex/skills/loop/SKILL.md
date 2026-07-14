@@ -127,6 +127,24 @@ No material assumptions or gaps.
   patterns; record it in `HANDOVER.md`.
 - Treat a failing check as a repair loop, not an immediate stop. Exhaust safe
   in-scope fixes and report the exact irreducible failure.
+- Bound every live eval, integration test, end-to-end test, and external
+  verifier with two independent clocks: a short startup/no-progress watchdog
+  and a total wall-clock timeout covering process startup and cleanup. Use the
+  repository's supervised runner when one exists; never rely only on a
+  framework's per-test timeout. Without a repo contract, default to two minutes
+  without progress and ten minutes total, and never exceed twenty minutes for
+  one command without explicit user approval.
+- On timeout, capture the last progress and command, terminate the complete
+  process tree, and remove only resources created by that run. Confirm no
+  orphan process, sandbox, container, lock, or temporary state remains before
+  continuing.
+- Retry a timed-out verifier at most once, and only after changing a concrete
+  suspected cause. If the supervised retry reaches the same failure, record
+  the blocker and continue every dependency-independent issue. Do not close the
+  unverified issue and do not run the same command again unchanged.
+- Interrupt and replace an issue worker that spends a verifier budget without
+  producing new implementation or evidence. Hand the preserved worktree and
+  exact failure to a fresh-context worker instead of waiting indefinitely.
 - If one issue cannot progress, record the blocker, continue every independent
   issue, then revisit deferred issues after the queue advances.
 - If credentials or an external service block writeback, continue safe local
