@@ -61,8 +61,20 @@ const docsRootDetectionResultSchema = z.object({
 
 type DocsRootDetectionResult = z.infer<typeof docsRootDetectionResultSchema>;
 
-const materializationFlights = new Map<string, Promise<void>>();
-const workingRepositoryOperationTails = new Map<string, Promise<void>>();
+type WorkingRepositoryRuntimeState = {
+  materializationFlights: Map<string, Promise<void>>;
+  workingRepositoryOperationTails: Map<string, Promise<void>>;
+};
+
+const runtimeStateKey = "__paigeWorkingRepositoryRuntimeState__";
+const runtimeGlobals = globalThis as typeof globalThis & {
+  [runtimeStateKey]?: WorkingRepositoryRuntimeState;
+};
+const runtimeState = runtimeGlobals[runtimeStateKey] ??= {
+  materializationFlights: new Map<string, Promise<void>>(),
+  workingRepositoryOperationTails: new Map<string, Promise<void>>(),
+};
+const { materializationFlights, workingRepositoryOperationTails } = runtimeState;
 
 export function workingRepositoryOperationKey(
   sessionId: string,

@@ -24,7 +24,7 @@ const outputSchema = z.object({
 export default defineDynamic({ events: { "step.started": async (event, context) => {
   if (!(await resolveDynamicCapabilities(event, context)).toolNames.includes("get_docs_profile")) return null;
   return defineTool({
-  description: "Read or refresh the current repository docs profile and load up to five task-relevant pages. Use before writing so repository-wide conventions and nearby examples both inform the work.",
+  description: "Read or refresh the current repository docs profile and load up to five existing task-relevant pages. Use before writing so repository-wide conventions and nearby examples both inform the work. Omit paths for targets that do not exist yet.",
   inputSchema,
   outputSchema,
   async execute(input, ctx) {

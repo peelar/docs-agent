@@ -226,6 +226,7 @@ test("working repository service", async () => {
     assert.equal(JSON.stringify(modelProfile).includes("git diff --quiet"), false);
     assert.match(JSON.stringify(modelProfile), /No validators ran.*run_validators/);
     assert.match(JSON.stringify(modelProfile), /read-only inspection.*does not mutate/);
+    assert.match(JSON.stringify(modelProfile), /Do not use run_validators to check an active authoring draft/);
 
     const buildResult = await service.runValidators(["package:root:build", "missing-validator"]);
     assert.equal(buildResult.results[0]?.status, "passed");

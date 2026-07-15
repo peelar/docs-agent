@@ -150,12 +150,22 @@ function clearSessionState(sessionId: string): void {
 
 function summarizeRecord(value: unknown): unknown {
   if (!isRecord(value)) return value;
+  const decision = isRecord(value.decision) ? value.decision : undefined;
+  const plan = isRecord(value.plan) ? value.plan : undefined;
   return {
     keys: Object.keys(value),
     mode: value.mode,
     operation: value.operation,
     operationCount: Array.isArray(value.operations) ? value.operations.length : undefined,
+    taskReferences: summarizeReferences(value.taskReferences),
+    decisionTaskReferences: summarizeReferences(decision?.taskReferences),
+    planTaskReferences: summarizeReferences(plan?.taskReferences),
   };
+}
+
+function summarizeReferences(value: unknown): string[] | undefined {
+  if (!Array.isArray(value)) return undefined;
+  return value.filter((item): item is string => typeof item === "string").slice(0, 20);
 }
 
 function summarizeOutput(value: unknown): unknown {
@@ -167,6 +177,10 @@ function summarizeOutput(value: unknown): unknown {
     mode: value.mode,
     ok: value.ok,
     draftStatus: draft?.status,
+    error:
+      typeof value.error === "string"
+        ? value.error.slice(0, 500)
+        : undefined,
   };
 }
 

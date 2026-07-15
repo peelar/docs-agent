@@ -54,7 +54,9 @@ const maintenance = await readFile(
 assert.match(maintenance, /defineDynamic/);
 assert.match(maintenance, /"turn\.started"/);
 assert.match(maintenance, /`working_repository` list, search, and line-range read modes/);
-assert.match(maintenance, /`run_validators` is atomic read-only inspection/);
+assert.match(maintenance, /For a draft check, pass the named id in `authoring_workspace` prepare `checks`/);
+assert.match(maintenance, /Do not search for, create, or start durable signal work merely because the task is substantial/);
+assert.match(maintenance, /Reuse one stable source task reference across the decision, plan, and authoring draft/);
 assert.doesNotMatch(maintenance, /run_docs_maintenance_scenario/);
 assert.match(maintenance, /clean diff/);
 assert.match(maintenance, /explicit approval/);

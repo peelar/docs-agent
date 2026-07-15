@@ -87,6 +87,8 @@ try {
   }, ctx, state, noPersist);
   assert.equal(unrelatedPlan.ok, false);
   assert.match(unrelatedPlan.error, /content plan is unrelated to this authoring task/i);
+  assert.match(unrelatedPlan.error, /Expected one of \["DOCS-54"\]; received \["DOCS-OTHER"\]/);
+  assert.match(unrelatedPlan.error, /Retry with the plan's exact taskReferences/);
   assert.equal(git("status", "--porcelain").trim(), "", "an unrelated plan fails before mutation");
 
   await createEditorialRecommendation({

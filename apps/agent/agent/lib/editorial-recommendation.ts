@@ -13,7 +13,9 @@ const referenceList = z.array(z.string().trim().min(1).max(500)).max(20);
 
 export const editorialRecommendationDetailsSchema = z.object({
   sourceDecisionReference: z.string().trim().min(1).max(500),
-  taskReferences: referenceList.default([]),
+  taskReferences: referenceList
+    .default([])
+    .describe("Stable source task references. Reuse this exact list in the content plan and authoring draft."),
   reader: conciseText,
   readerProblem: conciseText,
   chosenIntervention: editorialInterventionSchema,

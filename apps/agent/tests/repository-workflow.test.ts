@@ -14,7 +14,7 @@ import * as facade from "../agent/lib/repository-workflow";
 import * as contract from "../agent/lib/repository-workflow-contract";
 import * as state from "../agent/lib/repository-workflow-state";
 import * as lifecycle from "../agent/lib/working-repository-lifecycle";
-import { test } from "vitest";
+import { test, vi } from "vitest";
 
 test("repository workflow", async () => {
 class FakeSandbox {
@@ -166,6 +166,42 @@ assert.equal(facade.listChangedFiles, operations.listChangedFiles);
     },
   );
   assert.equal(ranAfterFailure, true);
+}
+
+{
+  const firstModule = lifecycle;
+  vi.resetModules();
+  const secondModule = await import("../agent/lib/working-repository-lifecycle");
+  const order: string[] = [];
+  let releaseFirst!: () => void;
+  let markFirstStarted!: () => void;
+  const firstGate = new Promise<void>((resolve) => {
+    releaseFirst = resolve;
+  });
+  const firstStarted = new Promise<void>((resolve) => {
+    markFirstStarted = resolve;
+  });
+  const first = firstModule.runWorkingRepositoryOperationSerially(
+    "cross-authored-module",
+    async () => {
+      order.push("first:start");
+      markFirstStarted();
+      await firstGate;
+      order.push("first:end");
+    },
+  );
+  const second = secondModule.runWorkingRepositoryOperationSerially(
+    "cross-authored-module",
+    async () => {
+      order.push("second:start");
+      order.push("second:end");
+    },
+  );
+  await firstStarted;
+  assert.deepEqual(order, ["first:start"]);
+  releaseFirst();
+  await Promise.all([first, second]);
+  assert.deepEqual(order, ["first:start", "first:end", "second:start", "second:end"]);
 }
 
 const stateSource = await readFile(

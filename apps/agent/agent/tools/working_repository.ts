@@ -204,7 +204,7 @@ export function workingRepositoryModelOutput(output: z.infer<typeof outputSchema
             input: { mode: "run_validators" as const, validatorIds: [id] },
           })),
         instruction:
-          "No validators ran. run_validators is read-only inspection: it executes only trusted previously disclosed ids internally, accepts no command, and does not mutate the repository. To execute a requested check, call working_repository now with mode run_validators and validatorIds containing only returned ids. Do not substitute status or diff for validator execution.",
+          "No validators ran. run_validators is optional read-only inspection and does not mutate the repository. Call it with validatorIds containing only returned ids. Do not use run_validators to check an active authoring draft; pass those ids to authoring_workspace prepare checks so results remain attached to the draft.",
       },
     };
   }
@@ -243,7 +243,7 @@ export default defineDynamic({ events: { "step.started": async (event, context) 
   if (!(await resolveDynamicCapabilities(event, context)).toolNames.includes("working_repository")) return null;
   return defineTool({
   description:
-    "Inspect the configured working documentation repository through one policy-aware read capability. It materializes setup implicitly, lists safe paths, searches bounded text, reads line ranges, and returns bounded binary metadata with a full-file SHA-256 hash and null content. Use that hash as the authoring precondition for existing text or binary files. Validators mode optionally lists ids and does not run checks. run_validators is atomic read-only inspection: it discovers and persists the current source-bound trusted profile, executes only requested ids from that profile, accepts no command, and does not mutate the repository.",
+    "Inspect the configured working documentation repository through one policy-aware read capability. It materializes setup implicitly, lists safe paths, searches bounded text, reads line ranges, and returns bounded binary metadata with a full-file SHA-256 hash and null content. Use that hash as the authoring precondition for existing text or binary files. Validators mode optionally lists ids and does not run checks. run_validators is optional atomic read-only inspection: it executes only requested trusted ids, accepts no command, and does not mutate the repository. Do not use it to check an active authoring draft; pass those ids to authoring_workspace prepare checks so results remain attached to the draft.",
   inputSchema: workingRepositoryInputSchema,
   outputSchema,
   async execute(input, ctx) {

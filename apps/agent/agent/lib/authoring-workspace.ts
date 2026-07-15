@@ -82,7 +82,11 @@ export const authoringOperationSchema = z.union([
 
 export const applyAuthoringDraftInputSchema = z.object({
   operations: z.array(authoringOperationSchema).min(1).max(MAX_OPERATIONS_PER_BATCH),
-  taskReferences: z.array(referenceSchema).max(20).default([]),
+  taskReferences: z
+    .array(referenceSchema)
+    .max(20)
+    .default([])
+    .describe("Exact taskReferences from the matching editorial recommendation and content plan; do not use their generated ids."),
   signalId: referenceSchema.optional(),
   ownedWorkId: referenceSchema.optional(),
   editorialRecommendationId: referenceSchema.optional(),
@@ -523,13 +527,21 @@ function resolveContentPlan(
   }
   if (plan.status !== "ready") throw new Error(`Content plan is blocked. Resolve before drafting: ${plan.blockers.join("; ")}`);
   if (taskReferences.length === 0 || plan.taskReferences.length === 0 || !taskReferences.some(reference => plan.taskReferences.includes(reference))) {
-    throw new Error("The active content plan is unrelated to this authoring task.");
+    throw new Error(
+      `The active content plan is unrelated to this authoring task. Expected one of ${formatTaskReferences(plan.taskReferences)}; received ${formatTaskReferences(taskReferences)}. Retry with the plan's exact taskReferences.`,
+    );
   }
   if (recommendation !== undefined && recommendation.sourceDecisionReference !== plan.sourceDecisionReference) {
     throw new Error("The editorial recommendation and content plan are unrelated.");
   }
   assertOperationsMatchPlan(operations, plan);
   return plan;
+}
+
+function formatTaskReferences(references: string[]): string {
+  if (references.length === 0) return "[]";
+  const bounded = references.slice(0, 5).map((reference) => JSON.stringify(reference)).join(", ");
+  return `[${bounded}${references.length > 5 ? ", ..." : ""}]`;
 }
 
 async function assertDraftRelationsCurrent(ctx: ToolContext, state: WorkflowState) {

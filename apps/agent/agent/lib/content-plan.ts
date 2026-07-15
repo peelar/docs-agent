@@ -17,7 +17,11 @@ export const contentPlanDetailsSchema = z.object({
     .trim()
     .min(1)
     .describe("Reference to the prior docs-impact decision; do not repeat that judgment here."),
-  taskReferences: z.array(z.string().trim().min(1)).max(20).default([]),
+  taskReferences: z
+    .array(z.string().trim().min(1))
+    .max(20)
+    .default([])
+    .describe("Exact taskReferences from the editorial recommendation. Reuse this exact list in the authoring draft."),
   reader: z.string().trim().min(1),
   desiredOutcome: z.string().trim().min(1),
   contentType: z.string().trim().min(1),
