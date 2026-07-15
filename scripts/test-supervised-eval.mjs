@@ -28,6 +28,10 @@ try {
   await testSuccessfulRunAndCleanup();
   await testChildExitCodeIsPreserved();
   await testNoProgressTimeoutKillsProcessTree();
+  await testTraceProgressPreventsFalseNoProgressTimeout();
+  await testOutputChatterCannotMaskMissingTraceProgress();
+  await testRepeatedZeroActionToolStepsFailFast();
+  await testZeroActionToolStepCanRecover();
   await testWallTimeoutDespiteProgress();
   await testCleanupFailureFailsClosed();
   await testBaselineFailurePreservesExistingResources();
@@ -80,7 +84,9 @@ async function testNoProgressTimeoutKillsProcessTree() {
   await assertProcessTreeStopped(fixture.pidFile);
   await assertCleanup(fixture, ["preexisting-sandbox"]);
   assert.deepEqual(await readRemovalLog(fixture), ["eve-sbx-ses-owned-heartbeat"]);
-  assert.match(await readOnlyFailureLog(fixture), /no meaningful progress/u);
+  const failureLog = await readOnlyFailureLog(fixture);
+  assert.match(failureLog, /no meaningful progress/u);
+  assert.match(failureLog, /fake\.eval\.trace/u);
 }
 
 async function testWallTimeoutDespiteProgress() {
@@ -100,6 +106,82 @@ async function testWallTimeoutDespiteProgress() {
   await assertProcessTreeStopped(fixture.pidFile);
   await assertCleanup(fixture, ["preexisting-sandbox"]);
   assert.match(await readOnlyFailureLog(fixture), /wall-clock timeout/u);
+}
+
+async function testTraceProgressPreventsFalseNoProgressTimeout() {
+  const fixture = await createFixture("trace-progress");
+  const result = await runFixture(
+    fixture,
+    {
+      FAKE_EVAL_SCENARIO: "trace-progress-forever",
+      FAKE_EVAL_SANDBOX_NAME: "eve-sbx-ses-owned-trace-progress",
+      PAIGE_EVAL_NO_PROGRESS_MS: "150",
+      PAIGE_EVAL_WALL_TIMEOUT_MS: "1200",
+    },
+  );
+
+  assert.equal(result.code, 124, result.stderr);
+  assert.match(result.stderr, /wall-clock timeout/u);
+  assert.doesNotMatch(result.stderr, /no meaningful progress/u);
+  await assertProcessTreeStopped(fixture.pidFile);
+  await assertCleanup(fixture, ["preexisting-sandbox"]);
+  assert.match(await readOnlyFailureLog(fixture), /step\.completed/u);
+}
+
+async function testOutputChatterCannotMaskMissingTraceProgress() {
+  const fixture = await createFixture("trace-then-output-chatter");
+  const result = await runFixture(
+    fixture,
+    {
+      FAKE_EVAL_SCENARIO: "trace-then-output-chatter",
+      FAKE_EVAL_SANDBOX_NAME: "eve-sbx-ses-owned-output-chatter",
+      PAIGE_EVAL_NO_PROGRESS_MS: "150",
+      PAIGE_EVAL_WALL_TIMEOUT_MS: "1200",
+    },
+  );
+
+  assert.equal(result.code, 124, result.stderr);
+  assert.match(result.stderr, /no meaningful progress/u);
+  assert.doesNotMatch(result.stderr, /wall-clock timeout/u);
+  assert.match(result.stdout, /retrying model request/u);
+  assert.match(result.stderr, /provider warning/u);
+  await assertProcessTreeStopped(fixture.pidFile);
+  await assertCleanup(fixture, ["preexisting-sandbox"]);
+}
+
+async function testRepeatedZeroActionToolStepsFailFast() {
+  const fixture = await createFixture("zero-action-tool-stall");
+  const result = await runFixture(
+    fixture,
+    {
+      FAKE_EVAL_SCENARIO: "zero-action-tool-stall",
+      FAKE_EVAL_SANDBOX_NAME: "eve-sbx-ses-owned-zero-action-stall",
+      PAIGE_EVAL_MAX_ZERO_ACTION_TOOL_STEPS: "3",
+      PAIGE_EVAL_NO_PROGRESS_MS: "3000",
+    },
+  );
+
+  assert.equal(result.code, 124, result.stderr);
+  assert.match(result.stderr, /3 consecutive model tool-call steps produced zero validated actions/u);
+  await assertProcessTreeStopped(fixture.pidFile);
+  await assertCleanup(fixture, ["preexisting-sandbox"]);
+  assert.match(await readOnlyFailureLog(fixture), /zeroActionToolCallStep/u);
+}
+
+async function testZeroActionToolStepCanRecover() {
+  const fixture = await createFixture("zero-action-tool-recovery");
+  const result = await runFixture(
+    fixture,
+    {
+      FAKE_EVAL_SCENARIO: "zero-action-tool-recovery",
+      FAKE_EVAL_SANDBOX_NAME: "eve-sbx-ses-owned-zero-action-recovery",
+      PAIGE_EVAL_MAX_ZERO_ACTION_TOOL_STEPS: "2",
+    },
+  );
+
+  assert.equal(result.code, 0, result.stderr);
+  assert.doesNotMatch(result.stderr, /zero validated actions/u);
+  await assertCleanup(fixture, ["preexisting-sandbox"]);
 }
 
 async function testCleanupFailureFailsClosed() {
@@ -321,7 +403,7 @@ async function readOnlyFailureLog(fixture) {
   const entries = await readdir(fixture.failureDirectory);
   assert.equal(entries.length, 1, `expected one failure log, found ${entries.length}`);
   const contents = await readFile(join(fixture.failureDirectory, entries[0]), "utf8");
-  assert.ok(Buffer.byteLength(contents) < 70 * 1_024, "failure log must stay bounded");
+  assert.ok(Buffer.byteLength(contents) < 140 * 1_024, "failure log must stay bounded");
   return contents;
 }
 
@@ -372,10 +454,16 @@ function delay(ms) {
 function fakeChildSource() {
   return `#!/usr/bin/env node
 import { spawn } from "node:child_process";
-import { readFile, writeFile } from "node:fs/promises";
+import { appendFile, readFile, writeFile } from "node:fs/promises";
 
 const statePath = process.env.FAKE_MSB_STATE;
 const sandboxName = process.env.FAKE_EVAL_SANDBOX_NAME;
+if (process.env.PAIGE_EVAL_TRACE_PATH) {
+  await writeFile(
+    process.env.PAIGE_EVAL_TRACE_PATH,
+    JSON.stringify({ type: "fake.eval.trace" }) + "\\n",
+  );
+}
 if (sandboxName) {
   const state = JSON.parse(await readFile(statePath, "utf8"));
   state.push({ name: sandboxName, status: "Running" });
@@ -386,6 +474,21 @@ const scenario = process.env.FAKE_EVAL_SCENARIO;
 if (scenario === "success") {
   console.log("meaningful eval progress");
   process.exit(Number(process.env.FAKE_EVAL_EXIT_CODE ?? "0"));
+}
+
+if (scenario === "zero-action-tool-recovery") {
+  const events = [
+    { type: "step.completed", data: { stepIndex: 1, zeroActionToolCallStep: true } },
+    { type: "action.result", data: { status: "failed" } },
+    { type: "actions.requested", data: { actions: [{ callId: "valid" }] } },
+    { type: "action.result", data: { status: "success" } },
+    { type: "step.completed", data: { stepIndex: 2, zeroActionToolCallStep: true } },
+  ];
+  for (const event of events) {
+    await appendFile(process.env.PAIGE_EVAL_TRACE_PATH, JSON.stringify(event) + "\\n");
+  }
+  await new Promise((resolve) => setTimeout(resolve, 400));
+  process.exit(0);
 }
 
 const grandchild = spawn(
@@ -401,6 +504,32 @@ if (scenario === "heartbeat") {
   setInterval(() => {
     console.error('eve: opening sandbox session "root" on backend "microsandbox"...');
   }, 20);
+} else if (scenario === "trace-progress-forever") {
+  let tick = 0;
+  setInterval(async () => {
+    await appendFile(
+      process.env.PAIGE_EVAL_TRACE_PATH,
+      JSON.stringify({ type: "step.completed", data: { stepIndex: tick += 1 } }) + "\\n",
+    );
+  }, 20);
+} else if (scenario === "trace-then-output-chatter") {
+  let tick = 0;
+  setInterval(() => {
+    console.log(\`retrying model request ${"${tick += 1}"}\`);
+    console.error(\`provider warning ${"${tick}"}\`);
+  }, 20);
+} else if (scenario === "zero-action-tool-stall") {
+  for (let stepIndex = 1; stepIndex <= 3; stepIndex += 1) {
+    await appendFile(
+      process.env.PAIGE_EVAL_TRACE_PATH,
+      JSON.stringify({ type: "action.result", data: { stepIndex, status: "failed" } }) + "\\n",
+    );
+    await appendFile(
+      process.env.PAIGE_EVAL_TRACE_PATH,
+      JSON.stringify({ type: "step.completed", data: { stepIndex, zeroActionToolCallStep: true } }) + "\\n",
+    );
+  }
+  setInterval(() => {}, 1000);
 } else if (scenario === "progress-forever") {
   let tick = 0;
   setInterval(() => console.log(\`eval progress ${"${tick += 1}"}\`), 20);

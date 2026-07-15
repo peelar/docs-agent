@@ -21,7 +21,9 @@ const DEFAULT_WALL_TIMEOUT_MS = 10 * 60 * 1_000;
 const MAX_WALL_TIMEOUT_MS = 20 * 60 * 1_000;
 const DEFAULT_TERM_GRACE_MS = 2_000;
 const DEFAULT_MSB_TIMEOUT_MS = 15_000;
+const DEFAULT_MAX_ZERO_ACTION_TOOL_STEPS = 3;
 const MAX_TRANSCRIPT_BYTES = 64 * 1_024;
+const MAX_EVAL_TRACE_BYTES = 64 * 1_024;
 const SUPERVISOR_ERROR_EXIT_CODE = 70;
 const TIMEOUT_EXIT_CODE = 124;
 const EVE_SANDBOX_NAME = /^eve-sbx-(?:ses-|tpl-tmp-)/u;
@@ -44,10 +46,18 @@ let stopReason;
 let requestedSignal;
 let forceKillTimer;
 let workflowDirectory;
+let evalTracePath;
 let baselineSandboxNames = new Set();
 let baselineCaptured = false;
 let lockHeld = false;
 let transcript = "";
+let evalTrace = "";
+let evalTraceBytes = 0;
+let evalTracePending = "";
+let evalTraceStarted = false;
+let consecutiveZeroActionToolSteps = 0;
+let watchdogActive = false;
+let watchdogPollPromise = Promise.resolve();
 let cleanupPromise;
 let executionWallTimer;
 
@@ -66,6 +76,7 @@ let exitCode = SUPERVISOR_ERROR_EXIT_CODE;
 try {
   await acquireLock();
   workflowDirectory = await createWorkflowDirectory();
+  evalTracePath = join(workflowDirectory, "paige-eval-trace.ndjson");
   startExecutionWallTimer();
   baselineSandboxNames = await listSandboxNames();
   baselineCaptured = true;
@@ -135,6 +146,7 @@ function readConfig() {
   } else {
     const evalArgs = process.argv.slice(2);
     if (evalArgs[0] === "--") evalArgs.shift();
+    assertSerialEvalConcurrency(evalArgs);
     childArgs = ["--filter", "docs-agent", "eval", ...evalArgs];
   }
 
@@ -154,6 +166,10 @@ function readConfig() {
       "PAIGE_EVAL_MSB_TIMEOUT_MS",
       DEFAULT_MSB_TIMEOUT_MS,
     ),
+    maxZeroActionToolSteps: readPositiveInteger(
+      "PAIGE_EVAL_MAX_ZERO_ACTION_TOOL_STEPS",
+      DEFAULT_MAX_ZERO_ACTION_TOOL_STEPS,
+    ),
     noProgressMs: readPositiveInteger(
       "PAIGE_EVAL_NO_PROGRESS_MS",
       DEFAULT_NO_PROGRESS_MS,
@@ -165,6 +181,25 @@ function readConfig() {
     wallTimeoutMs,
     workflowParent: process.env.PAIGE_EVAL_WORKFLOW_PARENT ?? tmpdir(),
   };
+}
+
+function assertSerialEvalConcurrency(args) {
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--max-concurrency" || argument === "--maxConcurrency") {
+      const value = args[index + 1];
+      if (value !== "1") {
+        throw new Error("DB-backed eval fixtures require --max-concurrency 1.");
+      }
+      index += 1;
+      continue;
+    }
+    if (argument.startsWith("--max-concurrency=") || argument.startsWith("--maxConcurrency=")) {
+      if (argument.slice(argument.indexOf("=") + 1) !== "1") {
+        throw new Error("DB-backed eval fixtures require --max-concurrency 1.");
+      }
+    }
+  }
 }
 
 function readPositiveInteger(name, fallback) {
@@ -239,6 +274,7 @@ async function runEval() {
     detached: process.platform !== "win32",
     env: {
       ...process.env,
+      PAIGE_EVAL_TRACE_PATH: evalTracePath,
       WORKFLOW_LOCAL_DATA_DIR: workflowDirectory,
     },
     stdio: ["inherit", "pipe", "pipe"],
@@ -249,13 +285,16 @@ async function runEval() {
 
   const childResult = new Promise((resolvePromise, rejectPromise) => {
     child.once("error", rejectPromise);
-    child.once("close", (code, signal) => resolvePromise({ code, signal }));
+    child.once("close", (code, signal) => {
+      watchdogActive = false;
+      resolvePromise({ code, signal });
+    });
   });
 
+  watchdogActive = true;
   const watchdog = setInterval(() => {
-    if (Date.now() - lastProgressAt >= config.noProgressMs) {
-      requestStop(`no meaningful progress for ${config.noProgressMs}ms`);
-    }
+    if (!watchdogActive) return;
+    watchdogPollPromise = watchdogPollPromise.then(checkNoProgress);
   }, Math.min(1_000, Math.max(10, Math.floor(config.noProgressMs / 4))));
   watchdog.unref();
 
@@ -263,7 +302,9 @@ async function runEval() {
   try {
     result = await childResult;
   } finally {
+    watchdogActive = false;
     clearInterval(watchdog);
+    await watchdogPollPromise;
     clearExecutionWallTimer();
     await finishProcessGroup();
   }
@@ -278,6 +319,68 @@ async function runEval() {
   return 1;
 }
 
+async function checkNoProgress() {
+  if (!watchdogActive) return;
+  try {
+    await observeEvalTraceProgress();
+  } catch (error) {
+    requestStop(`could not observe eval trace progress: ${describeError(error)}`);
+    return;
+  }
+  if (!watchdogActive) return;
+  if (Date.now() - lastProgressAt >= config.noProgressMs) {
+    requestStop(`no meaningful progress for ${config.noProgressMs}ms`);
+  }
+}
+
+async function observeEvalTraceProgress() {
+  if (!evalTracePath) return;
+  try {
+    const contents = await readFile(evalTracePath);
+    if (contents.byteLength < evalTraceBytes) {
+      throw new Error("eval trace was truncated while the eval was running");
+    }
+    if (contents.byteLength === evalTraceBytes) return;
+
+    evalTracePending += contents.subarray(evalTraceBytes).toString("utf8");
+    evalTraceBytes = contents.byteLength;
+    const lines = evalTracePending.split(/\r?\n/u);
+    evalTracePending = lines.pop() ?? "";
+    for (const line of lines) observeEvalTraceEvent(line);
+  } catch (error) {
+    if (error?.code !== "ENOENT") throw error;
+  }
+}
+
+function observeEvalTraceEvent(line) {
+  if (line.trim() === "") return;
+  const event = JSON.parse(line);
+  evalTraceStarted = true;
+  const zeroActionToolCallStep =
+    event?.type === "step.completed" &&
+    event?.data?.zeroActionToolCallStep === true;
+
+  if (zeroActionToolCallStep) {
+    consecutiveZeroActionToolSteps += 1;
+    if (consecutiveZeroActionToolSteps >= config.maxZeroActionToolSteps) {
+      requestStop(
+        `${consecutiveZeroActionToolSteps} consecutive model tool-call steps produced zero validated actions`,
+      );
+    }
+    return;
+  }
+
+  const dispatchedActions =
+    event?.type === "actions.requested" &&
+    Array.isArray(event?.data?.actions) &&
+    event.data.actions.length > 0;
+  const completedUsableStep = event?.type === "step.completed";
+  if (dispatchedActions || completedUsableStep) {
+    consecutiveZeroActionToolSteps = 0;
+  }
+  lastProgressAt = Date.now();
+}
+
 function observeOutput(stream, destination) {
   let pending = "";
   stream.setEncoding("utf8");
@@ -288,11 +391,15 @@ function observeOutput(stream, destination) {
     const lines = pending.split(/\r?\n/u);
     pending = lines.pop() ?? "";
     for (const line of lines) {
-      if (isMeaningfulProgress(line)) lastProgressAt = Date.now();
+      if (!evalTraceStarted && isMeaningfulProgress(line)) {
+        lastProgressAt = Date.now();
+      }
     }
   });
   stream.on("end", () => {
-    if (isMeaningfulProgress(pending)) lastProgressAt = Date.now();
+    if (!evalTraceStarted && isMeaningfulProgress(pending)) {
+      lastProgressAt = Date.now();
+    }
   });
 }
 
@@ -362,6 +469,7 @@ async function performCleanup() {
   }
 
   if (workflowDirectory) {
+    await captureEvalTrace();
     try {
       await rm(workflowDirectory, { force: true, recursive: true });
     } catch (error) {
@@ -476,9 +584,24 @@ async function writeFailureLog(code) {
     "",
     "last output:",
     transcript,
+    "",
+    "sanitized eval trace:",
+    evalTrace || "(no eval trace was emitted)",
   ].join("\n");
   await writeFile(path, content);
   return path;
+}
+
+async function captureEvalTrace() {
+  if (!evalTracePath) return;
+  try {
+    const contents = await readFile(evalTracePath);
+    evalTrace = contents.subarray(-MAX_EVAL_TRACE_BYTES).toString("utf8");
+  } catch (error) {
+    if (error?.code !== "ENOENT") {
+      evalTrace = `(eval trace could not be read: ${describeError(error)})`;
+    }
+  }
 }
 
 function formatCommand(command, args) {
