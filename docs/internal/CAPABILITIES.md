@@ -153,9 +153,9 @@ answers, contradictory provider and memory context, missing setup, tool-free
 ordinary conversation, gap recommendation without mutation, and an explicit
 multi-turn continuation into one provenance-bearing docs signal. They assert
 semantic outcomes, inspected sources, freshness, uncertainty, and absence of
-durable side effects rather than one exact read order. The definitions are
-committed but remain unexecuted while the inherited Eve microsandbox
-session-start blocker from #81 and #82 is unchanged.
+durable side effects rather than one exact read order. Run these live
+definitions only through `pnpm eval:safe` so startup, semantic no-progress, and
+wall-clock limits remain enforced.
 
 The deterministic and local live suites do not replace external proof:
 

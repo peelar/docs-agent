@@ -246,9 +246,8 @@ ordering. Run the definitions only through the supervised repository command:
 pnpm eval:safe -- workspace-knowledge-answers workspace-knowledge-sources --skip-report --verbose
 ```
 
-The definitions are committed for later live proof. Do not retry them while the
-unchanged Eve microsandbox session-start blocker recorded for #81 and #82
-remains unresolved.
+Run them only through the supervisor so semantic no-progress and invalid
+tool-call loops stop within the bounded evaluation budget.
 
 ## Documentation Work Capabilities
 
@@ -275,17 +274,15 @@ the definitions with:
 pnpm eval --list
 ```
 
-When the inherited Eve microsandbox session-start blocker is fixed, run the
-behavior proof only through the repository supervisor:
+Run the behavior proof only through the repository supervisor:
 
 ```sh
 pnpm eval:safe -- owned-docs-work internal-working-documents --skip-report --verbose
 ```
 
-Until then, do not rerun the live suite unchanged. Deterministic capability
-tests prove create replay, source-text-safe projections, fixed actors,
-idempotent evidence linking, optimistic concurrency, cross-resource rejection,
-and the absence of caller-selected privileged status.
+Deterministic capability tests prove create replay, source-text-safe
+projections, fixed actors, idempotent evidence linking, optimistic concurrency,
+cross-resource rejection, and the absence of caller-selected privileged status.
 
 ## Chat SDK State
 
