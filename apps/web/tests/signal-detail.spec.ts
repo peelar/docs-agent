@@ -48,6 +48,17 @@ test("distinguishes summary, claims, and safely rendered source text", async ({ 
     await expect(work.getByRole("link", { name: /Open originating Linear Issue/i })).toHaveAttribute("href", "https://linear.app/acme/issue/DOCS-101");
   });
 
+test("connects the complete work map while keeping memory outside evidence", async ({ page }) => {
+  await page.goto("/signals/signal-private-metadata?scenario=ready");
+  const map = page.locator("[data-work-map]");
+  await expect(page.getByRole("heading", { name: "One documentation task, end to end" })).toBeVisible();
+  for (const stage of ["Source", "Evidence", "Decision & plan", "Internal documents", "Draft", "Checks", "Approval", "Outcome"]) {
+    await expect(map.getByText(stage, { exact: true })).toBeVisible();
+  }
+  await expect(page.locator("[data-work-memory-boundary]")).toContainText("Routing Context, not verified evidence");
+  await expect(page.locator("[data-work-memory-boundary]")).toContainText("cannot independently prove a public documentation claim");
+});
+
 test("renders missing, corrupt, unauthorized, and database failures explicitly", async ({ page }) => {
   const states = [
     ["missing", "Signal not found"],

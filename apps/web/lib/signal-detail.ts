@@ -58,6 +58,17 @@ function fixtureSignal(id: string): OperatorSignalDetail {
     nextActionAt: "2026-07-12T11:00:00.000Z",
     capturedAt: "2026-07-11T14:00:00.000Z",
     updatedAt: "2026-07-11T17:05:00.000Z",
+    workMap: {
+      source: { recordIds: ["source-linear"] },
+      evidence: { linkIds: ["link-docs", "link-unsafe"], artifactIds: ["artifact-report"] },
+      typedDecisions: { editorialRecommendationId: "editorial-DOCS-101", contentPlanId: "plan-DOCS-101", artifactIds: [] },
+      internalDocuments: [{ id: "33333333-3333-4333-8333-333333333333", title: "Metadata investigation", kind: "working-notes", editingProfile: "living-summary", lifecycleState: "active", currentRevision: 2, retentionExpiresAt: "2026-10-11T17:00:00.000Z", updatedAt: "2026-07-11T16:00:00.000Z" }],
+      draft: { draftId: "draft-DOCS-101", artifactIds: ["artifact-diff"] },
+      checks: { referenceIds: ["artifact-check"], artifactIds: ["artifact-check"] },
+      approval: { requestId: null, artifactIds: [] },
+      outcome: { workStatus: "draft-ready", result: null, publicationArtifactId: null, artifactIds: ["artifact-pr"] },
+      memoryBoundary: { classification: "routing-context", independentPublicProof: false, explanation: "Workspace memory may route investigation and preserve reviewed context, but it remains separate from verified source evidence and cannot independently prove a public documentation claim." },
+    },
     ownedWork: {
       id: `owned:${id}`,
       signalId: id,

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import { and, asc, eq, lte, ne } from "drizzle-orm";
+import { and, asc, desc, eq, gt, lte, ne, sql } from "drizzle-orm";
 import { z } from "zod";
 
 import { withDocsAgentDatabase, type DocsAgentDatabase } from "./db/client.ts";
@@ -155,6 +155,19 @@ export type InternalDocument = z.infer<typeof internalDocumentSchema>;
 export type InternalDocumentAttachmentTarget = z.infer<
   typeof internalDocumentAttachmentTargetSchema
 >;
+
+export const internalDocumentReferenceSchema = z.object({
+  id: z.string().uuid(),
+  title: z.string().min(1),
+  kind: slugSchema,
+  editingProfile: slugSchema,
+  lifecycleState: internalDocumentLifecycleSchema,
+  currentRevision: z.number().int().positive(),
+  retentionExpiresAt: isoSchema,
+  updatedAt: isoSchema,
+}).strict();
+
+export type InternalDocumentReference = z.infer<typeof internalDocumentReferenceSchema>;
 
 type Executor = Pick<DocsAgentDatabase, "select" | "insert" | "update" | "delete">;
 
@@ -484,6 +497,58 @@ export async function expireInternalDocuments(now = new Date()): Promise<number>
   return withDocsAgentDatabase(async (db) => db.transaction(async (tx) =>
     expireRetainedDocuments(tx, now)
   ));
+}
+
+export async function listInternalDocumentReferencesBySource(input: {
+  kind: string;
+  id: string;
+  limit?: number;
+}): Promise<InternalDocumentReference[]> {
+  const reference = internalDocumentSourceReferenceSchema.pick({ kind: true, id: true }).parse(input);
+  const limit = z.number().int().min(1).max(50).parse(input.limit ?? 20);
+  return withDocsAgentDatabase(async (db) => {
+    const rows = await db.select({
+      id: internalDocuments.id,
+      title: internalDocuments.title,
+      kind: internalDocuments.kind,
+      editingProfile: internalDocuments.editingProfile,
+      lifecycleState: internalDocuments.lifecycleState,
+      currentRevision: internalDocuments.currentRevision,
+      retentionExpiresAt: internalDocuments.retentionExpiresAt,
+      updatedAt: internalDocuments.updatedAt,
+      sourceReferences: internalDocumentRevisions.sourceReferences,
+    }).from(internalDocuments).innerJoin(
+      internalDocumentRevisions,
+      and(
+        eq(internalDocumentRevisions.workspaceId, internalDocuments.workspaceId),
+        eq(internalDocumentRevisions.documentId, internalDocuments.id),
+        eq(internalDocumentRevisions.revision, internalDocuments.currentRevision),
+      ),
+    ).where(and(
+      eq(internalDocuments.workspaceId, DEFAULT_WORKSPACE_ID),
+      ne(internalDocuments.lifecycleState, "expired"),
+      gt(internalDocuments.retentionExpiresAt, new Date().toISOString()),
+      sql`exists (
+        select 1
+        from json_each(
+          case
+            when json_valid(${internalDocumentRevisions.sourceReferences})
+              then ${internalDocumentRevisions.sourceReferences}
+            else '[]'
+          end
+        ) as source_reference
+        where json_extract(source_reference.value, '$.kind') = ${reference.kind}
+          and json_extract(source_reference.value, '$.id') = ${reference.id}
+      )`,
+    )).orderBy(desc(internalDocuments.updatedAt), desc(internalDocuments.id)).limit(limit);
+    return rows.flatMap(({ sourceReferences, ...row }) => {
+      const parsed = internalDocumentSourceReferencesSchema.safeParse(sourceReferences);
+      if (!parsed.success || !parsed.data.some((source) =>
+        source.kind === reference.kind && source.id === reference.id
+      )) return [];
+      return [internalDocumentReferenceSchema.parse(row)];
+    });
+  });
 }
 
 function requireCommandContext(context: unknown): InternalDocumentCommandContext {

@@ -3,14 +3,13 @@
 
   <h1>Paige</h1>
 
-  <p><strong>A documentation agent that follows the work and keeps your docs accurate.</strong></p>
+  <p><strong>A documentation agent that decides what should change—and what should not.</strong></p>
 </div>
 
-Paige is an open-source documentation agent for software teams. Product truth
-rarely arrives as a tidy writing task: it is scattered across Slack threads,
-Linear issues, releases, pull requests, and support notes. Paige follows those
-signals, checks what the documentation actually says, and keeps the public story
-accurate.
+Paige is an open-source documentation agent for software teams. Bring it a
+product signal from a conversation, issue, release, or repository. Paige checks
+what the documentation and source evidence actually say before deciding whether
+anything should change.
 
 A workspace question may end as a sourced answer, an explicit abstention, or a
 recommendation without creating documentation work. When a documentation
@@ -18,6 +17,11 @@ change is requested and supported by evidence, Paige can prepare and check a
 reviewable draft in an isolated repository workspace. Publishing remains behind
 explicit approval. Documentation is Paige's only mutable product domain;
 watched, context, and source repositories remain read-only evidence.
+
+Paige is in public alpha. The stable path today is an explicit request or team
+signal, bounded source inspection, and a sourced answer, no-change conclusion,
+recommendation, or—when justified—a reviewable draft. Continuous watch
+execution is not part of the current claim.
 
 ## Get Started
 
@@ -81,3 +85,14 @@ Slack · Linear · Releases · Repositories
 - [Slack and Linear](./docs/TEAM_CONTEXT.md)
 
 Maintainer documentation lives under [`docs/internal`](./docs/internal/MANIFEST.md).
+
+## Contributing and Support
+
+Read [Contributing](./CONTRIBUTING.md) before proposing substantial work. Use
+[Support](./SUPPORT.md) for public questions and [Security](./SECURITY.md) for
+private vulnerability reports. Participation follows the
+[Code of Conduct](./CODE_OF_CONDUCT.md).
+
+## License
+
+Paige is available under the [Apache License 2.0](./LICENSE).

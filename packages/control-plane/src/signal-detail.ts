@@ -5,6 +5,7 @@ import {
   docsSignalLinkKindSchema,
   docsSignalSourceKindSchema,
   getDocsSignal,
+  type DocsSignalDetail,
 } from "./docs-signals.ts";
 import { docsSignalStatusSchema } from "./docs-signal-lifecycle.ts";
 import {
@@ -13,8 +14,49 @@ import {
   ownedDocsWorkReferencesSchema,
   ownedDocsWorkStatusSchema,
 } from "./owned-docs-work-contract.ts";
+import {
+  internalDocumentReferenceSchema,
+  listInternalDocumentReferencesBySource,
+} from "./internal-documents.ts";
 
 const redactedMetadataSchema = z.record(z.string(), z.unknown());
+
+export const operatorWorkMapSchema = z.object({
+  source: z.object({ recordIds: z.array(z.string()) }).strict(),
+  evidence: z.object({
+    linkIds: z.array(z.string()),
+    artifactIds: z.array(z.string()),
+  }).strict(),
+  typedDecisions: z.object({
+    editorialRecommendationId: z.string().nullable(),
+    contentPlanId: z.string().nullable(),
+    artifactIds: z.array(z.string()),
+  }).strict(),
+  internalDocuments: z.array(internalDocumentReferenceSchema),
+  draft: z.object({
+    draftId: z.string().nullable(),
+    artifactIds: z.array(z.string()),
+  }).strict(),
+  checks: z.object({
+    referenceIds: z.array(z.string()),
+    artifactIds: z.array(z.string()),
+  }).strict(),
+  approval: z.object({
+    requestId: z.string().nullable(),
+    artifactIds: z.array(z.string()),
+  }).strict(),
+  outcome: z.object({
+    workStatus: ownedDocsWorkStatusSchema.nullable(),
+    result: ownedDocsWorkOutcomeSchema.nullable(),
+    publicationArtifactId: z.string().nullable(),
+    artifactIds: z.array(z.string()),
+  }).strict(),
+  memoryBoundary: z.object({
+    classification: z.literal("routing-context"),
+    independentPublicProof: z.literal(false),
+    explanation: z.string(),
+  }).strict(),
+}).strict();
 
 export const operatorSignalDetailSchema = z.object({
   id: z.string(),
@@ -31,6 +73,7 @@ export const operatorSignalDetailSchema = z.object({
   nextActionAt: z.string().nullable(),
   capturedAt: z.string(),
   updatedAt: z.string(),
+  workMap: operatorWorkMapSchema,
   ownedWork: z.object({
     id: z.string(),
     signalId: z.string(),
@@ -94,7 +137,13 @@ export type OperatorSignalDetail = z.infer<typeof operatorSignalDetailSchema>;
 export async function getOperatorSignalDetail(input: {
   id: string;
 }): Promise<OperatorSignalDetail> {
-  const detail = await getDocsSignal(input);
+  const [detail, internalDocuments] = await Promise.all([
+    getDocsSignal(input),
+    listInternalDocumentReferencesBySource({
+      kind: "docs-signal",
+      id: input.id,
+    }),
+  ]);
 
   return operatorSignalDetailSchema.parse({
     id: detail.id,
@@ -111,6 +160,7 @@ export async function getOperatorSignalDetail(input: {
     nextActionAt: detail.nextActionAt,
     capturedAt: detail.capturedAt,
     updatedAt: detail.updatedAt,
+    workMap: buildOperatorWorkMap(detail, internalDocuments),
     ownedWork: detail.ownedWork === null ? null : {
       id: detail.ownedWork.id,
       signalId: detail.ownedWork.signalId,
@@ -175,6 +225,50 @@ export async function getOperatorSignalDetail(input: {
         left.createdAt.localeCompare(right.createdAt) || left.id.localeCompare(right.id),
       ),
   });
+}
+
+function buildOperatorWorkMap(
+  detail: DocsSignalDetail,
+  internalDocuments: z.infer<typeof internalDocumentReferenceSchema>[],
+) {
+  const artifacts = (...kinds: Array<z.infer<typeof docsSignalArtifactKindSchema>>) =>
+    detail.artifacts.filter(({ kind }) => kinds.includes(kind)).map(({ id }) => id);
+  return {
+    source: { recordIds: detail.sources.map(({ id }) => id) },
+    evidence: {
+      linkIds: detail.links.map(({ id }) => id),
+      artifactIds: artifacts("verification-report", "impact-report"),
+    },
+    typedDecisions: {
+      editorialRecommendationId: detail.ownedWork?.references.editorialRecommendationId ?? null,
+      contentPlanId: detail.ownedWork?.references.contentPlanId ?? null,
+      artifactIds: artifacts("editorial-recommendation", "content-plan"),
+    },
+    internalDocuments,
+    draft: {
+      draftId: detail.ownedWork?.references.draftId ?? null,
+      artifactIds: artifacts("authoring-draft", "diff"),
+    },
+    checks: {
+      referenceIds: detail.ownedWork?.references.validationArtifactIds ?? [],
+      artifactIds: artifacts("validation-result", "check-log"),
+    },
+    approval: {
+      requestId: detail.ownedWork?.references.approvalRequestId ?? null,
+      artifactIds: artifacts("approval-request"),
+    },
+    outcome: {
+      workStatus: detail.ownedWork?.status ?? null,
+      result: detail.ownedWork?.outcome ?? null,
+      publicationArtifactId: detail.ownedWork?.references.publicationArtifactId ?? null,
+      artifactIds: artifacts("publication", "draft-pr"),
+    },
+    memoryBoundary: {
+      classification: "routing-context" as const,
+      independentPublicProof: false as const,
+      explanation: "Workspace memory may route investigation and preserve reviewed context, but it remains separate from verified source evidence and cannot independently prove a public documentation claim.",
+    },
+  };
 }
 
 const sensitiveKey = /token|secret|password|authorization|cookie|credential|api[-_]?key/i;

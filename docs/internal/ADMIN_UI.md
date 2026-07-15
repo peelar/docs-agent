@@ -374,6 +374,31 @@ These settings cannot edit permanent safety, evidence, provenance, sandbox, or
 approval rules. They cannot grant mutation or publishing authority. Invalid
 input and persistence failures stop visibly.
 
+### 16. Sources, capabilities, and coherent documentation work
+
+Tracked by [#87](https://github.com/peelar/paige/issues/87).
+
+The authenticated Sources surface projects the canonical workspace-knowledge
+registry without workspace ids, database scope, credentials, or sandbox paths.
+It shows each configured repository's evidence class, access check, requested
+ref, resolved revision or pending-read state, freshness, and read or draft
+authority. The working documentation repository remains the only draft target;
+watched and context repositories stay read-only.
+
+The Capabilities surface uses the same capability-family registry and pure
+resolver as the Eve runtime. It explains availability for verified interactive,
+Slack, Linear, schedule, and exact watch contexts. A watch remains conditional
+until its server-owned dispatch claim and effective revision are resolved, and
+publication is always unavailable to watches. UI visibility never replaces the
+execution-time authorization check.
+
+The existing signal detail is the documentation-work detail. Its typed work map
+connects source, evidence, editorial decision and plan identities, related
+internal working documents, reversible draft artifacts, checks, approval, and
+outcome. Workspace memory is shown as routing context and cannot be presented as
+verified evidence. These read models reuse typed control-plane services and add
+no browser mutation or raw-state editor.
+
 ## Later Backlog
 
 The following work stays below the first delivery chain:

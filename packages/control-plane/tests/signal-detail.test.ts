@@ -7,6 +7,7 @@ import { migrateDocsAgentDatabase } from "../src/db/client.ts";
 import { createDocsSignal, updateDocsSignalLifecycle } from "../src/docs-signals.ts";
 import { getOperatorSignalDetail } from "../src/signal-detail.ts";
 import { startOwnedDocsWork } from "../src/owned-docs-work.ts";
+import { createInternalDocument, updateInternalDocument } from "../src/internal-documents.ts";
 import { test } from "vitest";
 
 test("signal detail", async () => {
@@ -65,6 +66,18 @@ try {
     conversation: { kind: "linear-issue", id: "DOCS-101", url: "https://linear.app/acme/issue/DOCS-101" },
   }, { sessionId: "session-DOCS-101", runId: "run-DOCS-101-start" });
 
+  const document = await createInternalDocument({
+    title: "Metadata investigation",
+    content: "# Current finding\n\nThe API source still needs confirmation.",
+    sourceReferences: [{ kind: "docs-signal", id: created.signal.id }],
+  }, {
+    authority: "docs_work.manage",
+    actor: { type: "agent", id: "paige-agent" },
+    sessionId: "session-DOCS-101",
+    runId: "run-DOCS-101-start",
+    operationKey: "create-metadata-investigation",
+  });
+
   await new Promise((resolve) => setTimeout(resolve, 5));
   await updateDocsSignalLifecycle({
     id: created.signal.id,
@@ -80,6 +93,16 @@ try {
   assert.equal(detail.sourceSummary, "Operator-safe source summary.");
   assert.equal(detail.ownedWork?.status, "active");
   assert.equal(detail.ownedWork?.sessionId, "session-DOCS-101");
+  assert.deepEqual(detail.workMap.source.recordIds, [detail.sources[0]?.id]);
+  assert.equal(detail.workMap.internalDocuments[0]?.id, document.document.id);
+  assert.equal(detail.workMap.internalDocuments[0]?.title, "Metadata investigation");
+  assert.deepEqual(detail.workMap.evidence.artifactIds, [
+    detail.artifacts.find(({ kind }) => kind === "verification-report")?.id,
+  ]);
+  assert.equal(detail.workMap.draft.artifactIds.length, 1);
+  assert.equal(detail.workMap.checks.artifactIds.length, 1);
+  assert.equal(detail.workMap.outcome.artifactIds.length, 1);
+  assert.equal(detail.workMap.memoryBoundary.independentPublicProof, false);
   assert.equal(detail.sources[0]?.provider, "Linear");
   assert.deepEqual(detail.sources[0]?.authors, ["Marta", "Kai"]);
   assert.equal(detail.sources[0]?.sourceText, "<script>unsafe()</script> literal source text");
@@ -109,6 +132,26 @@ try {
   assert.equal(serialized.includes("lin_api_secret"), false);
   assert.equal(serialized.includes("xoxb-secret"), false);
   assert.equal(serialized.includes("accept-DOCS-101"), false);
+
+  await updateInternalDocument({
+    documentId: document.document.id,
+    expectedRevision: 1,
+    content: "# Current finding\n\nThis document is no longer part of the signal work.",
+    changeSummary: "Detach the working document from the signal.",
+    sourceReferences: [],
+  }, {
+    authority: "docs_work.manage",
+    actor: { type: "agent", id: "paige-agent" },
+    sessionId: "session-DOCS-101",
+    runId: "run-DOCS-101-detach",
+    operationKey: "detach-metadata-investigation",
+  });
+  const detachedDetail = await getOperatorSignalDetail({ id: created.signal.id });
+  assert.deepEqual(
+    detachedDetail.workMap.internalDocuments,
+    [],
+    "only current internal-document source references belong in the operator work map",
+  );
 } finally {
   restoreEnvironment("DOCS_AGENT_DATABASE_URL", originalDatabaseUrl);
   restoreEnvironment("VERCEL", originalVercel);

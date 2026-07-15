@@ -15,6 +15,7 @@ import {
   INTERNAL_DOCUMENT_MAX_CONTENT_BYTES,
   INTERNAL_DOCUMENT_MAX_REVISIONS,
   InternalDocumentError,
+  listInternalDocumentReferencesBySource,
   readInternalDocument,
   updateInternalDocument,
 } from "../src/internal-documents.ts";
@@ -339,6 +340,27 @@ test("internal working documents", async () => {
         ),
       ),
       null,
+    );
+
+    const deadlineOnly = await createInternalDocument(
+      {
+        ...documentInput("Expired reference projection"),
+        sourceReferences: [{ kind: "docs-signal", id: "signal-expired" }],
+      },
+      command("create-expired-reference", "session-a", "run-expired-reference", baseNow),
+    );
+    await withDocsAgentDatabase(async (db) => {
+      await db.update(internalDocuments).set({
+        retentionExpiresAt: "2000-01-01T00:00:00.000Z",
+      }).where(eq(internalDocuments.id, deadlineOnly.document.id));
+    });
+    assert.deepEqual(
+      await listInternalDocumentReferencesBySource({
+        kind: "docs-signal",
+        id: "signal-expired",
+      }),
+      [],
+      "a passed retention deadline cannot remain in an operator work projection",
     );
 
     const otherWorkspaceId = randomUUID();

@@ -56,6 +56,22 @@ export function SignalDetail({ result }: { result: SignalDetailResult }) {
         </DetailSection>
       ) : null}
 
+      <DetailSection eyebrow="Work map" title="One documentation task, end to end">
+        <div className="grid gap-px overflow-hidden rounded-xl border border-foreground/15 bg-foreground/15 md:grid-cols-2 xl:grid-cols-4" data-work-map>
+          <WorkMapCard title="Source" value={`${signal.workMap.source.recordIds.length} provenance ${signal.workMap.source.recordIds.length === 1 ? "record" : "records"}`} detail="Original provider or manual context kept separate from model-generated claims." />
+          <WorkMapCard title="Evidence" value={`${signal.workMap.evidence.linkIds.length + signal.workMap.evidence.artifactIds.length} linked items`} detail="Repository, docs-page, verification, and impact evidence retained with safe links." />
+          <WorkMapCard title="Decision & plan" value={joinReferences(signal.workMap.typedDecisions.editorialRecommendationId, signal.workMap.typedDecisions.contentPlanId)} detail="Typed editorial recommendation and content plan identities stay attached to the same work." />
+          <WorkMapCard title="Internal documents" value={signal.workMap.internalDocuments.length ? `${signal.workMap.internalDocuments.length} linked` : "None linked"} detail={signal.workMap.internalDocuments.map(({ title, currentRevision }) => `${title} · r${currentRevision}`).join("; ") || "Paige-owned working context is distinct from memory and public drafts."} />
+          <WorkMapCard title="Draft" value={signal.workMap.draft.draftId ?? "No draft"} detail={`${signal.workMap.draft.artifactIds.length} reversible draft or diff artifacts.`} />
+          <WorkMapCard title="Checks" value={`${new Set([...signal.workMap.checks.referenceIds, ...signal.workMap.checks.artifactIds]).size} linked`} detail="Validation identities and operator-safe check artifacts." />
+          <WorkMapCard title="Approval" value={signal.workMap.approval.requestId ?? "Not requested"} detail="Publication remains separate and requires an exact pending Eve approval." />
+          <WorkMapCard title="Outcome" value={signal.workMap.outcome.result ? label(signal.workMap.outcome.result) : label(signal.workMap.outcome.workStatus ?? signal.status)} detail={`${signal.workMap.outcome.artifactIds.length} publication or handoff artifacts.`} />
+        </div>
+        <Card className="border-accent/35 bg-[#f4ead8] py-0" data-work-memory-boundary>
+          <CardContent className="p-5"><PanelLabel>{label(signal.workMap.memoryBoundary.classification)}, not verified evidence</PanelLabel><p className="mt-2 max-w-4xl text-sm leading-6">{signal.workMap.memoryBoundary.explanation}</p></CardContent>
+        </Card>
+      </DetailSection>
+
       <DetailSection eyebrow="Evidence map" title="What the signal appears to affect">
         <div className="grid gap-px overflow-hidden rounded-xl border border-foreground/15 bg-foreground/15 md:grid-cols-2">
           <ListPanel title="Extracted claims" values={signal.extractedClaims} />
@@ -151,6 +167,7 @@ function DetailFailure({ state }: { state: Exclude<SignalDetailResult["state"], 
 function DetailSection({ children, eyebrow, title }: { children: React.ReactNode; eyebrow: string; title: string }) { return <section className="grid gap-5"><div><PanelLabel>{eyebrow}</PanelLabel><h3 className="mt-2 font-heading text-[clamp(2rem,4vw,3.4rem)] leading-none font-medium tracking-[-0.045em]">{title}</h3></div>{children}</section>; }
 function Metric({ label: name, value }: { label: string; value: string }) { return <div><p className="font-mono text-[0.6rem] tracking-[0.08em] text-primary-foreground/55 uppercase">{name}</p><p className="mt-2 max-w-32 font-heading text-2xl leading-tight">{value}</p></div>; }
 function ContextCard({ empty, label: name, values }: { empty: string; label: string; values: string[] }) { return <div className="min-h-36 bg-card p-5"><PanelLabel>{name}</PanelLabel><p className="mt-4 text-sm leading-6 text-muted-foreground">{values.join(" ") || empty}</p></div>; }
+function WorkMapCard({ detail, title, value }: { detail: string; title: string; value: string }) { return <article className="min-h-48 bg-card p-5"><PanelLabel>{title}</PanelLabel><p className="mt-6 break-all font-heading text-2xl leading-tight">{value}</p><p className="mt-3 text-sm leading-6 text-muted-foreground">{detail}</p></article>; }
 function ListPanel({ title, values }: { title: string; values: string[] }) { return <div className="min-h-40 bg-card p-5"><PanelLabel>{title}</PanelLabel>{values.length ? <ul className="mt-4 grid gap-2 text-sm leading-6">{values.map((value) => <li key={value}>— {value}</li>)}</ul> : <p className="mt-4 text-sm text-muted-foreground">None recorded</p>}</div>; }
 function Fact({ label: name, value }: { label: string; value: string }) { return <div><dt className="font-mono text-[0.58rem] tracking-[0.08em] uppercase">{name}</dt><dd className="mt-1 break-all text-foreground">{value}</dd></div>; }
 function PanelLabel({ children }: { children: React.ReactNode }) { return <p className="font-mono text-[0.62rem] font-bold tracking-[0.09em] text-accent uppercase">{children}</p>; }
@@ -159,4 +176,5 @@ function Metadata({ value }: { value: Record<string, unknown> }) { return Object
 function transition(from: string | null, to: string | null): string { return from === null ? `Created as ${label(to ?? "unknown")}` : `${label(from)} → ${label(to ?? "unknown")}`; }
 function eventTitle(eventType: string, from: string | null, to: string | null): string { return from === null && to === null ? label(eventType) : transition(from, to); }
 function label(value: string): string { return value.split("-").map((part) => `${part[0]?.toUpperCase() ?? ""}${part.slice(1)}`).join(" "); }
+function joinReferences(...values: Array<string | null>): string { const present = values.filter((value): value is string => value !== null); return present.length ? present.join(" · ") : "Not recorded"; }
 function formatTime(value: string): string { return new Intl.DateTimeFormat("en", { dateStyle: "medium", timeStyle: "short", timeZone: "UTC" }).format(new Date(value)) + " UTC"; }
