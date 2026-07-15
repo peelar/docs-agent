@@ -1,7 +1,3 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
 
@@ -11,8 +7,12 @@ import type {
   ProposedWatchPolicy,
 } from "@docs-agent/control-plane/testing";
 
-const evalDataDir = mkdtempSync(join(tmpdir(), "paige-watch-continuity-eval-"));
-process.env.DOCS_AGENT_DATABASE_URL = `file:${join(evalDataDir, "continuity.sqlite")}`;
+import {
+  importEvalRuntimeModule,
+  initializeEvalDatabase,
+  saveEvalWorkspaceSetup,
+} from "./eval-database";
+
 const FIRST_RAW_OBSERVATION =
   "The release channel reports that v3.0.0 is now public. Keep this as a provider claim, not official release proof, and retain the open verification question.";
 const controlPlaneAgentModule = "@docs-agent/control-plane/agent";
@@ -26,13 +26,17 @@ const {
   findInternalDocumentByAttachment,
   prepareWatchDispatch,
   saveWorkingRepositorySetup,
-} = await import(controlPlaneAgentModule);
+} = await importEvalRuntimeModule<typeof import("@docs-agent/control-plane/agent")>(
+  controlPlaneAgentModule,
+);
 const {
   approveWatchProposal,
   createProposedWatch,
   migrateDocsAgentDatabase,
-} = await import(controlPlaneTestingModule);
-await migrateDocsAgentDatabase();
+} = await importEvalRuntimeModule<typeof import("@docs-agent/control-plane/testing")>(
+  controlPlaneTestingModule,
+);
+await initializeEvalDatabase(migrateDocsAgentDatabase);
 
 const CAPABILITY_REGISTRY: WatchCapabilityRegistry = {
   version: 1,
@@ -227,7 +231,7 @@ async function runOccurrence(
 
 async function createActiveWatch(): Promise<ActivePolicyBoundWatch> {
   const now = new Date();
-  await saveWorkingRepositorySetup({
+  await saveEvalWorkspaceSetup(saveWorkingRepositorySetup, {
     workingDocumentationRepository: {
       source: { type: "github-url", url: "https://github.com/example/docs.git" },
       ref: "main",

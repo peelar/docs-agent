@@ -1,31 +1,22 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
-
 import { defineEval } from "eve/evals";
 
-const evalDataDir = mkdtempSync(join(tmpdir(), "paige-authoring-convergence-eval-"));
-const evalSandboxPath = `/workspace/working-docs-${basename(evalDataDir)}`;
-process.env.DOCS_AGENT_DATABASE_URL = `file:${join(evalDataDir, "docs-agent.sqlite")}`;
+import {
+  evalSandboxSuffix,
+  importEvalRuntimeModule,
+  initializeEvalDatabase,
+  saveEvalWorkspaceSetup,
+} from "./eval-database";
+
 const controlPlaneTestingModule = "@docs-agent/control-plane/testing";
 const controlPlaneAgentModule = "@docs-agent/control-plane/agent";
-const { migrateDocsAgentDatabase } = await import(controlPlaneTestingModule);
-const { saveWorkingRepositorySetup } = await import(controlPlaneAgentModule);
-await migrateDocsAgentDatabase();
-await saveWorkingRepositorySetup({
-  workingDocumentationRepository: {
-    source: { type: "github-url", url: "https://github.com/peelar/saleor-docs.git" },
-    ref: "main",
-    docsRoot: "docs",
-    sandboxPath: evalSandboxPath,
-    accessMode: "sandbox-write",
-    allowedActions: ["clone", "read", "search", "patch", "run-checks", "export-diff", "publish-pr"],
-    provenanceLabel: "working-documentation-repository",
-  },
-  watchedRepositories: [],
-  contextRepositories: [],
-  externalContext: [],
-});
+const { migrateDocsAgentDatabase } = await importEvalRuntimeModule<
+  typeof import("@docs-agent/control-plane/testing")
+>(controlPlaneTestingModule);
+const { saveWorkingRepositorySetup } = await importEvalRuntimeModule<
+  typeof import("@docs-agent/control-plane/agent")
+>(controlPlaneAgentModule);
+await initializeEvalDatabase(migrateDocsAgentDatabase);
+const evalSandboxPath = `/workspace/working-docs-${evalSandboxSuffix("authoring-convergence")}`;
 
 const common = [
   "Load the docs-maintenance skill and reuse the configured working documentation repository.",
@@ -40,6 +31,7 @@ export default [
     tags: ["authoring-convergence", "issue-81", "focused-patch"],
     timeoutMs: 900_000,
     async test(t) {
+      await useAuthoringFixture();
       await t.send([
         common,
         "On the page that documents pagination limits, make one localized clarification that the documented maximum applies to each paginated connection query.",
@@ -73,6 +65,7 @@ export default [
     tags: ["authoring-convergence", "issue-81", "multi-file-plan"],
     timeoutMs: 900_000,
     async test(t) {
+      await useAuthoringFixture();
       await t.send([
         common,
         "Verified product decision DOCS-EVAL-81 says administrators need a new migration guide named authoring-convergence-eval, linked from the repository navigation.",
@@ -98,6 +91,7 @@ export default [
     tags: ["authoring-convergence", "issue-81", "correction-replan"],
     timeoutMs: 900_000,
     async test(t) {
+      await useAuthoringFixture();
       await t.send([
         common,
         "Verified product decision DOCS-EVAL-81-CORRECTION requires a substantial standalone upgrade guide and navigation entry.",
@@ -130,6 +124,7 @@ export default [
     tags: ["authoring-convergence", "issue-81", "failed-validation"],
     timeoutMs: 900_000,
     async test(t) {
+      await useAuthoringFixture();
       await t.send([
         common,
         "This is a failure-path assurance exercise. Find and read the pagination limits page.",
@@ -159,6 +154,23 @@ export default [
     },
   }),
 ];
+
+async function useAuthoringFixture(): Promise<void> {
+  await saveEvalWorkspaceSetup(saveWorkingRepositorySetup, {
+    workingDocumentationRepository: {
+      source: { type: "github-url", url: "https://github.com/peelar/saleor-docs.git" },
+      ref: "main",
+      docsRoot: "docs",
+      sandboxPath: evalSandboxPath,
+      accessMode: "sandbox-write",
+      allowedActions: ["clone", "read", "search", "patch", "run-checks", "export-diff", "publish-pr"],
+      provenanceLabel: "working-documentation-repository",
+    },
+    watchedRepositories: [],
+    contextRepositories: [],
+    externalContext: [],
+  });
+}
 
 function authoringApplyHasSafeOperations(input: unknown, minimum: number): boolean {
   if (!isRecord(input) || input.mode !== "apply" || !Array.isArray(input.operations) || input.operations.length < minimum) return false;

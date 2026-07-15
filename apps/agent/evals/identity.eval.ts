@@ -1,12 +1,27 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
 
-const evalDataDir = mkdtempSync(join(tmpdir(), "paige-identity-evals-"));
-process.env.DOCS_AGENT_DATABASE_URL ??= `file:${join(evalDataDir, "docs-agent.sqlite")}`;
+import {
+  clearEvalWorkspaceSetup as clearEvalDatabaseSetup,
+  importEvalRuntimeModule,
+  initializeEvalDatabase,
+} from "./eval-database";
+
+const controlPlaneTestingModule = "@docs-agent/control-plane/testing";
+const {
+  migrateDocsAgentDatabase,
+  withDocsAgentDatabase,
+  workspaceSetup,
+} = await importEvalRuntimeModule<typeof import("@docs-agent/control-plane/testing")>(
+  controlPlaneTestingModule,
+);
+await initializeEvalDatabase(migrateDocsAgentDatabase);
+
+async function clearEvalWorkspaceSetup(): Promise<void> {
+  await clearEvalDatabaseSetup(
+    () => withDocsAgentDatabase((db) => db.delete(workspaceSetup)),
+  );
+}
 
 export default [
   defineEval({
@@ -14,6 +29,7 @@ export default [
     tags: ["identity", "conversation", "slack"],
     timeoutMs: 180_000,
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send("<@U0BGMUJFKJM>");
 
       t.succeeded();
@@ -32,6 +48,7 @@ export default [
     tags: ["identity", "conversation"],
     timeoutMs: 180_000,
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send("Hey! I was looking at the authentication docs and...");
 
       t.succeeded();
@@ -50,6 +67,7 @@ export default [
     tags: ["identity", "conversation", "general-answer", "issue-86"],
     timeoutMs: 180_000,
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send([
         "Answer this general software-product question in two or three short sentences without tools:",
         "What is the difference between a semantic-versioning major release and a minor release?",

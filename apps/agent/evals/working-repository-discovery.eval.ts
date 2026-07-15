@@ -1,38 +1,43 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
-
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
 
-const evalDataDir = mkdtempSync(join(tmpdir(), "paige-working-repository-eval-"));
-const evalSandboxPath = `/workspace/working-docs-${basename(evalDataDir)}`;
-process.env.DOCS_AGENT_DATABASE_URL = `file:${join(evalDataDir, "docs-agent.sqlite")}`;
+import {
+  evalSandboxSuffix,
+  importEvalRuntimeModule,
+  initializeEvalDatabase,
+  saveEvalWorkspaceSetup,
+} from "./eval-database";
+
 const controlPlaneTestingModule = "@docs-agent/control-plane/testing";
 const controlPlaneAgentModule = "@docs-agent/control-plane/agent";
-const { migrateDocsAgentDatabase } = await import(controlPlaneTestingModule);
-const { saveWorkingRepositorySetup } = await import(controlPlaneAgentModule);
-await migrateDocsAgentDatabase();
-await saveWorkingRepositorySetup({
-  workingDocumentationRepository: {
-    source: { type: "github-url", url: "https://github.com/peelar/saleor-docs.git" },
-    ref: "main",
-    docsRoot: "docs",
-    sandboxPath: evalSandboxPath,
-    accessMode: "sandbox-write",
-    allowedActions: ["clone", "read", "search", "patch", "run-checks", "export-diff", "publish-pr"],
-    provenanceLabel: "working-documentation-repository",
-  },
-  watchedRepositories: [],
-  contextRepositories: [],
-  externalContext: [],
-});
+const { migrateDocsAgentDatabase } = await importEvalRuntimeModule<
+  typeof import("@docs-agent/control-plane/testing")
+>(controlPlaneTestingModule);
+const { saveWorkingRepositorySetup } = await importEvalRuntimeModule<
+  typeof import("@docs-agent/control-plane/agent")
+>(controlPlaneAgentModule);
+await initializeEvalDatabase(migrateDocsAgentDatabase);
+const evalSandboxPath = `/workspace/working-docs-${evalSandboxSuffix("working-repository")}`;
 
 export default defineEval({
   description: "An unknown docs page is discovered through the canonical repository capability",
   tags: ["working-repository", "discovery", "read-only", "named-validator"],
   timeoutMs: 900_000,
   async test(t) {
+    await saveEvalWorkspaceSetup(saveWorkingRepositorySetup, {
+      workingDocumentationRepository: {
+        source: { type: "github-url", url: "https://github.com/peelar/saleor-docs.git" },
+        ref: "main",
+        docsRoot: "docs",
+        sandboxPath: evalSandboxPath,
+        accessMode: "sandbox-write",
+        allowedActions: ["clone", "read", "search", "patch", "run-checks", "export-diff", "publish-pr"],
+        provenanceLabel: "working-documentation-repository",
+      },
+      watchedRepositories: [],
+      contextRepositories: [],
+      externalContext: [],
+    });
     await t.send([
       "Load the docs-maintenance skill and reuse the configured working documentation repository.",
       "I do not know the file path. Find the page that documents the public maximum number of objects returned by a paginated connection query, read the relevant lines, and tell me the current limit with the exact page path.",

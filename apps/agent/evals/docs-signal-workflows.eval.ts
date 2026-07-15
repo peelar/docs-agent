@@ -1,12 +1,27 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
 
-const evalDataDir = mkdtempSync(join(tmpdir(), "docs-agent-signal-evals-"));
-process.env.DOCS_AGENT_DATABASE_URL ??= `file:${join(evalDataDir, "docs-agent.sqlite")}`;
+import {
+  clearEvalWorkspaceSetup as clearEvalDatabaseSetup,
+  importEvalRuntimeModule,
+  initializeEvalDatabase,
+} from "./eval-database";
+
+const controlPlaneTestingModule = "@docs-agent/control-plane/testing";
+const {
+  migrateDocsAgentDatabase,
+  withDocsAgentDatabase,
+  workspaceSetup,
+} = await importEvalRuntimeModule<typeof import("@docs-agent/control-plane/testing")>(
+  controlPlaneTestingModule,
+);
+await initializeEvalDatabase(migrateDocsAgentDatabase);
+
+async function clearEvalWorkspaceSetup(): Promise<void> {
+  await clearEvalDatabaseSetup(
+    () => withDocsAgentDatabase((db) => db.delete(workspaceSetup)),
+  );
+}
 
 export default [
   defineEval({
@@ -18,6 +33,7 @@ export default [
       expectedTools: ["capture_slack_docs_signal"],
     },
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send(renderSlackSetupBlockedPrompt());
 
       t.succeeded();
@@ -60,6 +76,7 @@ export default [
       expectedTools: ["capture_linear_docs_signal"],
     },
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send(renderLinearSourceEvidencePrompt());
 
       t.succeeded();
@@ -107,6 +124,7 @@ export default [
       expectedTools: ["load_skill", "capture_slack_docs_signal"],
     },
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send(renderSlackIntentRoutingPrompt());
 
       t.succeeded();

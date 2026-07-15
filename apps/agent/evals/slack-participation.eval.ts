@@ -1,7 +1,3 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
 import {
@@ -10,15 +6,27 @@ import {
   SLACK_SILENT_REPLY,
 } from "../agent/lib/slack-chat-turn";
 
-// Preserve the workspace package boundary when Eve bundles eval definitions.
+import {
+  clearEvalWorkspaceSetup as clearEvalDatabaseSetup,
+  importEvalRuntimeModule,
+  initializeEvalDatabase,
+} from "./eval-database";
+
 const controlPlaneTestingModule = "@docs-agent/control-plane/testing";
-let controlPlaneTestingPromise:
-  | Promise<typeof import("@docs-agent/control-plane/testing")>
-  | undefined;
-const { migrateDocsAgentDatabase } = await controlPlaneTesting();
-const evalDataDir = mkdtempSync(join(tmpdir(), "docs-agent-slack-participation-evals-"));
-process.env.DOCS_AGENT_DATABASE_URL = `file:${join(evalDataDir, "docs-agent.sqlite")}`;
-await migrateDocsAgentDatabase();
+const {
+  migrateDocsAgentDatabase,
+  withDocsAgentDatabase,
+  workspaceSetup,
+} = await importEvalRuntimeModule<typeof import("@docs-agent/control-plane/testing")>(
+  controlPlaneTestingModule,
+);
+await initializeEvalDatabase(migrateDocsAgentDatabase);
+
+async function clearEvalWorkspaceSetup(): Promise<void> {
+  await clearEvalDatabaseSetup(
+    () => withDocsAgentDatabase((db) => db.delete(workspaceSetup)),
+  );
+}
 
 export default [
   defineEval({
@@ -26,6 +34,7 @@ export default [
     tags: ["slack-participation", "continuation", "respond"],
     timeoutMs: 180_000,
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send(followedThreadPrompt(
         "Paige just offered to help with documentation evidence. The next human message says: Great — what evidence would you need before documenting a new API limit?",
       ));
@@ -39,6 +48,7 @@ export default [
     tags: ["slack-participation", "answerable-question", "respond"],
     timeoutMs: 180_000,
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send(followedThreadPrompt(
         "Nobody names Paige. A human asks the room: Should documentation for a permission-gated GraphQL field state which permission is required?",
       ));
@@ -52,6 +62,7 @@ export default [
     tags: ["slack-participation", "unrelated", "silent"],
     timeoutMs: 180_000,
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send(followedThreadPrompt(
         "The latest messages are coworkers choosing lunch: I can order pierogi. Should we get six portions or eight? This has no documentation, product, API, release, or support relevance.",
       ));
@@ -66,6 +77,7 @@ export default [
     timeoutMs: 300_000,
     metadata: { expectedTools: ["capture_slack_docs_signal"] },
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send(relevantSignalPrompt());
       t.succeeded();
       t.noFailedActions();
@@ -83,6 +95,7 @@ export default [
     tags: ["slack-participation", "variant", "direct-only", "silent"],
     timeoutMs: 180_000,
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send([
         SLACK_DIRECT_ONLY_THREAD_POLICY,
         "Treat this as one accepted observer turn from an already-enrolled Slack thread.",
@@ -141,9 +154,4 @@ function usefulReply(reply: unknown, terms: string[]): boolean {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function controlPlaneTesting() {
-  controlPlaneTestingPromise ??= import(controlPlaneTestingModule);
-  return controlPlaneTestingPromise;
 }

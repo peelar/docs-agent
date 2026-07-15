@@ -1,28 +1,34 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
-
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
 
+import {
+  evalSandboxSuffix,
+  importEvalRuntimeModule,
+  initializeEvalDatabase,
+  saveEvalWorkspaceSetup,
+} from "./eval-database";
 import { workspaceKnowledgeEvalSetup } from "./workspace-knowledge-fixture";
-
-const evalDataDir = mkdtempSync(join(tmpdir(), "paige-workspace-knowledge-eval-"));
-const sandboxSuffix = basename(evalDataDir);
-process.env.DOCS_AGENT_DATABASE_URL = `file:${join(evalDataDir, "docs-agent.sqlite")}`;
 
 const controlPlaneTestingModule = "@docs-agent/control-plane/testing";
 const controlPlaneAgentModule = "@docs-agent/control-plane/agent";
-const { migrateDocsAgentDatabase } = await import(controlPlaneTestingModule);
-const { saveWorkingRepositorySetup } = await import(controlPlaneAgentModule);
-await migrateDocsAgentDatabase();
-await saveWorkingRepositorySetup(workspaceKnowledgeEvalSetup(sandboxSuffix));
+const { migrateDocsAgentDatabase } = await importEvalRuntimeModule<
+  typeof import("@docs-agent/control-plane/testing")
+>(controlPlaneTestingModule);
+const { saveWorkingRepositorySetup } = await importEvalRuntimeModule<
+  typeof import("@docs-agent/control-plane/agent")
+>(controlPlaneAgentModule);
+await initializeEvalDatabase(migrateDocsAgentDatabase);
+const sandboxSuffix = evalSandboxSuffix("workspace-knowledge");
 
 export default defineEval({
   description: "A current-docs answer is checked against one read-only source repository",
   tags: ["workspace-knowledge", "issue-82", "issue-83", "answer-only", "read-only"],
   timeoutMs: 900_000,
   async test(t) {
+    await saveEvalWorkspaceSetup(
+      saveWorkingRepositorySetup,
+      workspaceKnowledgeEvalSetup(sandboxSuffix),
+    );
     await t.send([
       "Answer this current-state question from the configured workspace:",
       "What maximum does the current pagination documentation state for first or last connection queries, and which current Saleor source file implements or tests connection pagination?",

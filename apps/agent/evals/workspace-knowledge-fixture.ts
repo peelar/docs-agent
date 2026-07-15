@@ -1,4 +1,6 @@
-export function workspaceKnowledgeEvalSetup(sandboxSuffix: string) {
+import type { RepositoryInput } from "@docs-agent/control-plane/agent";
+
+export function workspaceKnowledgeEvalSetup(sandboxSuffix: string): RepositoryInput {
   return {
     workingDocumentationRepository: {
       source: { type: "github-url", url: "https://github.com/peelar/saleor-docs.git" },

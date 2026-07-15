@@ -1,12 +1,27 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
 
-const evalDataDir = mkdtempSync(join(tmpdir(), "docs-agent-memory-evals-"));
-process.env.DOCS_AGENT_DATABASE_URL ??= `file:${join(evalDataDir, "docs-agent.sqlite")}`;
+import {
+  clearEvalWorkspaceSetup as clearEvalDatabaseSetup,
+  importEvalRuntimeModule,
+  initializeEvalDatabase,
+} from "./eval-database";
+
+const controlPlaneTestingModule = "@docs-agent/control-plane/testing";
+const {
+  migrateDocsAgentDatabase,
+  withDocsAgentDatabase,
+  workspaceSetup,
+} = await importEvalRuntimeModule<typeof import("@docs-agent/control-plane/testing")>(
+  controlPlaneTestingModule,
+);
+await initializeEvalDatabase(migrateDocsAgentDatabase);
+
+async function clearEvalWorkspaceSetup(): Promise<void> {
+  await clearEvalDatabaseSetup(
+    () => withDocsAgentDatabase((db) => db.delete(workspaceSetup)),
+  );
+}
 
 const lifecycleMemory = {
   externalId: "WM-EVAL-PRIVATE-METADATA-001",
@@ -30,6 +45,7 @@ export default [
       externalId: lifecycleMemory.externalId,
     },
     async test(t) {
+      await clearEvalWorkspaceSetup();
       if (t.target.kind !== "local") {
         t.skip("Workspace-memory lifecycle evals write persistent records and require an isolated local database.");
       }
@@ -113,6 +129,7 @@ export default [
       externalId: "WM-EVAL-UNTRUSTED-SLACK-001",
     },
     async test(t) {
+      await clearEvalWorkspaceSetup();
       if (t.target.kind !== "local") {
         t.skip("Workspace-memory lifecycle evals write persistent records and require an isolated local database.");
       }

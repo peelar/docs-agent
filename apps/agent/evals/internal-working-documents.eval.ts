@@ -1,17 +1,26 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { join } from "node:path";
-
 import { defineEval } from "eve/evals";
 
+import {
+  clearEvalWorkspaceSetup as clearEvalDatabaseSetup,
+  importEvalRuntimeModule,
+  initializeEvalDatabase,
+} from "./eval-database";
+
 const controlPlaneTestingModule = "@docs-agent/control-plane/testing";
-let controlPlaneTestingPromise:
-  | Promise<typeof import("@docs-agent/control-plane/testing")>
-  | undefined;
-const { migrateDocsAgentDatabase } = await controlPlaneTesting();
-const evalDataDir = mkdtempSync(join(tmpdir(), "paige-internal-document-evals-"));
-process.env.DOCS_AGENT_DATABASE_URL = `file:${join(evalDataDir, "documents.sqlite")}`;
-await migrateDocsAgentDatabase();
+const {
+  migrateDocsAgentDatabase,
+  withDocsAgentDatabase,
+  workspaceSetup,
+} = await importEvalRuntimeModule<typeof import("@docs-agent/control-plane/testing")>(
+  controlPlaneTestingModule,
+);
+await initializeEvalDatabase(migrateDocsAgentDatabase);
+
+async function clearEvalWorkspaceSetup(): Promise<void> {
+  await clearEvalDatabaseSetup(
+    () => withDocsAgentDatabase((db) => db.delete(workspaceSetup)),
+  );
+}
 
 export default [
   defineEval({
@@ -19,6 +28,7 @@ export default [
     tags: ["internal-documents", "living-summary", "skill-routing"],
     timeoutMs: 300_000,
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send([
         "Keep a durable internal working note for this documentation investigation.",
         "The note is titled Release evidence review. It is a research-note using the living-summary editing profile and should be retained for 30 days.",
@@ -45,6 +55,7 @@ export default [
     tags: ["internal-documents", "chronological-log", "skill-routing"],
     timeoutMs: 300_000,
     async test(t) {
+      await clearEvalWorkspaceSetup();
       await t.send([
         "Keep a durable internal working log for documentation handoff decisions.",
         "The log is titled Migration guide decisions. It is a decision-log using the chronological-log editing profile and should be retained for 30 days.",
@@ -122,9 +133,4 @@ function unwrapModelOutput(value: unknown): unknown {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
   return typeof value === "object" && value !== null;
-}
-
-function controlPlaneTesting() {
-  controlPlaneTestingPromise ??= import(controlPlaneTestingModule);
-  return controlPlaneTestingPromise;
 }

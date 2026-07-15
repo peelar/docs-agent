@@ -1,16 +1,14 @@
-import { mkdtempSync } from "node:fs";
-import { tmpdir } from "node:os";
-import { basename, join } from "node:path";
-
-import { eq } from "drizzle-orm";
 import { defineEval } from "eve/evals";
 import { satisfies } from "eve/evals/expect";
 
+import {
+  clearEvalWorkspaceSetup as clearEvalDatabaseSetup,
+  evalSandboxSuffix,
+  importEvalRuntimeModule,
+  initializeEvalDatabase,
+  saveEvalWorkspaceSetup,
+} from "./eval-database";
 import { workspaceKnowledgeEvalSetup } from "./workspace-knowledge-fixture";
-
-const evalDataDir = mkdtempSync(join(tmpdir(), "paige-workspace-knowledge-answers-"));
-const sandboxSuffix = basename(evalDataDir);
-process.env.DOCS_AGENT_DATABASE_URL = `file:${join(evalDataDir, "docs-agent.sqlite")}`;
 
 const controlPlaneTestingModule = "@docs-agent/control-plane/testing";
 const controlPlaneAgentModule = "@docs-agent/control-plane/agent";
@@ -18,9 +16,14 @@ const {
   migrateDocsAgentDatabase,
   withDocsAgentDatabase,
   workspaceSetup,
-} = await import(controlPlaneTestingModule);
-const { saveWorkingRepositorySetup } = await import(controlPlaneAgentModule);
-await migrateDocsAgentDatabase();
+} = await importEvalRuntimeModule<typeof import("@docs-agent/control-plane/testing")>(
+  controlPlaneTestingModule,
+);
+const { saveWorkingRepositorySetup } = await importEvalRuntimeModule<
+  typeof import("@docs-agent/control-plane/agent")
+>(controlPlaneAgentModule);
+await initializeEvalDatabase(migrateDocsAgentDatabase);
+const sandboxSuffix = evalSandboxSuffix("workspace-knowledge");
 
 export default [
   defineEval({
@@ -320,20 +323,17 @@ export default [
 ];
 
 async function ensureWorkspaceKnowledgeSetup(): Promise<void> {
-  await saveWorkingRepositorySetup(workspaceKnowledgeEvalSetup(sandboxSuffix));
+  await saveEvalWorkspaceSetup(
+    saveWorkingRepositorySetup,
+    workspaceKnowledgeEvalSetup(sandboxSuffix),
+  );
 }
 
 async function removeWorkspaceKnowledgeSetup(): Promise<void> {
-  await withDocsAgentDatabase(async (db: EvalDatabase) => {
-    await db.delete(workspaceSetup).where(eq(workspaceSetup.id, "default"));
-  });
+  await clearEvalDatabaseSetup(
+    () => withDocsAgentDatabase((db) => db.delete(workspaceSetup)),
+  );
 }
-
-type EvalDatabase = {
-  delete(table: unknown): {
-    where(condition: unknown): PromiseLike<unknown>;
-  };
-};
 
 function assertInspectedPaginationSources(scope: {
   calledTool(name: string, options?: Record<string, unknown>): unknown;
