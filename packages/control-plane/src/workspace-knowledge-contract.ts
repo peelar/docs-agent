@@ -1,6 +1,9 @@
 import { z } from "zod";
 
-import type { RepositoryInput } from "./repository-contract.ts";
+import {
+  githubRepositoryUrlSchema,
+  type RepositoryInput,
+} from "./repository-contract.ts";
 
 export const workspaceKnowledgeSourceKindSchema = z.enum([
   "working-documentation",
@@ -58,7 +61,7 @@ const workspaceKnowledgeSourceBaseSchema = z.object({
   accessMode: workspaceKnowledgeAccessModeSchema,
   allowedReadActions: z.array(workspaceKnowledgeReadActionSchema).min(1),
   repository: z.object({
-    url: z.string().url(),
+    url: githubRepositoryUrlSchema,
     requestedRef: z.string().trim().min(1),
     sandboxPath: z.string().trim().min(1),
     pathFilters: z.array(z.string()),

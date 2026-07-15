@@ -10,6 +10,15 @@ export * from "./slack-thread-presence.ts";
 export * from "./workspace-memory.ts";
 export * from "./product-runs.ts";
 export * from "./capability-resolution-events.ts";
+export {
+  authoredToolNames,
+  resolveCapabilityMatrix,
+} from "./capability-resolution.ts";
+export type {
+  AuthoredToolName,
+  CapabilityResolution,
+  PrincipalProjection,
+} from "./capability-resolution.ts";
 export * from "./capability-contract.ts";
 export * from "./validation-results.ts";
 export * from "./behavior-settings.ts";

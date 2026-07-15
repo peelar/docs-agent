@@ -19,7 +19,9 @@ export * from "./watch-dispatch-readiness.ts";
 export * from "./watch-event-admission.ts";
 export * from "./workspace-knowledge-contract.ts";
 export * from "./capability-resolution-events.ts";
+export * from "./capability-resolution.ts";
 export * from "./capability-contract.ts";
+export * from "./operator-projections.ts";
 
 export {
   DOCS_PROFILE_FORMAT_VERSION,

@@ -24,7 +24,7 @@ export const WORKING_REPOSITORY_SANDBOX_NETWORK_ALLOWLIST = [
   ...PACKAGE_MANAGER_SANDBOX_NETWORK_ALLOWLIST,
 ] as const;
 
-const githubRepositoryUrlSchema = z
+export const githubRepositoryUrlSchema = z
   .string()
   .trim()
   .min(1)
@@ -33,7 +33,14 @@ const githubRepositoryUrlSchema = z
       const url = new URL(value);
       const pathParts = url.pathname.replace(/\.git$/, "").split("/").filter(Boolean);
 
-      return url.protocol === "https:" && url.hostname === "github.com" && pathParts.length === 2;
+      return url.protocol === "https:" &&
+        url.hostname === "github.com" &&
+        url.port === "" &&
+        url.username === "" &&
+        url.password === "" &&
+        url.search === "" &&
+        url.hash === "" &&
+        pathParts.length === 2;
     } catch {
       return false;
     }
