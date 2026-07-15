@@ -39,6 +39,23 @@ the Playwright browser suite, workspace discovery and migration smoke, and the
 local status smoke. Install Playwright's browser once if prompted:
 `pnpm --filter @docs-agent/web exec playwright install chromium`.
 
+Live Eve evals are behavioral proof, not part of the edit-feedback loop. After
+model-visible behavior is coherent and deterministic checks pass, run only the
+affected eval IDs or tags before handoff:
+
+```sh
+pnpm eval --list
+pnpm eval:feature -- identity/0002 --skip-report --verbose
+pnpm eval:feature -- --tag workspace-memory --skip-report --verbose
+pnpm eval:smoke
+```
+
+An unfiltered `pnpm eval` fails closed instead of placing every live-model case
+under one supervisor clock. `pnpm eval:smoke` is the small conversation smoke
+suite. `pnpm eval:full` discovers every case and gives each one an independent
+supervised budget; reserve it for scheduled or release-level assurance, not an
+issue loop.
+
 Useful focused commands:
 
 ```sh

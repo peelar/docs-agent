@@ -25,6 +25,8 @@ try {
   await writeExecutable(fakeChildPath, fakeChildSource());
   await writeExecutable(fakeMsbPath, fakeMsbSource());
 
+  await testUnfilteredLiveEvalFailsBeforeResources();
+  await testTagSelectedLiveEvalStartsNormally();
   await testSuccessfulRunAndCleanup();
   await testChildExitCodeIsPreserved();
   await testNoProgressTimeoutKillsProcessTree();
@@ -54,6 +56,31 @@ async function testSuccessfulRunAndCleanup() {
   assert.match(result.stdout, /meaningful eval progress/u);
   await assertCleanup(fixture, ["preexisting-sandbox"]);
   assert.deepEqual(await readRemovalLog(fixture), ["eve-sbx-ses-owned-success"]);
+  assert.deepEqual(await readdir(fixture.failureDirectory), []);
+}
+
+async function testUnfilteredLiveEvalFailsBeforeResources() {
+  const fixture = await createFixture("unfiltered");
+  const result = await runFixture(fixture, { FAKE_EVAL_SCENARIO: "success" }, []);
+
+  assert.equal(result.code, 2, result.stderr);
+  assert.match(result.stderr, /live evals require an eval id or --tag selector/u);
+  assert.deepEqual(await readSandboxNames(fixture), ["preexisting-sandbox"]);
+  assert.deepEqual(await readdir(fixture.workflowParent), []);
+  await assertMissing(fixture.lockDirectory);
+  assert.deepEqual(await readdir(fixture.failureDirectory), []);
+}
+
+async function testTagSelectedLiveEvalStartsNormally() {
+  const fixture = await createFixture("tag-selected");
+  const result = await runFixture(
+    fixture,
+    { FAKE_EVAL_SCENARIO: "success" },
+    ["--tag", "smoke"],
+  );
+
+  assert.equal(result.code, 0, result.stderr);
+  await assertCleanup(fixture, ["preexisting-sandbox"]);
   assert.deepEqual(await readdir(fixture.failureDirectory), []);
 }
 
@@ -242,13 +269,13 @@ async function testPnpmProcessGroupInterruptCleansUp() {
   });
   const pnpmEntry = process.env.npm_execpath;
   const command = pnpmEntry
-    ? spawn(process.execPath, [pnpmEntry, "eval:safe"], {
+    ? spawn(process.execPath, [pnpmEntry, "eval:safe", "--", "fixture-eval"], {
         cwd: repositoryRoot,
         detached: true,
         env: environment,
         stdio: ["ignore", "pipe", "pipe"],
       })
-    : spawn("pnpm", ["eval:safe"], {
+    : spawn("pnpm", ["eval:safe", "--", "fixture-eval"], {
         cwd: repositoryRoot,
         detached: true,
         env: environment,
@@ -299,11 +326,11 @@ async function createFixture(name) {
   };
 }
 
-async function runFixture(fixture, overrides) {
+async function runFixture(fixture, overrides, args = ["fixture-eval"]) {
   const environment = fixtureEnvironment(fixture, overrides);
 
   return new Promise((resolvePromise, rejectPromise) => {
-    const command = spawn(process.execPath, [runnerPath], {
+    const command = spawn(process.execPath, [runnerPath, ...args], {
       cwd: repositoryRoot,
       env: environment,
       stdio: ["ignore", "pipe", "pipe"],

@@ -28,8 +28,16 @@ const SUPERVISOR_ERROR_EXIT_CODE = 70;
 const TIMEOUT_EXIT_CODE = 124;
 const EVE_SANDBOX_NAME = /^eve-sbx-(?:ses-|tpl-tmp-)/u;
 const OPENING_SANDBOX_HEARTBEAT = /opening sandbox session/iu;
+const EVAL_FLAGS_WITH_VALUES = new Set([
+  "--junit",
+  "--max-concurrency",
+  "--maxConcurrency",
+  "--timeout",
+  "--url",
+]);
+const EVAL_FLAGS_WITH_INLINE_VALUES = [...EVAL_FLAGS_WITH_VALUES];
 
-const config = readConfig();
+const config = readConfigOrExit();
 const supervisorStartedAt = Date.now();
 const cleanupReserveMs = Math.min(
   30_000,
@@ -135,6 +143,10 @@ function readConfig() {
     );
   }
 
+  const evalArgs = process.argv.slice(2);
+  if (evalArgs[0] === "--") evalArgs.shift();
+  assertTargetedEvalSelection(evalArgs);
+
   const childArgsOverride = process.env.PAIGE_EVAL_CHILD_ARGS_JSON;
   let childArgs;
   if (childArgsOverride) {
@@ -144,8 +156,6 @@ function readConfig() {
     }
     childArgs = parsed;
   } else {
-    const evalArgs = process.argv.slice(2);
-    if (evalArgs[0] === "--") evalArgs.shift();
     assertSerialEvalConcurrency(evalArgs);
     childArgs = ["--filter", "docs-agent", "eval", ...evalArgs];
   }
@@ -181,6 +191,49 @@ function readConfig() {
     wallTimeoutMs,
     workflowParent: process.env.PAIGE_EVAL_WORKFLOW_PARENT ?? tmpdir(),
   };
+}
+
+function readConfigOrExit() {
+  try {
+    return readConfig();
+  } catch (error) {
+    process.stderr.write(`Supervised eval configuration failed: ${describeError(error)}\n`);
+    process.exit(2);
+  }
+}
+
+function assertTargetedEvalSelection(args) {
+  if (args.includes("--list")) return;
+
+  for (let index = 0; index < args.length; index += 1) {
+    const argument = args[index];
+    if (argument === "--tag") {
+      if (
+        typeof args[index + 1] === "string" &&
+        args[index + 1].length > 0 &&
+        !args[index + 1].startsWith("-")
+      ) {
+        return;
+      }
+      continue;
+    }
+    if (argument.startsWith("--tag=") && argument.slice("--tag=".length).length > 0) {
+      return;
+    }
+    if (EVAL_FLAGS_WITH_VALUES.has(argument)) {
+      index += 1;
+      continue;
+    }
+    if (EVAL_FLAGS_WITH_INLINE_VALUES.some((flag) => argument.startsWith(`${flag}=`))) {
+      continue;
+    }
+    if (!argument.startsWith("-")) return;
+  }
+
+  throw new Error(
+    "live evals require an eval id or --tag selector; use `pnpm eval --list`, " +
+      "`pnpm eval:feature -- <id-or-tag>`, or `pnpm eval:full` for scheduled/release assurance",
+  );
 }
 
 function assertSerialEvalConcurrency(args) {

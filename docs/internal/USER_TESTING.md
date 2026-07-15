@@ -144,6 +144,19 @@ baseline, and writes a bounded failure transcript under
 `.eve/eval-supervisor/failures/`. Do not invoke the package-level `eve eval`
 command directly during loop work.
 
+Live evals run at the behavioral-proof stage, after a feature slice is coherent
+and deterministic checks pass. Every ordinary invocation must select one or
+more eval IDs or a tag; an unfiltered run fails before starting Eve or a
+sandbox. Use `pnpm eval:feature -- <id-or-tag>` for issue handoff and
+`pnpm eval:smoke` for the bounded conversation smoke suite. Do not run the full
+suite inside an issue loop.
+
+`pnpm eval:full` is scheduled or release-level assurance. It discovers every
+case and runs them serially, but each case receives a fresh workflow-data
+directory and its own supervisor no-progress and wall-clock budgets. A timeout
+or failure stops the suite visibly instead of leaving later cases inside the
+same oversized invocation.
+
 `apps/agent/evals/saleor-docs-user-tests.eval.ts` registers four executable
 scenarios: the two historical cases, the source-backed EditorJS gap, and a
 repository-generic pagination no-change case whose language cannot match the

@@ -26,7 +26,7 @@ async function clearEvalWorkspaceSetup(): Promise<void> {
 export default [
   defineEval({
     description: "Paige responds naturally to a bare Slack mention",
-    tags: ["identity", "conversation", "slack"],
+    tags: ["identity", "conversation", "slack", "smoke"],
     timeoutMs: 180_000,
     async test(t) {
       await clearEvalWorkspaceSetup();
@@ -64,7 +64,7 @@ export default [
   }),
   defineEval({
     description: "Paige answers a general product question without manufacturing documentation work",
-    tags: ["identity", "conversation", "general-answer", "issue-86"],
+    tags: ["identity", "conversation", "general-answer", "issue-86", "smoke"],
     timeoutMs: 180_000,
     async test(t) {
       await clearEvalWorkspaceSetup();

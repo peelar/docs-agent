@@ -219,7 +219,7 @@ git switch main
 git pull --ff-only origin main
 pnpm check
 pnpm eval --list
-pnpm eval EVAL_NAME --skip-report --verbose
+pnpm eval:feature -- EVAL_NAME --skip-report --verbose
 git commit -m "type(scope): summary"
 git push origin main
 ```

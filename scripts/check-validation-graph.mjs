@@ -130,7 +130,10 @@ assert.doesNotMatch(rootPackage.scripts["check:full"], /--affected/u);
 assert.match(packages.get("docs-agent").scripts.build, /eve build/u);
 assert.match(packages.get("@docs-agent/web").scripts.build, /next build/u);
 assert.equal(rootPackage.scripts.eval, "node scripts/run-supervised-eval.mjs");
+assert.equal(rootPackage.scripts["eval:feature"], "node scripts/run-supervised-eval.mjs");
+assert.equal(rootPackage.scripts["eval:full"], "node scripts/run-full-eval-suite.mjs");
 assert.equal(rootPackage.scripts["eval:safe"], "node scripts/run-supervised-eval.mjs");
+assert.match(rootPackage.scripts["eval:smoke"], /--tag smoke/u);
 assert.equal(rootPackage.scripts["eval:safe:test"], "node scripts/test-supervised-eval.mjs");
 
 console.log("Turbo validation graph checks passed.");

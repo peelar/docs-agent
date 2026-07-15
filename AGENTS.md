@@ -14,6 +14,10 @@ package docs are unavailable, use <https://eve.dev/docs> as a fallback.
   work over, run the complete repo validation command (`pnpm check:full`). Keep
   all required handoff validators wired into that command instead of relying on
   separate remembered steps.
+- Treat live Eve evals as targeted behavioral proof, not as an inner-loop
+  linter. Once model-visible behavior is coherent, run the affected eval IDs or
+  tags with `pnpm eval:feature -- <id-or-tag>`. Reserve `pnpm eval:full` for
+  scheduled or release-level assurance.
 - Before changing persistence, deployment, authentication, connectors, or
   workspace scoping, read and preserve the accepted contract in
   `docs/ARCHITECTURE.md` and its linked ADRs.

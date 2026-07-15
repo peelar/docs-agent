@@ -109,8 +109,9 @@ No material assumptions or gaps.
      details and record every material assumption, gap, or scope repair;
    - implement the smallest coherent slice plus only prerequisites required to
      make the linked outcome work;
-   - run focused proof, behavior proof where applicable, `pnpm check`, and
-     `pnpm check:full`;
+   - run focused deterministic proof while editing, then run affected live eval
+     IDs or tags with `pnpm eval:feature -- <id-or-tag>` once model-visible
+     behavior is coherent, followed by `pnpm check` and `pnpm check:full`;
    - update `HANDOVER.md` before shipping;
    - commit intentionally, push, comment with verification evidence, and close
      the issue without an approval pause; and
@@ -134,6 +135,9 @@ No material assumptions or gaps.
   framework's per-test timeout. Without a repo contract, default to two minutes
   without progress and ten minutes total, and never exceed twenty minutes for
   one command without explicit user approval.
+- Do not run `pnpm eval:full` inside an issue loop. It is scheduled or
+  release-level assurance; issue workers run only the live eval IDs or tags
+  affected by their slice.
 - On timeout, capture the last progress and command, terminate the complete
   process tree, and remove only resources created by that run. Confirm no
   orphan process, sandbox, container, lock, or temporary state remains before
