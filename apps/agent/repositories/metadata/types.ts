@@ -41,29 +41,7 @@ export interface RepositoryCommitSummary {
   url: string;
 }
 
-interface RepositoryChangedFile {
-  path: string;
-  status: "added" | "modified" | "removed" | "renamed";
-  additions: number;
-  deletions: number;
-}
-
-export interface RepositoryComparison {
-  baseRevision: string;
-  headRevision: string;
-  commits: RepositoryCommitSummary[];
-  files: RepositoryChangedFile[];
-  url: string;
-}
-
 export interface RepositoryMetadataQuery {
   repositoryId: string;
-  limit: number;
-}
-
-export interface RepositoryComparisonQuery {
-  repositoryId: string;
-  baseRevision: string;
-  headRevision: string;
   limit: number;
 }

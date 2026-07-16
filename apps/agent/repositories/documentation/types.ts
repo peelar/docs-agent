@@ -1,5 +1,7 @@
-import type { DocumentationRepository } from "./config";
-import type { ResolvedRepository } from "../shared/types";
+import type {
+  DocumentationRepository,
+  ResolvedRepository,
+} from "../types";
 
 export interface DocumentationWorkspace {
   path: string;

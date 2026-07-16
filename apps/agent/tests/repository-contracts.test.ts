@@ -2,23 +2,24 @@ import assert from "node:assert/strict";
 
 import { describe, test } from "vitest";
 
+import { repositoryToolInputSchema } from "../agent/tools/repository";
 import {
-  catalogEvidenceRepositories,
-  evidenceRepositories,
-  resolveConfiguredEvidenceRepository,
-} from "../repositories/evidence/config";
+  assertDocumentationRepository,
+  catalogRepositories,
+  documentationRepository,
+  repositories,
+  resolveConfiguredRepository,
+} from "../repositories/config";
+import { documentationRepositoryTodos } from "../repositories/documentation/service";
+import type { DocumentationRepositoryService } from "../repositories/documentation/service";
 import {
   assertRepositoryRelativePath,
   assertSearchQuery,
   selectFileLines,
-} from "../repositories/evidence/inspection";
-import { documentationRepository } from "../repositories/documentation/config";
-import { documentationRepositoryTodos } from "../repositories/documentation/service";
-import type { DocumentationRepositoryService } from "../repositories/documentation/service";
+} from "../repositories/inspection";
 import { repositoryMetadataTodos } from "../repositories/metadata/service";
 import type { RepositoryMetadataService } from "../repositories/metadata/service";
 import { RepositoryError } from "../repositories/shared/errors";
-import { evidenceRepositoryToolInputSchema } from "../agent/tools/evidence_repository";
 
 const documentationServiceMethods = [
   "prepareWorkspace",
@@ -32,51 +33,57 @@ const metadataServiceMethods = [
   "listOpenPullRequests",
   "listTags",
   "listCommits",
-  "compareRevisions",
 ] satisfies Array<keyof RepositoryMetadataService>;
 
 describe("repository configuration", () => {
-  test("keeps documentation and evidence repository contracts separate", () => {
-    assert.equal(documentationRepository.type, "documentation");
+  test("keeps one catalog and distinguishes only repository authority", () => {
+    assert.equal(documentationRepository.id, "saleor-docs");
     assert.deepEqual(
-      evidenceRepositories.map((repository) => repository.type),
-      ["evidence", "evidence", "evidence"],
+      catalogRepositories().map(({ id, role }) => ({ id, role })),
+      [
+        { id: "saleor-core", role: "evidence" },
+        { id: "saleor-dashboard", role: "evidence" },
+        { id: "saleor-apps", role: "evidence" },
+        { id: "saleor-docs", role: "documentation" },
+      ],
     );
-    assert.deepEqual(
-      evidenceRepositories.map((repository) => repository.access),
-      ["public", "public", "public"],
-    );
-    assert.deepEqual(
-      catalogEvidenceRepositories().map((repository) => repository.id),
-      ["saleor-core", "saleor-dashboard", "saleor-apps"],
-    );
+    assert.equal("access" in repositories[0], false);
   });
 
-  test("resolves only configured evidence repository ids", () => {
-    const configured = resolveConfiguredEvidenceRepository(
-      evidenceRepositories,
+  test("resolves only configured repository ids", () => {
+    const configured = resolveConfiguredRepository(
+      repositories,
       "saleor-core",
     );
     assert(configured.isOk());
     assert.equal(configured.value.name, "saleor");
 
-    const documentation = resolveConfiguredEvidenceRepository(
-      evidenceRepositories,
+    const documentation = resolveConfiguredRepository(
+      repositories,
       "saleor-docs",
     );
-    assert(documentation.isErr());
-    assert.equal(documentation.error.code, "REPOSITORY_NOT_CONFIGURED");
+    assert(documentation.isOk());
+    assert.equal(documentation.value.role, "documentation");
 
-    const unconfigured = resolveConfiguredEvidenceRepository(
-      evidenceRepositories,
+    const unconfigured = resolveConfiguredRepository(
+      repositories,
       "unconfigured",
     );
     assert(unconfigured.isErr());
     assert.equal(unconfigured.error.code, "REPOSITORY_NOT_CONFIGURED");
-    assert.match(
-      unconfigured.error.message,
-      /Evidence repository is not configured/,
+    assert.match(unconfigured.error.message, /Repository is not configured/);
+  });
+
+  test("allows writes only for the documentation role", () => {
+    const evidence = assertDocumentationRepository(repositories[0]);
+    assert(evidence.isErr());
+    assert.equal(evidence.error.code, "REPOSITORY_WRITE_FORBIDDEN");
+
+    const documentation = assertDocumentationRepository(
+      documentationRepository,
     );
+    assert(documentation.isOk());
+    assert.equal(documentation.value.id, "saleor-docs");
   });
 
   test("preserves coded error causes", () => {
@@ -94,30 +101,48 @@ describe("repository configuration", () => {
   });
 });
 
-describe("evidence repository tool contract", () => {
-  test("accepts the four read-only actions", () => {
+describe("repository tool contract", () => {
+  test("accepts catalog, revision reads, and comparisons", () => {
     assert.deepEqual(
-      evidenceRepositoryToolInputSchema.parse({ action: "catalog" }),
+      repositoryToolInputSchema.parse({ action: "catalog" }),
       { action: "catalog" },
     );
     assert.deepEqual(
-      evidenceRepositoryToolInputSchema.parse({
+      repositoryToolInputSchema.parse({
         action: "search",
         repositoryId: "saleor-core",
+        revision: "3.21",
         query: "checkout",
       }),
       {
         action: "search",
         repositoryId: "saleor-core",
+        revision: "3.21",
         query: "checkout",
         pathPrefix: ".",
         limit: 50,
       },
     );
+    assert.deepEqual(
+      repositoryToolInputSchema.parse({
+        action: "compare",
+        repositoryId: "saleor-core",
+        baseRevision: "3.20",
+        headRevision: "3.21",
+      }),
+      {
+        action: "compare",
+        repositoryId: "saleor-core",
+        baseRevision: "3.20",
+        headRevision: "3.21",
+        pathPrefix: ".",
+        limit: 100,
+      },
+    );
   });
 
   test("does not accept model-supplied repository coordinates", () => {
-    assert.throws(() => evidenceRepositoryToolInputSchema.parse({
+    assert.throws(() => repositoryToolInputSchema.parse({
       action: "catalog",
       owner: "someone",
       name: "unconfigured",
@@ -188,8 +213,8 @@ describe("evidence repository tool contract", () => {
   });
 });
 
-describe("future repository capability shells", () => {
-  test("records the documentation writeback phases without exposing a tool", () => {
+describe("future repository capabilities", () => {
+  test("records documentation writeback phases over the shared Git workspace", () => {
     assert.deepEqual(documentationServiceMethods, [
       "prepareWorkspace",
       "inspectDiff",
@@ -197,8 +222,8 @@ describe("future repository capability shells", () => {
       "openDraftPullRequest",
     ]);
     assert.deepEqual(documentationRepositoryTodos, [
-      "materialize-real-git-checkout",
-      "edit-only-configured-documentation-repository",
+      "reuse-shared-git-workspace",
+      "write-only-documentation-role",
       "generate-bounded-diff",
       "require-explicit-writeback-approval",
       "create-branch-and-commit-from-base-revision",
@@ -206,14 +231,13 @@ describe("future repository capability shells", () => {
     ]);
   });
 
-  test("records the bounded GitHub metadata reads to implement", () => {
+  test("keeps repository metadata deferred and separate from Git comparisons", () => {
     assert.deepEqual(metadataServiceMethods, [
       "listReleases",
       "listOpenIssues",
       "listOpenPullRequests",
       "listTags",
       "listCommits",
-      "compareRevisions",
     ]);
     assert.deepEqual(repositoryMetadataTodos, [
       "list-releases",
@@ -221,7 +245,6 @@ describe("future repository capability shells", () => {
       "list-open-pull-requests",
       "list-tags",
       "list-commits",
-      "compare-revisions-and-list-changed-files",
     ]);
   });
 });

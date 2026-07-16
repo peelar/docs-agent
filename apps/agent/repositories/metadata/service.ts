@@ -1,8 +1,6 @@
 import type { RepositoryResultAsync } from "../shared/errors";
 import type {
   RepositoryCommitSummary,
-  RepositoryComparison,
-  RepositoryComparisonQuery,
   RepositoryIssue,
   RepositoryMetadataQuery,
   RepositoryPullRequest,
@@ -33,9 +31,6 @@ export interface RepositoryMetadataService {
   listCommits(
     input: RepositoryMetadataQuery,
   ): RepositoryResultAsync<RepositoryCommitSummary[]>;
-  compareRevisions(
-    input: RepositoryComparisonQuery,
-  ): RepositoryResultAsync<RepositoryComparison>;
 }
 
 export const repositoryMetadataTodos = [
@@ -44,5 +39,4 @@ export const repositoryMetadataTodos = [
   "list-open-pull-requests",
   "list-tags",
   "list-commits",
-  "compare-revisions-and-list-changed-files",
 ] as const;

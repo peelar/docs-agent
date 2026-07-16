@@ -6,41 +6,41 @@ import { err, ok, ResultAsync } from "neverthrow";
 import { afterEach, describe, test, vi } from "vitest";
 
 import {
-  ensureEvidenceRepositoryCheckout,
-} from "../repositories/evidence/checkout";
+  checkoutRepositoryRevision,
+  ensureRepositoryRevisions,
+} from "../repositories/git";
 import {
-  readEvidenceRepositoryFile,
-  searchEvidenceRepository,
-} from "../repositories/evidence/inspection";
-import { EvidenceRepositoryService } from "../repositories/evidence/service";
-import type { EvidenceRepository } from "../repositories/evidence/types";
+  compareRepositoryRevisions,
+  readRepositoryFile,
+  searchRepository,
+} from "../repositories/inspection";
+import { RepositoryService } from "../repositories/service";
 import { RepositoryError } from "../repositories/shared/errors";
-import {
-  downloadRepositoryArchive,
-  resolveGitHubRevision,
-} from "../repositories/shared/github";
+import { resolveGitHubRevision } from "../repositories/shared/github";
 import { serializeSandbox } from "../repositories/shared/serialization";
 import type {
-  RepositoryCheckout,
+  RepositoryConfig,
+  RepositoryWorkspace,
   ResolvedRepository,
-} from "../repositories/shared/types";
+} from "../repositories/types";
 
-const repository: EvidenceRepository = {
+const repository: RepositoryConfig = {
   id: "saleor-core",
   owner: "saleor",
   name: "saleor",
-  type: "evidence",
-  access: "github-app",
+  role: "evidence",
 };
-const resolvedRepository: ResolvedRepository<EvidenceRepository> = {
+const resolvedRepository: ResolvedRepository = {
   ...repository,
+  isPrivate: false,
   ref: "main",
   resolvedRevision: "0123456789abcdef0123456789abcdef01234567",
 };
-const checkout: RepositoryCheckout<EvidenceRepository> = {
-  path: "/workspace/evidence-repositories/saleor-core",
+const workspace: RepositoryWorkspace = {
+  path: "/workspace/repositories/saleor-core",
   repository: resolvedRepository,
 };
+const remoteUrl = "https://github.com/saleor/saleor.git";
 
 afterEach(() => {
   vi.unstubAllGlobals();
@@ -79,7 +79,7 @@ describe("repository sandbox serialization", () => {
             events.push("second:start");
             return ok("second");
           }),
-      ),
+        ),
     );
 
     await firstStarted;
@@ -121,128 +121,160 @@ describe("repository sandbox serialization", () => {
   });
 });
 
-describe("repository checkout", () => {
-  test("reuses a checkout whose metadata matches the resolved revision", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(jsonResponse({ default_branch: "main" }))
-      .mockResolvedValueOnce(jsonResponse({ sha: resolvedRepository.resolvedRevision }));
-    vi.stubGlobal("fetch", fetchMock);
+describe("Git repository cache", () => {
+  test("reuses a cached shallow repository when the commit is already present", async () => {
     const sandbox = createSandbox({
-      readTextFile: vi
-        .fn<SandboxSession["readTextFile"]>()
-        .mockResolvedValue(JSON.stringify(resolvedRepository)),
+      run: commandSequence([
+        commandResult(),
+        commandResult({ stdout: `${remoteUrl}\n` }),
+        commandResult(),
+        commandResult(),
+      ]),
     });
 
-    const result = await ensureEvidenceRepositoryCheckout({
+    const result = await ensureRepositoryRevisions({
       sandbox,
       repository,
-      getGitHubToken: () => ResultAsync.fromSafePromise(Promise.resolve("token")),
+      revisions: [resolvedRepository],
+      token: "token",
       abortSignal: new AbortController().signal,
     });
 
     assert(result.isOk());
-    assert.deepEqual(result.value, checkout);
-    assert.equal(fetchMock.mock.calls.length, 2);
-    assert.equal(sandbox.writeFile.mock.calls.length, 0);
-    assert.equal(sandbox.run.mock.calls.length, 0);
+    assert.deepEqual(result.value, [workspace]);
+    assert.equal(sandbox.setNetworkPolicy.mock.calls.length, 0);
+    assert.equal(sandbox.removePath.mock.calls.length, 0);
   });
 
-  test("removes temporary files and returns a typed error after extraction fails", async () => {
-    const fetchMock = vi
-      .fn<typeof fetch>()
-      .mockResolvedValueOnce(jsonResponse({ default_branch: "main" }))
-      .mockResolvedValueOnce(jsonResponse({ sha: resolvedRepository.resolvedRevision }))
-      .mockResolvedValueOnce(new Response("archive"));
-    vi.stubGlobal("fetch", fetchMock);
-    const removePath = vi
-      .fn<SandboxSession["removePath"]>()
-      .mockResolvedValue(undefined);
+  test("initializes and shallow-fetches a missing revision with brokered auth", async () => {
     const sandbox = createSandbox({
-      readTextFile: vi
-        .fn<SandboxSession["readTextFile"]>()
-        .mockResolvedValue(null),
-      removePath,
-      run: vi.fn<SandboxSession["run"]>().mockResolvedValue(
-        commandResult({ exitCode: 2, stderr: "invalid archive" }),
-      ),
+      run: commandSequence([
+        commandResult({ exitCode: 1 }),
+        commandResult(),
+        commandResult({ exitCode: 1 }),
+        commandResult(),
+        commandResult(),
+      ]),
     });
 
-    const result = await ensureEvidenceRepositoryCheckout({
+    const result = await ensureRepositoryRevisions({
       sandbox,
       repository,
-      getGitHubToken: () => ResultAsync.fromSafePromise(Promise.resolve("token")),
+      revisions: [resolvedRepository],
+      token: "secret-token",
+      abortSignal: new AbortController().signal,
+    });
+
+    assert(result.isOk());
+    assert.match(
+      sandbox.run.mock.calls[1][0].command,
+      /git init && git remote add origin/,
+    );
+    assert.match(
+      sandbox.run.mock.calls[3][0].command,
+      new RegExp(
+        `git fetch --depth=1 --no-tags origin '${resolvedRepository.resolvedRevision}'`,
+      ),
+    );
+    assert.deepEqual(sandbox.setNetworkPolicy.mock.calls[1], ["deny-all"]);
+    const brokerPolicy = sandbox.setNetworkPolicy.mock.calls[0][0];
+    assert.equal("github.com" in brokerPolicy.allow, true);
+    assert.equal(JSON.stringify(brokerPolicy).includes("Authorization"), false);
+    assert.equal(
+      JSON.stringify(brokerPolicy).includes("secret-token"),
+      false,
+    );
+  });
+
+  test("brokers the shared token only for a verified private repository", async () => {
+    const privateRevision: ResolvedRepository = {
+      ...resolvedRepository,
+      isPrivate: true,
+    };
+    const sandbox = createSandbox({
+      run: commandSequence([
+        commandResult({ exitCode: 1 }),
+        commandResult(),
+        commandResult({ exitCode: 1 }),
+        commandResult(),
+        commandResult(),
+      ]),
+    });
+
+    const result = await ensureRepositoryRevisions({
+      sandbox,
+      repository,
+      revisions: [privateRevision],
+      token: "secret-token",
+      abortSignal: new AbortController().signal,
+    });
+
+    assert(result.isOk());
+    const brokerPolicy = sandbox.setNetworkPolicy.mock.calls[0][0];
+    assert.equal(JSON.stringify(brokerPolicy).includes("Authorization"), true);
+    assert.equal(
+      JSON.stringify(brokerPolicy).includes("secret-token"),
+      false,
+    );
+  });
+
+  test("restores deny-all and returns a typed error when fetch fails", async () => {
+    const sandbox = createSandbox({
+      run: commandSequence([
+        commandResult({ exitCode: 1 }),
+        commandResult(),
+        commandResult({ exitCode: 1 }),
+        commandResult({ exitCode: 128, stderr: "repository not found" }),
+      ]),
+    });
+
+    const result = await ensureRepositoryRevisions({
+      sandbox,
+      repository,
+      revisions: [resolvedRepository],
+      token: "token",
       abortSignal: new AbortController().signal,
     });
 
     assert(result.isErr());
     assert.equal(result.error.code, "REPOSITORY_SANDBOX_FAILED");
-    assert.match(result.error.message, /invalid archive/);
-    assert.deepEqual(
-      removePath.mock.calls.map(([input]) => ({
-        path: input.path,
-        recursive: input.recursive,
-      })),
-      [
-        {
-          path: "/workspace/evidence-repositories/saleor-core.staging",
-          recursive: true,
-        },
-        {
-          path:
-            "/workspace/evidence-repositories/.saleor-core-0123456789ab.tar.gz",
-          recursive: undefined,
-        },
-        {
-          path: "/workspace/evidence-repositories/saleor-core.staging",
-          recursive: true,
-        },
-      ],
-    );
-    assert.match(
-      sandbox.run.mock.calls[0][0].command,
-      /find .* -type l -delete/,
-    );
+    assert.match(result.error.message, /repository not found/);
+    assert.deepEqual(sandbox.setNetworkPolicy.mock.calls[1], ["deny-all"]);
   });
-});
 
-describe("repository inspection", () => {
-  test("rejects missing files before reading their content", async () => {
+  test("never discards an existing dirty working tree", async () => {
     const sandbox = createSandbox({
-      run: vi
-        .fn<SandboxSession["run"]>()
-        .mockResolvedValue(commandResult({ exitCode: 1 })),
+      run: commandSequence([
+        commandResult({ stdout: " M docs/example.md\n" }),
+      ]),
     });
 
-    const result = await readEvidenceRepositoryFile({
+    const result = await checkoutRepositoryRevision({
       sandbox,
-      checkout,
+      workspace,
       abortSignal: new AbortController().signal,
-      path: "missing.md",
-      startLine: 1,
-      maxCharacters: 24_000,
     });
 
     assert(result.isErr());
-    assert.equal(result.error.code, "REPOSITORY_FILE_NOT_FOUND");
-    assert.equal(sandbox.readTextFile.mock.calls.length, 0);
+    assert.equal(result.error.code, "REPOSITORY_DIRTY_WORKSPACE");
+    assert.equal(sandbox.run.mock.calls.length, 1);
   });
+});
 
+describe("Git object inspection", () => {
   test("returns bounded content and the inspected blob SHA", async () => {
     const sandbox = createSandbox({
-      run: vi
-        .fn<SandboxSession["run"]>()
-        .mockResolvedValueOnce(commandResult())
-        .mockResolvedValueOnce(commandResult({ stdout: "14\n" }))
-        .mockResolvedValueOnce(commandResult({ stdout: "blob-sha\n" })),
-      readTextFile: vi
-        .fn<SandboxSession["readTextFile"]>()
-        .mockResolvedValue("one\ntwo\nthree"),
+      run: commandSequence([
+        commandResult({ stdout: "blob\n" }),
+        commandResult({ stdout: "14\n" }),
+        commandResult({ stdout: "one\ntwo\nthree" }),
+        commandResult({ stdout: "blob-sha\n" }),
+      ]),
     });
 
-    const result = await readEvidenceRepositoryFile({
+    const result = await readRepositoryFile({
       sandbox,
-      checkout,
+      workspace,
       abortSignal: new AbortController().signal,
       path: "docs/example.md",
       startLine: 2,
@@ -260,21 +292,23 @@ describe("repository inspection", () => {
       content: "two\nt",
       truncated: true,
     });
+    assert.match(sandbox.run.mock.calls[2][0].command, /git show/);
   });
 
-  test("parses bounded search matches and ignores malformed output", async () => {
-    const longExcerpt = "x".repeat(600);
+  test("parses bounded searches from an immutable revision", async () => {
     const sandbox = createSandbox({
-      run: vi.fn<SandboxSession["run"]>().mockResolvedValue(
+      run: commandSequence([
         commandResult({
-          stdout: `./docs/a.md:12:first\nmalformed\nsrc/b.ts:3:${longExcerpt}\n`,
+          stdout:
+            `${resolvedRepository.resolvedRevision}:docs/a.md\0${12}\0first\n` +
+            `${resolvedRepository.resolvedRevision}:src/b.ts\0${3}\0second\n`,
         }),
-      ),
+      ]),
     });
 
-    const result = await searchEvidenceRepository({
+    const result = await searchRepository({
       sandbox,
-      checkout,
+      workspace,
       abortSignal: new AbortController().signal,
       query: "literal",
       pathPrefix: ".",
@@ -286,63 +320,74 @@ describe("repository inspection", () => {
       { path: "docs/a.md", line: 12, excerpt: "first" },
     ]);
     assert.equal(result.value.truncated, true);
-    assert.match(
-      sandbox.run.mock.calls[0][0].command,
-      /--fixed-strings -- 'literal'/,
-    );
+    assert.match(sandbox.run.mock.calls[0][0].command, /git grep/);
+  });
+
+  test("compares two fetched revisions without another GitHub API", async () => {
+    const headRepository: ResolvedRepository = {
+      ...repository,
+      isPrivate: false,
+      ref: "3.21",
+      resolvedRevision: "abcdef0123456789abcdef0123456789abcdef01",
+    };
+    const sandbox = createSandbox({
+      run: commandSequence([
+        commandResult({ stdout: "docs/a.md\0src/b.ts\0extra.md\0" }),
+      ]),
+    });
+
+    const result = await compareRepositoryRevisions({
+      sandbox,
+      baseWorkspace: workspace,
+      headWorkspace: {
+        path: workspace.path,
+        repository: headRepository,
+      },
+      abortSignal: new AbortController().signal,
+      pathPrefix: ".",
+      limit: 2,
+    });
+
+    assert(result.isOk());
+    assert.deepEqual(result.value, {
+      repositoryId: repository.id,
+      baseRevision: resolvedRepository.resolvedRevision,
+      headRevision: headRepository.resolvedRevision,
+      changedFiles: ["docs/a.md", "src/b.ts"],
+      truncated: true,
+    });
+    assert.match(sandbox.run.mock.calls[0][0].command, /git diff --name-only/);
   });
 });
 
 describe("repository GitHub boundary", () => {
-  test("uses the pinned API version and resolves an immutable revision", async () => {
+  test("uses one GitHub App token and resolves a requested ref", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()
-      .mockResolvedValueOnce(jsonResponse({ default_branch: "main" }))
-      .mockResolvedValueOnce(jsonResponse({ sha: resolvedRepository.resolvedRevision }));
+      .mockResolvedValueOnce(jsonResponse({
+        default_branch: "main",
+        private: false,
+      }))
+      .mockResolvedValueOnce(jsonResponse({
+        sha: resolvedRepository.resolvedRevision,
+      }));
     vi.stubGlobal("fetch", fetchMock);
 
     const result = await resolveGitHubRevision(
       repository,
       "secret-token",
       new AbortController().signal,
+      "3.21",
     );
 
     assert(result.isOk());
-    assert.deepEqual(result.value, resolvedRepository);
-    const [, options] = fetchMock.mock.calls[0];
-    assert.deepEqual(options?.headers, {
+    assert.equal(result.value.ref, "3.21");
+    assert.deepEqual(fetchMock.mock.calls[0][1]?.headers, {
       accept: "application/vnd.github+json",
       authorization: "Bearer secret-token",
       "x-github-api-version": "2026-03-10",
     });
-  });
-
-  test("maps HTTP and empty archive responses to GitHub errors", async () => {
-    vi.stubGlobal(
-      "fetch",
-      vi
-        .fn<typeof fetch>()
-        .mockResolvedValueOnce(new Response("forbidden", { status: 403 }))
-        .mockResolvedValueOnce(new Response(null, { status: 200 })),
-    );
-
-    const revision = await resolveGitHubRevision(
-      repository,
-      "token",
-      new AbortController().signal,
-    );
-    const archive = await downloadRepositoryArchive(
-      resolvedRepository,
-      "token",
-      new AbortController().signal,
-    );
-
-    assert(revision.isErr());
-    assert.equal(revision.error.code, "REPOSITORY_GITHUB_FAILED");
-    assert.match(revision.error.message, /HTTP 403/);
-    assert(archive.isErr());
-    assert.equal(archive.error.code, "REPOSITORY_GITHUB_FAILED");
-    assert.match(archive.error.message, /empty archive/);
+    assert.match(fetchMock.mock.calls[1][0].toString(), /commits\/3.21$/);
   });
 
   test("preserves cancellation as a rejected promise", async () => {
@@ -353,7 +398,12 @@ describe("repository GitHub boundary", () => {
 
     await assert.rejects(
       async () =>
-        await resolveGitHubRevision(repository, "token", controller.signal),
+        await resolveGitHubRevision(
+          repository,
+          "token",
+          controller.signal,
+          "main",
+        ),
       cancellation,
     );
   });
@@ -370,7 +420,7 @@ describe("repository service", () => {
         return createSandbox();
       },
     } as unknown as ToolContext;
-    const service = new EvidenceRepositoryService(ctx, {
+    const service = new RepositoryService(ctx, {
       getGitHubToken: () => {
         tokenRequests += 1;
         return ResultAsync.fromSafePromise(Promise.resolve("token"));
@@ -389,19 +439,18 @@ describe("repository service", () => {
     assert.equal(tokenRequests, 0);
   });
 
-  test("preserves typed checkout failures", async () => {
-    const checkoutError = new RepositoryError(
+  test("preserves typed GitHub authentication failures", async () => {
+    const authError = new RepositoryError(
       "REPOSITORY_GITHUB_AUTH_FAILED",
       "connector unavailable",
     );
     const ctx = {
       abortSignal: new AbortController().signal,
-      getSandbox: async () =>
-        createSandbox({ id: "sandbox-checkout-failure" }),
+      getSandbox: async () => createSandbox(),
     } as unknown as ToolContext;
-    const service = new EvidenceRepositoryService(ctx, {
+    const service = new RepositoryService(ctx, {
       repositories: [repository],
-      getGitHubToken: () => new ResultAsync(Promise.resolve(err(checkoutError))),
+      getGitHubToken: () => new ResultAsync(Promise.resolve(err(authError))),
     });
 
     const result = await service.listFiles({
@@ -411,7 +460,7 @@ describe("repository service", () => {
     });
 
     assert(result.isErr());
-    assert.equal(result.error, checkoutError);
+    assert.equal(result.error, authError);
   });
 });
 
@@ -443,11 +492,16 @@ function createSandbox(
       .mockResolvedValue(undefined),
     ...overrides,
   } as unknown as SandboxSession & {
-    readTextFile: ReturnType<typeof vi.fn>;
     removePath: ReturnType<typeof vi.fn>;
     run: ReturnType<typeof vi.fn>;
-    writeFile: ReturnType<typeof vi.fn>;
+    setNetworkPolicy: ReturnType<typeof vi.fn>;
   };
+}
+
+function commandSequence(results: SandboxCommandResult[]) {
+  const mock = vi.fn<SandboxSession["run"]>();
+  for (const result of results) mock.mockResolvedValueOnce(result);
+  return mock;
 }
 
 function commandResult(

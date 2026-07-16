@@ -9,27 +9,19 @@ import type {
 /**
  * Contract for the future writable documentation repository capability.
  *
- * Why this is separate from the evidence repository:
- *
- * Evidence repositories answer "what does the product currently do?" They are
- * immutable tarball snapshots at resolved commit SHAs. That representation is
- * intentionally cheap, attributable, and incapable of pushing changes, but it
- * has no `.git` history or index and therefore cannot safely support editing,
- * conflict detection, branch creation, commits, or pull requests.
- *
- * The documentation repository answers a different question: "what change
- * should Paige propose to the maintained documentation?" It needs a real Git
- * working tree so Paige can anchor edits to an observed base revision, inspect
- * the exact diff, detect upstream movement, and publish only the approved
- * patch. Keeping this capability separate prevents read-only product evidence
- * from accidentally becoming writable or entering a documentation commit.
+ * Every configured repository now uses the same authenticated shallow Git
+ * cache. Read operations inspect immutable Git objects without needing a
+ * working tree. The documentation repository differs only in authority: its
+ * role permits a checked-out working tree and approval-gated writeback.
  *
  * Implementation invariants:
  *
- * - Materialize only the configured documentation repository. Never accept
- *   model-supplied owner/name coordinates.
- * - Use a real Git checkout with `.git`; do not reuse or promote an evidence
- *   tarball checkout.
+ * - Resolve the configured documentation repository through the shared
+ *   repository catalog. Never accept model-supplied owner/name coordinates.
+ * - Reject every write operation unless the repository role is
+ *   `documentation`.
+ * - Reuse the shared Git object cache, then create a working tree at the
+ *   immutable base revision without discarding existing changes.
  * - Record the immutable base commit before edits. Every later diff, branch,
  *   commit, and PR must be traceable to that base.
  * - Keep GitHub credentials in the trusted app runtime. Prefer credential
@@ -108,8 +100,8 @@ export interface DocumentationRepositoryService {
 }
 
 export const documentationRepositoryTodos = [
-  "materialize-real-git-checkout",
-  "edit-only-configured-documentation-repository",
+  "reuse-shared-git-workspace",
+  "write-only-documentation-role",
   "generate-bounded-diff",
   "require-explicit-writeback-approval",
   "create-branch-and-commit-from-base-revision",

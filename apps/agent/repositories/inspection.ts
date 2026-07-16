@@ -1,48 +1,41 @@
 import type { SandboxCommandResult, SandboxSession } from "eve/sandbox";
 import { err, ok, ResultAsync } from "neverthrow";
 
-import { RepositoryError } from "../shared/errors";
+import { RepositoryError } from "./shared/errors";
 import type {
   RepositoryResult,
   RepositoryResultAsync,
-} from "../shared/errors";
+} from "./shared/errors";
 import type {
-  RepositoryCheckout,
-  ResolvedRepository,
-} from "../shared/types";
-import type { EvidenceRepository } from "./types";
+  RepositoryComparison,
+  RepositorySearchMatch,
+  RepositoryWorkspace,
+} from "./types";
 
 const MAX_READ_FILE_BYTES = 1_000_000;
 const MAX_READ_LINES = 400;
 const MAX_READ_CHARACTERS = 24_000;
 const MAX_SEARCH_EXCERPT_CHARACTERS = 500;
 
-export interface EvidenceRepositorySearchMatch {
-  path: string;
-  line: number;
-  excerpt: string;
-}
-
-/** Lists repository files under a validated prefix with a bounded result set. */
-export function listEvidenceRepositoryFiles(input: {
+/** Lists files from one immutable revision without populating a working tree. */
+export function listRepositoryFiles(input: {
   sandbox: SandboxSession;
-  checkout: RepositoryCheckout<EvidenceRepository>;
+  workspace: RepositoryWorkspace;
   abortSignal: AbortSignal;
   pathPrefix: string;
   limit: number;
 }): RepositoryResultAsync<{
-  repository: ResolvedRepository<EvidenceRepository>;
+  repository: RepositoryWorkspace["repository"];
   files: string[];
   truncated: boolean;
 }> {
   return new ResultAsync((async () => {
-    const prefixFilter =
-      input.pathPrefix === "."
-        ? ""
-        : ` | awk -v prefix=${quoteShellArgument(input.pathPrefix)} 'index($0, prefix) == 1'`;
+    const pathspec = input.pathPrefix === "."
+      ? ""
+      : ` -- ${quoteShellArgument(input.pathPrefix)}`;
     const result = await run(
       input.sandbox,
-      `cd ${quoteShellArgument(input.checkout.path)} && find . -type f -print | sed 's#^\\./##'${prefixFilter} | LC_ALL=C sort | head -n ${input.limit + 1}`,
+      `cd ${quoteShellArgument(input.workspace.path)} && git ls-tree -r --name-only -z ${quoteShellArgument(input.workspace.repository.resolvedRevision)}${pathspec} | head -z -n ${input.limit + 1}`,
       input.abortSignal,
     );
     const successful = successfulInspection(
@@ -50,35 +43,36 @@ export function listEvidenceRepositoryFiles(input: {
       "Repository file listing failed",
     );
     if (successful.isErr()) return err(successful.error);
-    const files = result.stdout.split("\n").filter(Boolean);
+    const files = parseNullSeparated(result.stdout);
 
     return ok({
-      repository: input.checkout.repository,
+      repository: input.workspace.repository,
       files: files.slice(0, input.limit),
       truncated: files.length > input.limit,
     });
   })());
 }
 
-/** Runs a literal-text repository search and returns bounded, parsed matches. */
-export function searchEvidenceRepository(input: {
+/** Searches tracked content at one immutable revision. */
+export function searchRepository(input: {
   sandbox: SandboxSession;
-  checkout: RepositoryCheckout<EvidenceRepository>;
+  workspace: RepositoryWorkspace;
   abortSignal: AbortSignal;
   query: string;
   pathPrefix: string;
   limit: number;
 }): RepositoryResultAsync<{
-  repository: ResolvedRepository<EvidenceRepository>;
-  matches: EvidenceRepositorySearchMatch[];
+  repository: RepositoryWorkspace["repository"];
+  matches: RepositorySearchMatch[];
   truncated: boolean;
 }> {
   return new ResultAsync((async () => {
-    const pathArgument =
-      input.pathPrefix === "." ? "." : `./${input.pathPrefix}`;
+    const pathspec = input.pathPrefix === "."
+      ? ""
+      : ` -- ${quoteShellArgument(input.pathPrefix)}`;
     const result = await run(
       input.sandbox,
-      `cd ${quoteShellArgument(input.checkout.path)} && rg -n --with-filename --no-heading --color never --fixed-strings -- ${quoteShellArgument(input.query)} ${quoteShellArgument(pathArgument)} | head -n ${input.limit + 1} | cut -c 1-1000`,
+      `cd ${quoteShellArgument(input.workspace.path)} && git grep -n -z --full-name --fixed-strings -- ${quoteShellArgument(input.query)} ${quoteShellArgument(input.workspace.repository.resolvedRevision)}${pathspec} | head -n ${input.limit + 1} | cut -c 1-1000`,
       input.abortSignal,
     );
     const successful = successfulInspection(result, "Repository search failed");
@@ -87,10 +81,10 @@ export function searchEvidenceRepository(input: {
       .split("\n")
       .filter(Boolean)
       .map(parseSearchMatch)
-      .filter((match): match is EvidenceRepositorySearchMatch => match !== null);
+      .filter((match): match is RepositorySearchMatch => match !== null);
 
     return ok({
-      repository: input.checkout.repository,
+      repository: input.workspace.repository,
       matches: matches.slice(0, input.limit),
       truncated: matches.length > input.limit,
     });
@@ -98,19 +92,19 @@ export function searchEvidenceRepository(input: {
 }
 
 /**
- * Reads a regular, non-symlink file and returns a bounded line selection plus
- * the blob SHA needed to cite the exact evidence that Paige inspected.
+ * Reads one tracked blob from an immutable revision and returns a bounded line
+ * selection plus the blob SHA Paige can cite.
  */
-export function readEvidenceRepositoryFile(input: {
+export function readRepositoryFile(input: {
   sandbox: SandboxSession;
-  checkout: RepositoryCheckout<EvidenceRepository>;
+  workspace: RepositoryWorkspace;
   abortSignal: AbortSignal;
   path: string;
   startLine: number;
   endLine?: number;
   maxCharacters: number;
 }): RepositoryResultAsync<{
-  repository: ResolvedRepository<EvidenceRepository>;
+  repository: RepositoryWorkspace["repository"];
   path: string;
   blobSha: string;
   startLine: number;
@@ -119,13 +113,13 @@ export function readEvidenceRepositoryFile(input: {
   truncated: boolean;
 }> {
   return new ResultAsync((async () => {
-    const absolutePath = `${input.checkout.path}/${input.path}`;
+    const object = `${input.workspace.repository.resolvedRevision}:${input.path}`;
     const typeResult = await run(
       input.sandbox,
-      `test -f ${quoteShellArgument(absolutePath)} && test ! -L ${quoteShellArgument(absolutePath)}`,
+      `cd ${quoteShellArgument(input.workspace.path)} && git cat-file -t ${quoteShellArgument(object)}`,
       input.abortSignal,
     );
-    if (typeResult.exitCode !== 0) {
+    if (typeResult.exitCode !== 0 || typeResult.stdout.trim() !== "blob") {
       return err(new RepositoryError(
         "REPOSITORY_FILE_NOT_FOUND",
         `Repository file does not exist: ${input.path}`,
@@ -134,7 +128,7 @@ export function readEvidenceRepositoryFile(input: {
 
     const sizeResult = await run(
       input.sandbox,
-      `wc -c < ${quoteShellArgument(absolutePath)}`,
+      `cd ${quoteShellArgument(input.workspace.path)} && git cat-file -s ${quoteShellArgument(object)}`,
       input.abortSignal,
     );
     const sizeSuccessful = successfulCommand(
@@ -156,30 +150,30 @@ export function readEvidenceRepositoryFile(input: {
       ));
     }
 
-    const [content, hashResult] = await Promise.all([
-      input.sandbox.readTextFile({
-        path: absolutePath,
-        abortSignal: input.abortSignal,
-      }),
+    const [contentResult, hashResult] = await Promise.all([
       run(
         input.sandbox,
-        `git hash-object ${quoteShellArgument(absolutePath)}`,
+        `cd ${quoteShellArgument(input.workspace.path)} && git show ${quoteShellArgument(object)}`,
+        input.abortSignal,
+      ),
+      run(
+        input.sandbox,
+        `cd ${quoteShellArgument(input.workspace.path)} && git rev-parse ${quoteShellArgument(object)}`,
         input.abortSignal,
       ),
     ]);
+    const contentSuccessful = successfulCommand(
+      contentResult,
+      "Repository file read failed",
+    );
+    if (contentSuccessful.isErr()) return err(contentSuccessful.error);
     const hashSuccessful = successfulCommand(
       hashResult,
       "Repository file hash lookup failed",
     );
     if (hashSuccessful.isErr()) return err(hashSuccessful.error);
-    if (content === null) {
-      return err(new RepositoryError(
-        "REPOSITORY_FILE_NOT_FOUND",
-        `Repository file does not exist: ${input.path}`,
-      ));
-    }
 
-    const selection = selectFileLines(content, {
+    const selection = selectFileLines(contentResult.stdout, {
       startLine: input.startLine,
       endLine: input.endLine,
       maxCharacters: input.maxCharacters,
@@ -187,10 +181,45 @@ export function readEvidenceRepositoryFile(input: {
     if (selection.isErr()) return err(selection.error);
 
     return ok({
-      repository: input.checkout.repository,
+      repository: input.workspace.repository,
       path: input.path,
       blobSha: hashResult.stdout.trim(),
       ...selection.value,
+    });
+  })());
+}
+
+/** Lists changed paths between two already-fetched immutable revisions. */
+export function compareRepositoryRevisions(input: {
+  sandbox: SandboxSession;
+  baseWorkspace: RepositoryWorkspace;
+  headWorkspace: RepositoryWorkspace;
+  abortSignal: AbortSignal;
+  pathPrefix: string;
+  limit: number;
+}): RepositoryResultAsync<RepositoryComparison> {
+  return new ResultAsync((async () => {
+    const pathspec = input.pathPrefix === "."
+      ? ""
+      : ` -- ${quoteShellArgument(input.pathPrefix)}`;
+    const result = await run(
+      input.sandbox,
+      `cd ${quoteShellArgument(input.headWorkspace.path)} && git diff --name-only -z ${quoteShellArgument(input.baseWorkspace.repository.resolvedRevision)} ${quoteShellArgument(input.headWorkspace.repository.resolvedRevision)}${pathspec} | head -z -n ${input.limit + 1}`,
+      input.abortSignal,
+    );
+    const successful = successfulInspection(
+      result,
+      "Repository comparison failed",
+    );
+    if (successful.isErr()) return err(successful.error);
+    const changedFiles = parseNullSeparated(result.stdout);
+
+    return ok({
+      repositoryId: input.headWorkspace.repository.id,
+      baseRevision: input.baseWorkspace.repository.resolvedRevision,
+      headRevision: input.headWorkspace.repository.resolvedRevision,
+      changedFiles: changedFiles.slice(0, input.limit),
+      truncated: changedFiles.length > input.limit,
     });
   })());
 }
@@ -220,7 +249,7 @@ export function assertRepositoryRelativePath(
   return ok(path.replace(/^\.\//, "") || ".");
 }
 
-/** Selects a bounded, 1-based line range and records whether content was omitted. */
+/** Selects a bounded, 1-based line range and records omitted content. */
 export function selectFileLines(
   content: string,
   input: { startLine: number; endLine?: number; maxCharacters?: number },
@@ -282,14 +311,27 @@ export function assertSearchQuery(value: string): RepositoryResult<string> {
   return ok(query);
 }
 
-function parseSearchMatch(value: string): EvidenceRepositorySearchMatch | null {
-  const match = /^(.+?):([1-9]\d*):(.*)$/.exec(value);
-  if (match === null) return null;
+function parseSearchMatch(value: string): RepositorySearchMatch | null {
+  const [location, lineValue, excerpt] = value.split("\0", 3);
+  if (
+    location === undefined ||
+    lineValue === undefined ||
+    excerpt === undefined
+  ) {
+    return null;
+  }
+  const separator = location.indexOf(":");
+  const line = Number.parseInt(lineValue, 10);
+  if (separator === -1 || !Number.isSafeInteger(line) || line < 1) return null;
   return {
-    path: match[1].replace(/^\.\//, ""),
-    line: Number.parseInt(match[2], 10),
-    excerpt: match[3].slice(0, MAX_SEARCH_EXCERPT_CHARACTERS),
+    path: location.slice(separator + 1),
+    line,
+    excerpt: excerpt.slice(0, MAX_SEARCH_EXCERPT_CHARACTERS),
   };
+}
+
+function parseNullSeparated(value: string): string[] {
+  return value.split("\0").filter(Boolean);
 }
 
 async function run(

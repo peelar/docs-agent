@@ -1,12 +1,14 @@
 import type { Result, ResultAsync } from "neverthrow";
 
 export type RepositoryErrorCode =
+  | "REPOSITORY_DIRTY_WORKSPACE"
   | "REPOSITORY_FILE_NOT_FOUND"
   | "REPOSITORY_GITHUB_AUTH_FAILED"
   | "REPOSITORY_GITHUB_FAILED"
   | "REPOSITORY_INVALID_INPUT"
   | "REPOSITORY_NOT_CONFIGURED"
-  | "REPOSITORY_SANDBOX_FAILED";
+  | "REPOSITORY_SANDBOX_FAILED"
+  | "REPOSITORY_WRITE_FORBIDDEN";
 
 /** A failure Paige can safely report as part of the repository tool contract. */
 export class RepositoryError extends Error {

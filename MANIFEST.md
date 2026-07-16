@@ -11,12 +11,14 @@ change—or whether nothing should change.
 Paige currently responds only to direct messages in Slack. Chat SDK handles the
 Slack transport and Eve runs the model conversation.
 
-Paige can inspect configured read-only evidence repositories through a GitHub
-API-backed evidence repository tool. Public and GitHub App-authorized access
-are explicit repository settings. The configured documentation repository
-and GitHub metadata surfaces have typed implementation shells, but are not
-model-facing capabilities yet. There is no documentation workflow, product
-database, or automated writeback.
+Paige can inspect every configured repository through one authenticated,
+Git-backed repository tool. Each sandbox keeps a shallow Git object cache that
+supports exact-revision reads and comparisons without requiring a populated
+working tree. Evidence repositories remain read-only. The documentation
+repository uses the same Git foundation but is the only role eligible for a
+future approval-gated writeback workflow. GitHub metadata remains a typed
+implementation shell. There is no documentation workflow, product database,
+or automated writeback.
 
 ## Stack
 
