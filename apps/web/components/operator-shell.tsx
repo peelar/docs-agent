@@ -2,6 +2,7 @@
 
 import Image from "next/image";
 import Link from "next/link";
+import { usePathname } from "next/navigation";
 import type { ReactNode } from "react";
 import {
   BookOpenIcon,
@@ -30,8 +31,8 @@ import {
 import { cn } from "@/lib/utils";
 
 const navigation = [
-  { label: "Repository", icon: BookOpenIcon, href: "/", active: true },
-  { label: "Agent", icon: BotIcon },
+  { label: "Repository", icon: BookOpenIcon, href: "/" },
+  { label: "Agent", icon: BotIcon, href: "/agent" },
   { label: "Runs", icon: WorkflowIcon },
   { label: "Approvals", icon: CheckCircle2Icon },
 ];
@@ -91,16 +92,26 @@ function Brand({ className }: { className?: string }) {
 }
 
 function Navigation({ className }: { className?: string }) {
+  const pathname = usePathname();
+
   return (
     <nav className={cn("space-y-1", className)} aria-label="Operator navigation">
       <p className="mb-2 px-2.5 text-[11px] font-medium text-muted-foreground">Manage</p>
       {navigation.map((item) => {
         const Icon = item.icon;
         if (item.href) {
+          const active = item.href === "/"
+            ? pathname === "/"
+            : pathname.startsWith(item.href);
           return (
             <Link
-              aria-current={item.active ? "page" : undefined}
-              className="flex items-center gap-3 rounded-md bg-muted px-2.5 py-2 text-sm font-medium"
+              aria-current={active ? "page" : undefined}
+              className={cn(
+                "flex items-center gap-3 rounded-md px-2.5 py-2 text-sm transition-colors",
+                active
+                  ? "bg-muted font-medium text-foreground"
+                  : "text-muted-foreground hover:bg-muted hover:text-foreground",
+              )}
               href={item.href}
               key={item.label}
             >

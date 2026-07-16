@@ -14,10 +14,12 @@
     },
     "dev": {
       "cache": false,
+      "env": ["PAIGE_OPERATOR_ACCESS", "PAIGE_OPERATOR_WORKSPACE_ID"],
       "persistent": true
     },
     "dev:portless": {
       "cache": false,
+      "env": ["PAIGE_OPERATOR_ACCESS", "PAIGE_OPERATOR_WORKSPACE_ID"],
       "persistent": true
     },
     "test": {

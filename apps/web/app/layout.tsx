@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import type { ReactNode } from "react";
 import { Geist, Geist_Mono } from "next/font/google";
 
+import { OperatorShell } from "@/components/operator-shell";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { cn } from "@/lib/utils";
 
@@ -20,7 +21,9 @@ export default function RootLayout({ children }: { children: ReactNode }) {
     <html lang="en" className={cn(geist.variable, geistMono.variable)}>
       <body>
         <div className="isolate">
-          <TooltipProvider>{children}</TooltipProvider>
+          <TooltipProvider>
+            <OperatorShell>{children}</OperatorShell>
+          </TooltipProvider>
         </div>
       </body>
     </html>
