@@ -11,15 +11,17 @@ change—or whether nothing should change.
 Paige currently responds only to direct messages in Slack. Chat SDK handles the
 Slack transport and Eve runs the model conversation.
 
-Paige can inspect every configured repository through the authenticated
-`repository_read` tool. Each sandbox keeps a shallow Git object cache that
-supports exact-revision reads and comparisons without requiring a populated
-working tree. Evidence repositories remain read-only. The documentation
-repository can be edited in a protected worktree, reviewed as a digest-bound
-patch, and published only through an explicitly approved draft-PR writeback.
-Paige can also read bounded GitHub releases, open issues, open pull requests,
-tags, and recent commits for configured repositories without entering the
-sandbox. There is no product database or automated writeback.
+On first contact, Paige offers to connect one documentation repository and
+optional product evidence repositories. It validates access, summarizes the
+complete proposal, and activates it only after confirmation. The active setup
+is stored per Slack workspace, so teammates share it; unconfirmed changes stay
+inside the conversation.
+
+Paige can inspect active repositories through authenticated tools. Evidence
+repositories remain read-only. The documentation repository can be edited in a
+protected worktree, reviewed as a digest-bound patch, and published only
+through an explicitly approved draft-PR writeback. Paige can also read bounded
+GitHub metadata without entering the sandbox.
 
 ## Stack
 

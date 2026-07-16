@@ -3,19 +3,27 @@
 All configured repositories use one authenticated shallow Git cache under
 `/workspace/repositories`.
 
-- `config.ts` is the fixed catalog. Repository IDs resolve to configured GitHub
-  coordinates and a role; the model cannot supply arbitrary origins.
+- `configuration/` owns the Slack workspace setup. The active configuration is
+  durable and shared by teammates; an unconfirmed proposal stays in the
+  conversation until the user confirms it.
+- `configuration/resolver.ts` turns that active setup into the bounded catalog
+  used by repository tools. One repository has the `documentation` role and
+  any others have the `evidence` role.
+- Setup accepts GitHub URLs, normalizes duplicates, validates the exact
+  repositories and required access, and activates a proposal only after
+  explicit confirmation.
+- `config.ts` resolves model-facing repository IDs only from that active
+  catalog, so later tool calls cannot supply arbitrary origins.
 - `SandboxGit` owns sandbox Git commands, cache initialization, and temporary
   GitHub firewall access. Eve binds the sandbox to turn cancellation, so the
   Git boundary does not carry a separate abort signal. GitHub App tokens are
   brokered at the firewall and never enter commands, remotes, or tool results.
-- `shared/github.ts` resolves one GitHub App token through the configured
-  documentation-repository installation. `createGitHubRequest` binds that
-  token and Eve's turn cancellation to the HTTP transport; `GitHubRepository`
-  then exposes repository operations without credential or cancellation
-  parameters. GitHub's verified repository visibility decides Git transport:
-  public repositories fetch without credentials, while private repositories
-  receive the shared token through the sandbox firewall.
+- `shared/github.ts` requests a GitHub App token for the repository being used
+  and only the permissions its role needs. `createGitHubRequest` binds that
+  token and Eve's turn cancellation to the HTTP transport. GitHub's verified
+  visibility decides Git transport: public repositories fetch without
+  credentials, while private repositories receive the scoped token through
+  the sandbox firewall.
 - `RepositoryFiles` in `files.ts` lists, searches, reads, and compares files
   at commits directly from Git objects, so read operations do not need a
   populated working tree.

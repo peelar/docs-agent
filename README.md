@@ -17,9 +17,16 @@ Paige is currently under heavy development. Feel free to follow along.
 
 ```sh
 pnpm install
+mkdir -p .paige
+export PAIGE_DATABASE_URL=file:.paige/paige.db
 pnpm eval
 pnpm dev
 ```
+
+On the first Slack direct message, Paige offers to connect one documentation
+repository and any optional product repositories it should use as evidence.
+Paige checks access, shows the complete setup, and saves it only after
+confirmation. The active setup is shared by everyone in the Slack workspace.
 
 ## How It Works
 
@@ -47,8 +54,8 @@ Slack · Linear · Releases · Repositories
 | Operator app        | Next.js control plane with explicit local access or allowlisted GitHub authentication   |
 | Workspace           | pnpm and Turborepo with `apps/agent` and `apps/web`                                     |
 | Team context        | Explicit Slack mentions and Linear Agent Sessions                                       |
-| Repositories        | Authenticated shallow Git caches for configured evidence and documentation repositories |
+| Repositories        | Slack workspace setup for one writable documentation repository and optional read-only evidence repositories |
 | Isolation           | Eve sandbox with Git object caches under `/workspace/repositories`                       |
 | Durable state       | Drizzle with local SQLite or a deployed libSQL-compatible database                      |
 | Writeback           | Digest-bound documentation diff followed by an explicitly approved branch and draft PR   |
-| Regression proof    | Unit tests and live Eve evals for repository inspection and documentation authoring       |
+| Regression proof    | Unit tests and live Eve evals for onboarding, repository inspection, and documentation authoring |
