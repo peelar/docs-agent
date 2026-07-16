@@ -6,14 +6,14 @@ export default defineEval({
   timeoutMs: 180_000,
   async test(t) {
     await t.send(
-      "Use repository list_files to find README.md in saleor-dashboard, then use repository search to find the phrase 'Saleor Dashboard' in that repository. Briefly report the matching path.",
+      "Use repository_read list_files to find README.md in saleor-dashboard, then use repository_read search to find the phrase 'Saleor Dashboard' in that repository. Briefly report the matching path.",
     );
     t.succeeded();
     t.noFailedActions();
-    t.calledTool("repository", {
+    t.calledTool("repository_read", {
       input: { action: "list_files", repositoryId: "saleor-dashboard" },
     });
-    t.calledTool("repository", {
+    t.calledTool("repository_read", {
       input: {
         action: "search",
         repositoryId: "saleor-dashboard",

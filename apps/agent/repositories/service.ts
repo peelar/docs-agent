@@ -7,17 +7,18 @@ import {
   repositories,
   resolveConfiguredRepository,
 } from "./config";
-import { ensureRepositoryRevisions } from "./git";
+import { SandboxGit } from "./git";
 import {
   assertRepositoryRelativePath,
   assertSearchQuery,
-  compareRepositoryRevisions,
-  listRepositoryFiles,
-  readRepositoryFile,
-  searchRepository,
-} from "./inspection";
+  RepositoryFiles,
+} from "./files";
 import type { RepositoryResultAsync } from "./shared/errors";
-import { resolveGitHubRevision, resolveGitHubToken } from "./shared/github";
+import {
+  createGitHubRequest,
+  GitHubRepository,
+  resolveGitHubToken,
+} from "./shared/github";
 import { serializeSandbox } from "./shared/serialization";
 import type {
   RepositoryConfig,
@@ -52,7 +53,7 @@ export class RepositoryService {
 
   listFiles(input: {
     repositoryId: string;
-    revision?: string;
+    ref?: string;
     pathPrefix: string;
     limit: number;
   }) {
@@ -60,11 +61,8 @@ export class RepositoryService {
       assertRepositoryRelativePath(input.pathPrefix, { allowRoot: true }),
       resolveConfiguredRepository(this.#repositories, input.repositoryId),
     ]).asyncAndThen(([pathPrefix, repository]) =>
-      this.#inspect(repository, input.revision, (sandbox, workspace) =>
-        listRepositoryFiles({
-          sandbox,
-          workspace,
-          abortSignal: this.#ctx.abortSignal,
+      this.#files(repository, input.ref, (files) =>
+        files.list({
           pathPrefix,
           limit: input.limit,
         }),
@@ -74,7 +72,7 @@ export class RepositoryService {
 
   search(input: {
     repositoryId: string;
-    revision?: string;
+    ref?: string;
     query: string;
     pathPrefix: string;
     limit: number;
@@ -84,11 +82,8 @@ export class RepositoryService {
       assertRepositoryRelativePath(input.pathPrefix, { allowRoot: true }),
       resolveConfiguredRepository(this.#repositories, input.repositoryId),
     ]).asyncAndThen(([query, pathPrefix, repository]) =>
-      this.#inspect(repository, input.revision, (sandbox, workspace) =>
-        searchRepository({
-          sandbox,
-          workspace,
-          abortSignal: this.#ctx.abortSignal,
+      this.#files(repository, input.ref, (files) =>
+        files.search({
           query,
           pathPrefix,
           limit: input.limit,
@@ -99,7 +94,7 @@ export class RepositoryService {
 
   read(input: {
     repositoryId: string;
-    revision?: string;
+    ref?: string;
     path: string;
     startLine: number;
     endLine?: number;
@@ -109,11 +104,8 @@ export class RepositoryService {
       assertRepositoryRelativePath(input.path, { allowRoot: false }),
       resolveConfiguredRepository(this.#repositories, input.repositoryId),
     ]).asyncAndThen(([path, repository]) =>
-      this.#inspect(repository, input.revision, (sandbox, workspace) =>
-        readRepositoryFile({
-          sandbox,
-          workspace,
-          abortSignal: this.#ctx.abortSignal,
+      this.#files(repository, input.ref, (files) =>
+        files.read({
           path,
           startLine: input.startLine,
           endLine: input.endLine,
@@ -125,8 +117,8 @@ export class RepositoryService {
 
   compare(input: {
     repositoryId: string;
-    baseRevision: string;
-    headRevision: string;
+    baseRef: string;
+    headRef: string;
     pathPrefix: string;
     limit: number;
   }) {
@@ -134,40 +126,37 @@ export class RepositoryService {
       assertRepositoryRelativePath(input.pathPrefix, { allowRoot: true }),
       resolveConfiguredRepository(this.#repositories, input.repositoryId),
     ]).asyncAndThen(([pathPrefix, repository]) =>
-      this.#resolve(repository, [input.baseRevision, input.headRevision])
-        .andThen(({ token, revisions }) =>
-          this.#withSandbox(repository, revisions, token, (
-            sandbox,
-            workspaces,
-          ) =>
-            compareRepositoryRevisions({
-              sandbox,
-              baseWorkspace: workspaces[0],
-              headWorkspace: workspaces[1],
-              abortSignal: this.#ctx.abortSignal,
-              pathPrefix,
-              limit: input.limit,
-            })
+      this.#resolve(repository, [input.baseRef, input.headRef])
+        .andThen(({ token, commits }) =>
+          this.#withSandbox(
+            repository,
+            commits,
+            token,
+            (sandbox, workspaces) => {
+              const files = new RepositoryFiles(sandbox, workspaces[1]);
+              return files.compareWith(workspaces[0], {
+                pathPrefix,
+                limit: input.limit,
+              });
+            },
           )
         ),
     );
   }
 
-  #inspect<T>(
+  #files<T>(
     repository: RepositoryConfig,
-    revision: string | undefined,
-    operation: (
-      sandbox: SandboxSession,
-      workspace: RepositoryWorkspace,
-    ) => RepositoryResultAsync<T>,
+    ref: string | undefined,
+    operation: (files: RepositoryFiles) => RepositoryResultAsync<T>,
   ): RepositoryResultAsync<T> {
-    return this.#resolve(repository, [revision])
-      .andThen(({ token, revisions }) =>
+    return this.#resolve(repository, [ref])
+      .andThen(({ token, commits }) =>
         this.#withSandbox(
           repository,
-          revisions,
+          commits,
           token,
-          (sandbox, workspaces) => operation(sandbox, workspaces[0]),
+          (sandbox, workspaces) =>
+            operation(new RepositoryFiles(sandbox, workspaces[0])),
         )
       );
   }
@@ -177,25 +166,25 @@ export class RepositoryService {
     refs: Array<string | undefined>,
   ): RepositoryResultAsync<{
     token: string;
-    revisions: ResolvedRepository[];
+    commits: ResolvedRepository[];
   }> {
     return this.#getGitHubToken().andThen((token) =>
       new ResultAsync((async () => {
+        const github = new GitHubRepository(
+          repository,
+          createGitHubRequest({
+            token,
+            abortSignal: this.#ctx.abortSignal,
+          }),
+        );
         const results = await Promise.all(
-          refs.map(async (ref) =>
-            await resolveGitHubRevision(
-              repository,
-              token,
-              this.#ctx.abortSignal,
-              ref,
-            )
-          ),
+          refs.map(async (ref) => await github.resolveCommit(ref)),
         );
         const combined = Result.combine(results);
         if (combined.isErr()) return err(combined.error);
         return ok({
           token,
-          revisions: combined.value,
+          commits: combined.value,
         });
       })())
     );
@@ -203,7 +192,7 @@ export class RepositoryService {
 
   #withSandbox<T>(
     repository: RepositoryConfig,
-    revisions: ResolvedRepository[],
+    commits: ResolvedRepository[],
     token: string,
     operation: (
       sandbox: SandboxSession,
@@ -213,15 +202,14 @@ export class RepositoryService {
     return new ResultAsync(
       this.#ctx.getSandbox().then((sandbox) => ok(sandbox)),
     ).andThen((sandbox) =>
-      serializeSandbox(sandbox.id, () =>
-        ensureRepositoryRevisions({
-          sandbox,
+      serializeSandbox(sandbox.id, () => {
+        const git = new SandboxGit(sandbox);
+        return git.ensureCommits({
           repository,
-          revisions,
+          commits,
           token,
-          abortSignal: this.#ctx.abortSignal,
-        }).andThen((workspaces) => operation(sandbox, workspaces)),
-      ),
+        }).andThen((workspaces) => operation(sandbox, workspaces));
+      }),
     );
   }
 }

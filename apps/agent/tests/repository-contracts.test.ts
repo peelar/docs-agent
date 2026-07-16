@@ -2,7 +2,15 @@ import assert from "node:assert/strict";
 
 import { describe, test } from "vitest";
 
-import { repositoryToolInputSchema } from "../agent/tools/repository";
+import documentationPublishTool, {
+  documentationPublishToolInputSchema,
+} from "../agent/tools/documentation_publish";
+import {
+  documentationDraftToolInputSchema,
+} from "../agent/tools/documentation_draft";
+import {
+  repositoryReadToolInputSchema,
+} from "../agent/tools/repository_read";
 import {
   assertDocumentationRepository,
   catalogRepositories,
@@ -10,23 +18,15 @@ import {
   repositories,
   resolveConfiguredRepository,
 } from "../repositories/config";
-import { documentationRepositoryTodos } from "../repositories/documentation/service";
-import type { DocumentationRepositoryService } from "../repositories/documentation/service";
 import {
   assertRepositoryRelativePath,
   assertSearchQuery,
   selectFileLines,
-} from "../repositories/inspection";
+} from "../repositories/files";
 import { repositoryMetadataTodos } from "../repositories/metadata/service";
 import type { RepositoryMetadataService } from "../repositories/metadata/service";
 import { RepositoryError } from "../repositories/shared/errors";
 
-const documentationServiceMethods = [
-  "prepareWorkspace",
-  "inspectDiff",
-  "createCommit",
-  "openDraftPullRequest",
-] satisfies Array<keyof DocumentationRepositoryService>;
 const metadataServiceMethods = [
   "listReleases",
   "listOpenIssues",
@@ -102,39 +102,39 @@ describe("repository configuration", () => {
 });
 
 describe("repository tool contract", () => {
-  test("accepts catalog, revision reads, and comparisons", () => {
+  test("accepts catalog, ref reads, and comparisons", () => {
     assert.deepEqual(
-      repositoryToolInputSchema.parse({ action: "catalog" }),
+      repositoryReadToolInputSchema.parse({ action: "catalog" }),
       { action: "catalog" },
     );
     assert.deepEqual(
-      repositoryToolInputSchema.parse({
+      repositoryReadToolInputSchema.parse({
         action: "search",
         repositoryId: "saleor-core",
-        revision: "3.21",
+        ref: "3.21",
         query: "checkout",
       }),
       {
         action: "search",
         repositoryId: "saleor-core",
-        revision: "3.21",
+        ref: "3.21",
         query: "checkout",
         pathPrefix: ".",
         limit: 50,
       },
     );
     assert.deepEqual(
-      repositoryToolInputSchema.parse({
+      repositoryReadToolInputSchema.parse({
         action: "compare",
         repositoryId: "saleor-core",
-        baseRevision: "3.20",
-        headRevision: "3.21",
+        baseRef: "3.20",
+        headRef: "3.21",
       }),
       {
         action: "compare",
         repositoryId: "saleor-core",
-        baseRevision: "3.20",
-        headRevision: "3.21",
+        baseRef: "3.20",
+        headRef: "3.21",
         pathPrefix: ".",
         limit: 100,
       },
@@ -142,7 +142,7 @@ describe("repository tool contract", () => {
   });
 
   test("does not accept model-supplied repository coordinates", () => {
-    assert.throws(() => repositoryToolInputSchema.parse({
+    assert.throws(() => repositoryReadToolInputSchema.parse({
       action: "catalog",
       owner: "someone",
       name: "unconfigured",
@@ -213,24 +213,64 @@ describe("repository tool contract", () => {
   });
 });
 
-describe("future repository capabilities", () => {
-  test("records documentation writeback phases over the shared Git workspace", () => {
-    assert.deepEqual(documentationServiceMethods, [
-      "prepareWorkspace",
-      "inspectDiff",
-      "createCommit",
-      "openDraftPullRequest",
-    ]);
-    assert.deepEqual(documentationRepositoryTodos, [
-      "reuse-shared-git-workspace",
-      "write-only-documentation-role",
-      "generate-bounded-diff",
-      "require-explicit-writeback-approval",
-      "create-branch-and-commit-from-base-revision",
-      "push-and-open-draft-pull-request",
-    ]);
+describe("documentation tool contract", () => {
+  test("separates local authoring from approval-gated publication", async () => {
+    assert.deepEqual(
+      documentationDraftToolInputSchema.parse({ action: "prepare" }),
+      { action: "prepare" },
+    );
+    assert.deepEqual(
+      documentationDraftToolInputSchema.parse({
+        action: "write",
+        path: "docs/example.md",
+        content: "Example\n",
+      }),
+      {
+        action: "write",
+        path: "docs/example.md",
+        content: "Example\n",
+      },
+    );
+    assert.deepEqual(
+      documentationDraftToolInputSchema.parse({
+        action: "inspect_diff",
+      }),
+      { action: "inspect_diff" },
+    );
+    const publish = documentationPublishToolInputSchema.parse({
+      digest: `sha256:${"a".repeat(64)}`,
+      branch: "paige/update-example",
+      commitMessage: "docs: update example",
+      pullRequestTitle: "Update example",
+      pullRequestBody: "Prepared by Paige.",
+    });
+    assert.equal(publish.branch, "paige/update-example");
+    assert.equal(
+      await documentationPublishTool.approval?.({
+        approvedTools: new Set(),
+        callId: "call-1",
+        session: undefined,
+        toolInput: publish,
+        toolName: "documentation_publish",
+      } as never),
+      "user-approval",
+    );
   });
 
+  test("rejects arbitrary branches and malformed approval digests", () => {
+    assert.throws(() =>
+      documentationPublishToolInputSchema.parse({
+        digest: "not-a-digest",
+        branch: "feature/update-example",
+        commitMessage: "docs: update example",
+        pullRequestTitle: "Update example",
+        pullRequestBody: "",
+      })
+    );
+  });
+});
+
+describe("future repository capabilities", () => {
   test("keeps repository metadata deferred and separate from Git comparisons", () => {
     assert.deepEqual(metadataServiceMethods, [
       "listReleases",

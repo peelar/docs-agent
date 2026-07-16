@@ -6,11 +6,14 @@ import type {
 export interface DocumentationWorkspace {
   path: string;
   repository: ResolvedRepository<DocumentationRepository>;
-  baseRevision: string;
+  baseBranch: string;
+  baseCommitSha: string;
 }
 
 export interface DocumentationDiff {
-  baseRevision: string;
+  baseCommitSha: string;
+  digest: string | null;
+  hasChanges: boolean;
   patch: string;
   changedFiles: string[];
 }
@@ -18,11 +21,23 @@ export interface DocumentationDiff {
 export interface DocumentationCommit {
   branch: string;
   commitSha: string;
-  baseRevision: string;
+  baseCommitSha: string;
 }
 
-export interface DocumentationPullRequest {
+interface DocumentationPullRequest {
   number: number;
   url: string;
   draft: true;
+}
+
+export interface DocumentationWriteback {
+  commit: DocumentationCommit;
+  pullRequest: DocumentationPullRequest;
+  reused: boolean;
+}
+
+export interface DocumentationSearchMatch {
+  path: string;
+  line: number;
+  excerpt: string;
 }

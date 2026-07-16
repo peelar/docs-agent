@@ -24,14 +24,14 @@ export interface RepositoryPullRequest {
   state: "open" | "closed";
   url: string;
   draft: boolean;
-  headRevision: string;
+  headCommitSha: string;
   baseRef: string;
   updatedAt: string;
 }
 
 export interface RepositoryTag {
   name: string;
-  revision: string;
+  commitSha: string;
 }
 
 export interface RepositoryCommitSummary {

@@ -5,18 +5,14 @@ import type { ToolContext } from "eve/tools";
 import { err, ok, ResultAsync } from "neverthrow";
 import { afterEach, describe, test, vi } from "vitest";
 
-import {
-  checkoutRepositoryRevision,
-  ensureRepositoryRevisions,
-} from "../repositories/git";
-import {
-  compareRepositoryRevisions,
-  readRepositoryFile,
-  searchRepository,
-} from "../repositories/inspection";
+import { SandboxGit } from "../repositories/git";
+import { RepositoryFiles } from "../repositories/files";
 import { RepositoryService } from "../repositories/service";
 import { RepositoryError } from "../repositories/shared/errors";
-import { resolveGitHubRevision } from "../repositories/shared/github";
+import {
+  createGitHubRequest,
+  GitHubRepository,
+} from "../repositories/shared/github";
 import { serializeSandbox } from "../repositories/shared/serialization";
 import type {
   RepositoryConfig,
@@ -34,7 +30,7 @@ const resolvedRepository: ResolvedRepository = {
   ...repository,
   isPrivate: false,
   ref: "main",
-  resolvedRevision: "0123456789abcdef0123456789abcdef01234567",
+  commitSha: "0123456789abcdef0123456789abcdef01234567",
 };
 const workspace: RepositoryWorkspace = {
   path: "/workspace/repositories/saleor-core",
@@ -132,12 +128,11 @@ describe("Git repository cache", () => {
       ]),
     });
 
-    const result = await ensureRepositoryRevisions({
-      sandbox,
+    const git = new SandboxGit(sandbox);
+    const result = await git.ensureCommits({
       repository,
-      revisions: [resolvedRepository],
+      commits: [resolvedRepository],
       token: "token",
-      abortSignal: new AbortController().signal,
     });
 
     assert(result.isOk());
@@ -146,7 +141,7 @@ describe("Git repository cache", () => {
     assert.equal(sandbox.removePath.mock.calls.length, 0);
   });
 
-  test("initializes and shallow-fetches a missing revision with brokered auth", async () => {
+  test("initializes and shallow-fetches a missing commit with brokered auth", async () => {
     const sandbox = createSandbox({
       run: commandSequence([
         commandResult({ exitCode: 1 }),
@@ -157,12 +152,11 @@ describe("Git repository cache", () => {
       ]),
     });
 
-    const result = await ensureRepositoryRevisions({
-      sandbox,
+    const git = new SandboxGit(sandbox);
+    const result = await git.ensureCommits({
       repository,
-      revisions: [resolvedRepository],
+      commits: [resolvedRepository],
       token: "secret-token",
-      abortSignal: new AbortController().signal,
     });
 
     assert(result.isOk());
@@ -173,7 +167,7 @@ describe("Git repository cache", () => {
     assert.match(
       sandbox.run.mock.calls[3][0].command,
       new RegExp(
-        `git fetch --depth=1 --no-tags origin '${resolvedRepository.resolvedRevision}'`,
+        `git fetch --depth=1 --no-tags origin '${resolvedRepository.commitSha}'`,
       ),
     );
     assert.deepEqual(sandbox.setNetworkPolicy.mock.calls[1], ["deny-all"]);
@@ -187,7 +181,7 @@ describe("Git repository cache", () => {
   });
 
   test("brokers the shared token only for a verified private repository", async () => {
-    const privateRevision: ResolvedRepository = {
+    const privateCommit: ResolvedRepository = {
       ...resolvedRepository,
       isPrivate: true,
     };
@@ -201,12 +195,11 @@ describe("Git repository cache", () => {
       ]),
     });
 
-    const result = await ensureRepositoryRevisions({
-      sandbox,
+    const git = new SandboxGit(sandbox);
+    const result = await git.ensureCommits({
       repository,
-      revisions: [privateRevision],
+      commits: [privateCommit],
       token: "secret-token",
-      abortSignal: new AbortController().signal,
     });
 
     assert(result.isOk());
@@ -228,12 +221,11 @@ describe("Git repository cache", () => {
       ]),
     });
 
-    const result = await ensureRepositoryRevisions({
-      sandbox,
+    const git = new SandboxGit(sandbox);
+    const result = await git.ensureCommits({
       repository,
-      revisions: [resolvedRepository],
+      commits: [resolvedRepository],
       token: "token",
-      abortSignal: new AbortController().signal,
     });
 
     assert(result.isErr());
@@ -249,11 +241,8 @@ describe("Git repository cache", () => {
       ]),
     });
 
-    const result = await checkoutRepositoryRevision({
-      sandbox,
-      workspace,
-      abortSignal: new AbortController().signal,
-    });
+    const git = new SandboxGit(sandbox);
+    const result = await git.checkoutCommit(workspace);
 
     assert(result.isErr());
     assert.equal(result.error.code, "REPOSITORY_DIRTY_WORKSPACE");
@@ -261,8 +250,8 @@ describe("Git repository cache", () => {
   });
 });
 
-describe("Git object inspection", () => {
-  test("returns bounded content and the inspected blob SHA", async () => {
+describe("repository files", () => {
+  test("returns bounded content and the file blob SHA", async () => {
     const sandbox = createSandbox({
       run: commandSequence([
         commandResult({ stdout: "blob\n" }),
@@ -272,10 +261,8 @@ describe("Git object inspection", () => {
       ]),
     });
 
-    const result = await readRepositoryFile({
-      sandbox,
-      workspace,
-      abortSignal: new AbortController().signal,
+    const files = new RepositoryFiles(sandbox, workspace);
+    const result = await files.read({
       path: "docs/example.md",
       startLine: 2,
       endLine: 3,
@@ -295,21 +282,19 @@ describe("Git object inspection", () => {
     assert.match(sandbox.run.mock.calls[2][0].command, /git show/);
   });
 
-  test("parses bounded searches from an immutable revision", async () => {
+  test("parses bounded searches at one commit", async () => {
     const sandbox = createSandbox({
       run: commandSequence([
         commandResult({
           stdout:
-            `${resolvedRepository.resolvedRevision}:docs/a.md\0${12}\0first\n` +
-            `${resolvedRepository.resolvedRevision}:src/b.ts\0${3}\0second\n`,
+            `${resolvedRepository.commitSha}:docs/a.md\0${12}\0first\n` +
+            `${resolvedRepository.commitSha}:src/b.ts\0${3}\0second\n`,
         }),
       ]),
     });
 
-    const result = await searchRepository({
-      sandbox,
-      workspace,
-      abortSignal: new AbortController().signal,
+    const files = new RepositoryFiles(sandbox, workspace);
+    const result = await files.search({
       query: "literal",
       pathPrefix: ".",
       limit: 1,
@@ -323,12 +308,12 @@ describe("Git object inspection", () => {
     assert.match(sandbox.run.mock.calls[0][0].command, /git grep/);
   });
 
-  test("compares two fetched revisions without another GitHub API", async () => {
+  test("compares two fetched commits without another GitHub API", async () => {
     const headRepository: ResolvedRepository = {
       ...repository,
       isPrivate: false,
       ref: "3.21",
-      resolvedRevision: "abcdef0123456789abcdef0123456789abcdef01",
+      commitSha: "abcdef0123456789abcdef0123456789abcdef01",
     };
     const sandbox = createSandbox({
       run: commandSequence([
@@ -336,14 +321,11 @@ describe("Git object inspection", () => {
       ]),
     });
 
-    const result = await compareRepositoryRevisions({
-      sandbox,
-      baseWorkspace: workspace,
-      headWorkspace: {
-        path: workspace.path,
-        repository: headRepository,
-      },
-      abortSignal: new AbortController().signal,
+    const files = new RepositoryFiles(sandbox, {
+      path: workspace.path,
+      repository: headRepository,
+    });
+    const result = await files.compareWith(workspace, {
       pathPrefix: ".",
       limit: 2,
     });
@@ -351,8 +333,8 @@ describe("Git object inspection", () => {
     assert(result.isOk());
     assert.deepEqual(result.value, {
       repositoryId: repository.id,
-      baseRevision: resolvedRepository.resolvedRevision,
-      headRevision: headRepository.resolvedRevision,
+      baseCommitSha: resolvedRepository.commitSha,
+      headCommitSha: headRepository.commitSha,
       changedFiles: ["docs/a.md", "src/b.ts"],
       truncated: true,
     });
@@ -369,16 +351,18 @@ describe("repository GitHub boundary", () => {
         private: false,
       }))
       .mockResolvedValueOnce(jsonResponse({
-        sha: resolvedRepository.resolvedRevision,
+        sha: resolvedRepository.commitSha,
       }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await resolveGitHubRevision(
+    const github = new GitHubRepository(
       repository,
-      "secret-token",
-      new AbortController().signal,
-      "3.21",
+      createGitHubRequest({
+        token: "secret-token",
+        abortSignal: new AbortController().signal,
+      }),
     );
+    const result = await github.resolveCommit("3.21");
 
     assert(result.isOk());
     assert.equal(result.value.ref, "3.21");
@@ -398,13 +382,98 @@ describe("repository GitHub boundary", () => {
 
     await assert.rejects(
       async () =>
-        await resolveGitHubRevision(
+        await new GitHubRepository(
           repository,
-          "token",
-          controller.signal,
-          "main",
-        ),
+          createGitHubRequest({
+            token: "token",
+            abortSignal: controller.signal,
+          }),
+        ).resolveCommit("main"),
       cancellation,
+    );
+  });
+
+  test("treats a missing remote branch as an idempotent absence", async () => {
+    vi.stubGlobal(
+      "fetch",
+      vi.fn<typeof fetch>().mockResolvedValue(
+        new Response(null, { status: 404 }),
+      ),
+    );
+
+    const result = await new GitHubRepository(
+      repository,
+      createGitHubRequest({
+        token: "token",
+        abortSignal: new AbortController().signal,
+      }),
+    ).resolveBranchCommitSha("paige/example");
+
+    assert(result.isOk());
+    assert.equal(result.value, undefined);
+  });
+
+  test("reuses an existing approved draft pull request", async () => {
+    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse([
+      {
+        number: 42,
+        html_url: "https://github.com/saleor/saleor/pull/42",
+        title: "Update docs",
+        body: null,
+        draft: true,
+      },
+    ]));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await new GitHubRepository(
+      repository,
+      createGitHubRequest({
+        token: "token",
+        abortSignal: new AbortController().signal,
+      }),
+    ).createOrReuseDraftPullRequest({
+      branch: "paige/example",
+      baseBranch: "main",
+      title: "Update docs",
+      body: "",
+    });
+
+    assert(result.isOk());
+    assert.equal(result.value.reused, true);
+    assert.equal(result.value.number, 42);
+    assert.equal(fetchMock.mock.calls.length, 1);
+  });
+
+  test("creates one draft pull request after an empty idempotency lookup", async () => {
+    const fetchMock = vi
+      .fn<typeof fetch>()
+      .mockResolvedValueOnce(jsonResponse([]))
+      .mockResolvedValueOnce(jsonResponse({
+        number: 43,
+        html_url: "https://github.com/saleor/saleor/pull/43",
+        draft: true,
+      }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    const result = await new GitHubRepository(
+      repository,
+      createGitHubRequest({
+        token: "token",
+        abortSignal: new AbortController().signal,
+      }),
+    ).createOrReuseDraftPullRequest({
+      branch: "paige/example",
+      baseBranch: "main",
+      title: "Update docs",
+      body: "Prepared by Paige.",
+    });
+
+    assert(result.isOk());
+    assert.equal(result.value.reused, false);
+    assert.equal(fetchMock.mock.calls[1][1]?.method, "POST");
+    assert.match(
+      String(fetchMock.mock.calls[1][1]?.body),
+      /"draft":true/,
     );
   });
 });

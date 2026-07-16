@@ -1,6 +1,9 @@
 import type { Result, ResultAsync } from "neverthrow";
 
 export type RepositoryErrorCode =
+  | "REPOSITORY_APPROVAL_MISMATCH"
+  | "REPOSITORY_CONFLICT"
+  | "REPOSITORY_DIFF_REJECTED"
   | "REPOSITORY_DIRTY_WORKSPACE"
   | "REPOSITORY_FILE_NOT_FOUND"
   | "REPOSITORY_GITHUB_AUTH_FAILED"

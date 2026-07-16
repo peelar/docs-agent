@@ -50,5 +50,5 @@ Slack · Linear · Releases · Repositories
 | Repositories        | Authenticated shallow Git caches for configured evidence and documentation repositories |
 | Isolation           | Eve sandbox with Git object caches under `/workspace/repositories`                       |
 | Durable state       | Drizzle with local SQLite or a deployed libSQL-compatible database                      |
-| Writeback           | Planned: checked diff followed by an explicitly approved branch and draft PR             |
-| Regression proof    | Unit tests and live Eve evals for repository catalog, browse, search, and bounded reads  |
+| Writeback           | Digest-bound documentation diff followed by an explicitly approved branch and draft PR   |
+| Regression proof    | Unit tests and live Eve evals for repository inspection and documentation authoring       |

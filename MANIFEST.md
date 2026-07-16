@@ -11,14 +11,14 @@ change—or whether nothing should change.
 Paige currently responds only to direct messages in Slack. Chat SDK handles the
 Slack transport and Eve runs the model conversation.
 
-Paige can inspect every configured repository through one authenticated,
-Git-backed repository tool. Each sandbox keeps a shallow Git object cache that
+Paige can inspect every configured repository through the authenticated
+`repository_read` tool. Each sandbox keeps a shallow Git object cache that
 supports exact-revision reads and comparisons without requiring a populated
 working tree. Evidence repositories remain read-only. The documentation
-repository uses the same Git foundation but is the only role eligible for a
-future approval-gated writeback workflow. GitHub metadata remains a typed
-implementation shell. There is no documentation workflow, product database,
-or automated writeback.
+repository can be edited in a protected worktree, reviewed as a digest-bound
+patch, and published only through an explicitly approved draft-PR writeback.
+GitHub metadata remains a typed implementation shell. There is no product
+database or automated writeback.
 
 ## Stack
 

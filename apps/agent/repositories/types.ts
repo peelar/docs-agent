@@ -14,7 +14,7 @@ export type ResolvedRepository<
 > = TRepository & {
   isPrivate: boolean;
   ref: string;
-  resolvedRevision: string;
+  commitSha: string;
 };
 
 export interface RepositoryWorkspace<
@@ -32,8 +32,8 @@ export interface RepositorySearchMatch {
 
 export interface RepositoryComparison {
   repositoryId: string;
-  baseRevision: string;
-  headRevision: string;
+  baseCommitSha: string;
+  headCommitSha: string;
   changedFiles: string[];
   truncated: boolean;
 }

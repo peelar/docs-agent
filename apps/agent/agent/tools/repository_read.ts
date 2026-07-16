@@ -3,21 +3,21 @@ import { z } from "zod";
 
 import { RepositoryService } from "../../repositories/service";
 
-const revisionSchema = z.string().min(1).max(200);
+const refSchema = z.string().min(1).max(200);
 
 const actionInputSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("catalog") }),
   z.object({
     action: z.literal("list_files"),
     repositoryId: z.string().min(1),
-    revision: revisionSchema.optional(),
+    ref: refSchema.optional(),
     pathPrefix: z.string().default("."),
     limit: z.number().int().min(1).max(200).default(100),
   }),
   z.object({
     action: z.literal("search"),
     repositoryId: z.string().min(1),
-    revision: revisionSchema.optional(),
+    ref: refSchema.optional(),
     query: z.string().min(1).max(500),
     pathPrefix: z.string().default("."),
     limit: z.number().int().min(1).max(100).default(50),
@@ -25,7 +25,7 @@ const actionInputSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("read"),
     repositoryId: z.string().min(1),
-    revision: revisionSchema.optional(),
+    ref: refSchema.optional(),
     path: z.string().min(1),
     startLine: z.number().int().positive().default(1),
     endLine: z.number().int().positive().optional(),
@@ -34,19 +34,19 @@ const actionInputSchema = z.discriminatedUnion("action", [
   z.object({
     action: z.literal("compare"),
     repositoryId: z.string().min(1),
-    baseRevision: revisionSchema,
-    headRevision: revisionSchema,
+    baseRef: refSchema,
+    headRef: refSchema,
     pathPrefix: z.string().default("."),
     limit: z.number().int().min(1).max(200).default(100),
   }),
 ]);
 
-export const repositoryToolInputSchema = z.object({
+export const repositoryReadToolInputSchema = z.object({
   action: z.enum(["catalog", "list_files", "search", "read", "compare"]),
   repositoryId: z.string().min(1).optional(),
-  revision: revisionSchema.optional(),
-  baseRevision: revisionSchema.optional(),
-  headRevision: revisionSchema.optional(),
+  ref: refSchema.optional(),
+  baseRef: refSchema.optional(),
+  headRef: refSchema.optional(),
   pathPrefix: z.string().optional(),
   limit: z.number().int().positive().optional(),
   query: z.string().min(1).optional(),
@@ -58,8 +58,8 @@ export const repositoryToolInputSchema = z.object({
 
 export default defineTool({
   description:
-    "Inspect Paige's configured Git repositories without publishing changes. Use catalog to discover repository IDs and roles, list_files/search/read for exact revision content, and compare for bounded changed-path lists between two refs, tags, or commits.",
-  inputSchema: repositoryToolInputSchema,
+    "Read Paige's configured Git repositories without publishing changes. Use catalog to discover repository IDs and roles, list_files/search/read for files at an exact ref, and compare for bounded changed-path lists between two branches, tags, or commit SHAs.",
+  inputSchema: repositoryReadToolInputSchema,
   async execute(input, ctx) {
     const service = new RepositoryService(ctx);
 

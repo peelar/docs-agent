@@ -6,11 +6,11 @@ export default defineEval({
   timeoutMs: 180_000,
   async test(t) {
     await t.send(
-      "Use the repository catalog and briefly list the configured repositories.",
+      "Use the repository_read catalog and briefly list the configured repositories.",
     );
     t.succeeded();
     t.noFailedActions();
-    t.calledTool("repository", {
+    t.calledTool("repository_read", {
       input: { action: "catalog" },
       output: (output) =>
         JSON.stringify(output).includes("saleor-dashboard") &&

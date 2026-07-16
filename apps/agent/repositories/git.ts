@@ -17,253 +17,215 @@ import type {
 
 const REPOSITORY_PATH_PREFIX = "/workspace/repositories";
 
-/**
- * Ensures the requested immutable revisions exist in one cached shallow Git
- * repository. No working tree checkout is required for read operations.
- */
-export function ensureRepositoryRevisions<
-  TRepository extends RepositoryConfig,
->(input: {
-  sandbox: SandboxSession;
-  repository: TRepository;
-  revisions: ResolvedRepository<TRepository>[];
-  token: string;
-  abortSignal: AbortSignal;
-}): RepositoryResultAsync<RepositoryWorkspace<TRepository>[]> {
-  return new ResultAsync((async () => {
-    if (input.revisions.length === 0) {
-      return err(new RepositoryError(
-        "REPOSITORY_INVALID_INPUT",
-        "At least one repository revision is required.",
-      ));
-    }
-    const path = `${REPOSITORY_PATH_PREFIX}/${input.repository.id}`;
-    const remoteUrl = githubRemoteUrl(input.repository);
-    const initialized = await ensureRepositoryInitialized({
-      sandbox: input.sandbox,
-      path,
-      remoteUrl,
-      abortSignal: input.abortSignal,
-    });
-    if (initialized.isErr()) return err(initialized.error);
+export class SandboxGit {
+  readonly #sandbox: SandboxSession;
 
-    const missing: ResolvedRepository<TRepository>[] = [];
-    for (const revision of input.revisions) {
-      const present = await hasCommit(
-        input.sandbox,
-        path,
-        revision.resolvedRevision,
-        input.abortSignal,
-      );
-      if (!present) missing.push(revision);
-    }
+  constructor(sandbox: SandboxSession) {
+    this.#sandbox = sandbox;
+  }
 
-    if (missing.length > 0) {
-      try {
-        await input.sandbox.setNetworkPolicy(
-          githubFetchNetworkPolicy({
-            token: input.token,
-            authenticated: input.revisions[0].isPrivate,
-          }),
-        );
-        for (const revision of missing) {
-          const fetchResult = await run(
-            input.sandbox,
-            `cd ${quoteShellArgument(path)} && GIT_TERMINAL_PROMPT=0 git fetch --depth=1 --no-tags origin ${quoteShellArgument(revision.resolvedRevision)}`,
-            input.abortSignal,
-          );
-          const fetched = successfulCommand(
-            fetchResult,
-            `Failed to fetch repository ${input.repository.id} revision ${revision.ref}`,
-          );
-          if (fetched.isErr()) return err(fetched.error);
-        }
-      } finally {
-        await input.sandbox.setNetworkPolicy("deny-all");
-      }
-    }
-
-    for (const revision of input.revisions) {
-      if (
-        !(await hasCommit(
-          input.sandbox,
-          path,
-          revision.resolvedRevision,
-          input.abortSignal,
-        ))
-      ) {
+  /**
+   * Ensures the requested commits exist in one cached shallow Git
+   * repository. No working tree checkout is required for read operations.
+   */
+  ensureCommits<TRepository extends RepositoryConfig>(input: {
+    repository: TRepository;
+    commits: ResolvedRepository<TRepository>[];
+    token: string;
+  }): RepositoryResultAsync<RepositoryWorkspace<TRepository>[]> {
+    return new ResultAsync((async () => {
+      if (input.commits.length === 0) {
         return err(new RepositoryError(
-          "REPOSITORY_SANDBOX_FAILED",
-          `Fetched repository ${input.repository.id} did not contain revision ${revision.resolvedRevision}.`,
+          "REPOSITORY_INVALID_INPUT",
+          "At least one repository commit is required.",
+        ));
+      }
+
+      const path = `${REPOSITORY_PATH_PREFIX}/${input.repository.id}`;
+      const initialized = await this.#ensureRepositoryInitialized(
+        path,
+        githubRemoteUrl(input.repository),
+      );
+      if (initialized.isErr()) return err(initialized.error);
+
+      const missing: ResolvedRepository<TRepository>[] = [];
+      for (const commit of input.commits) {
+        if (!(await this.#hasCommit(path, commit.commitSha))) {
+          missing.push(commit);
+        }
+      }
+
+      if (missing.length > 0) {
+        const fetched = await this.#withGitHubAccess(
+          input.token,
+          input.commits[0].isPrivate,
+          async () => {
+            for (const commit of missing) {
+              const fetchResult = await this.#run(
+                `cd ${quoteShellArgument(path)} && GIT_TERMINAL_PROMPT=0 git fetch --depth=1 --no-tags origin ${quoteShellArgument(commit.commitSha)}`,
+              );
+              const successful = successfulCommand(
+                fetchResult,
+                `Failed to fetch repository ${input.repository.id} ref ${commit.ref}`,
+              );
+              if (successful.isErr()) return err(successful.error);
+            }
+            return ok(undefined);
+          },
+        );
+        if (fetched.isErr()) return err(fetched.error);
+      }
+
+      for (const commit of input.commits) {
+        if (!(await this.#hasCommit(path, commit.commitSha))) {
+          return err(new RepositoryError(
+            "REPOSITORY_SANDBOX_FAILED",
+            `Fetched repository ${input.repository.id} did not contain commit ${commit.commitSha}.`,
+          ));
+        }
+      }
+
+      return ok(input.commits.map((repository) => ({ path, repository })));
+    })());
+  }
+
+  /**
+   * Checks out one commit without discarding existing changes.
+   */
+  checkoutCommit<TRepository extends RepositoryConfig>(
+    workspace: RepositoryWorkspace<TRepository>,
+  ): RepositoryResultAsync<RepositoryWorkspace<TRepository>> {
+    return new ResultAsync((async () => {
+      const statusResult = await this.#run(
+        `cd ${quoteShellArgument(workspace.path)} && git status --porcelain`,
+      );
+      const status = successfulCommand(
+        statusResult,
+        `Failed to inspect repository ${workspace.repository.id} status`,
+      );
+      if (status.isErr()) return err(status.error);
+      if (statusResult.stdout.trim() !== "") {
+        return err(new RepositoryError(
+          "REPOSITORY_DIRTY_WORKSPACE",
+          `Repository workspace has uncommitted changes: ${workspace.repository.id}`,
+        ));
+      }
+
+      const checkoutResult = await this.#run(
+        `cd ${quoteShellArgument(workspace.path)} && git checkout --detach ${quoteShellArgument(workspace.repository.commitSha)}`,
+      );
+      const checkedOut = successfulCommand(
+        checkoutResult,
+        `Failed to check out repository ${workspace.repository.id}`,
+      );
+      if (checkedOut.isErr()) return err(checkedOut.error);
+
+      return ok(workspace);
+    })());
+  }
+
+  async #ensureRepositoryInitialized(
+    path: string,
+    remoteUrl: string,
+  ): Promise<RepositoryResult<void>> {
+    const gitDirectory = await this.#run(
+      `test -d ${quoteShellArgument(`${path}/.git`)}`,
+    );
+    if (gitDirectory.exitCode === 0) {
+      const remoteResult = await this.#run(
+        `cd ${quoteShellArgument(path)} && git remote get-url origin`,
+      );
+      const remote = successfulCommand(
+        remoteResult,
+        "Failed to inspect repository origin",
+      );
+      if (remote.isErr()) return err(remote.error);
+      if (remoteResult.stdout.trim() === remoteUrl) return ok(undefined);
+
+      const statusResult = await this.#run(
+        `cd ${quoteShellArgument(path)} && git status --porcelain`,
+      );
+      const status = successfulCommand(
+        statusResult,
+        "Failed to inspect repository status",
+      );
+      if (status.isErr()) return err(status.error);
+      if (statusResult.stdout.trim() !== "") {
+        return err(new RepositoryError(
+          "REPOSITORY_DIRTY_WORKSPACE",
+          `Refusing to replace a repository workspace with uncommitted changes: ${path}`,
         ));
       }
     }
 
-    return ok(input.revisions.map((repository) => ({ path, repository })));
-  })());
-}
+    await this.#sandbox.removePath({
+      path,
+      force: true,
+      recursive: true,
+    });
 
-/**
- * Checks out one resolved revision for the future documentation authoring
- * workflow. Existing uncommitted changes are never discarded.
- */
-export function checkoutRepositoryRevision<
-  TRepository extends RepositoryConfig,
->(input: {
-  sandbox: SandboxSession;
-  workspace: RepositoryWorkspace<TRepository>;
-  abortSignal: AbortSignal;
-}): RepositoryResultAsync<RepositoryWorkspace<TRepository>> {
-  return new ResultAsync((async () => {
-    const statusResult = await run(
-      input.sandbox,
-      `cd ${quoteShellArgument(input.workspace.path)} && git status --porcelain`,
-      input.abortSignal,
+    const initializeResult = await this.#run(
+      `mkdir -p ${quoteShellArgument(path)} && cd ${quoteShellArgument(path)} && git init && git remote add origin ${quoteShellArgument(remoteUrl)}`,
     );
-    const status = successfulCommand(
-      statusResult,
-      `Failed to inspect repository ${input.workspace.repository.id} status`,
+    return successfulCommand(
+      initializeResult,
+      `Failed to initialize repository workspace ${path}`,
     );
-    if (status.isErr()) return err(status.error);
-    if (statusResult.stdout.trim() !== "") {
-      return err(new RepositoryError(
-        "REPOSITORY_DIRTY_WORKSPACE",
-        `Repository workspace has uncommitted changes: ${input.workspace.repository.id}`,
-      ));
+  }
+
+  async #hasCommit(path: string, commitSha: string): Promise<boolean> {
+    const result = await this.#run(
+      `cd ${quoteShellArgument(path)} && git cat-file -e ${quoteShellArgument(`${commitSha}^{commit}`)}`,
+    );
+    return result.exitCode === 0;
+  }
+
+  async #withGitHubAccess<T>(
+    token: string,
+    authenticated: boolean,
+    operation: () => Promise<RepositoryResult<T>>,
+  ): Promise<RepositoryResult<T>> {
+    try {
+      await this.#sandbox.setNetworkPolicy(
+        this.#githubNetworkPolicy(token, authenticated),
+      );
+      return await operation();
+    } finally {
+      await this.#sandbox.setNetworkPolicy("deny-all");
     }
+  }
 
-    const checkoutResult = await run(
-      input.sandbox,
-      `cd ${quoteShellArgument(input.workspace.path)} && git checkout --detach ${quoteShellArgument(input.workspace.repository.resolvedRevision)}`,
-      input.abortSignal,
-    );
-    const checkedOut = successfulCommand(
-      checkoutResult,
-      `Failed to check out repository ${input.workspace.repository.id}`,
-    );
-    if (checkedOut.isErr()) return err(checkedOut.error);
+  #githubNetworkPolicy(token: string, authenticated: boolean) {
+    const rules = authenticated
+      ? [
+          {
+            transform: [
+              {
+                headers: {
+                  Authorization: `Basic ${Buffer.from(
+                    `x-access-token:${token}`,
+                  ).toString("base64")}`,
+                },
+              },
+            ],
+          },
+        ]
+      : [];
+    return {
+      allow: {
+        "github.com": rules,
+        "codeload.github.com": rules,
+      },
+    };
+  }
 
-    return ok(input.workspace);
-  })());
+  async #run(command: string): Promise<SandboxCommandResult> {
+    return await this.#sandbox.run({ command });
+  }
 }
 
 function githubRemoteUrl(repository: RepositoryConfig): string {
   return `https://github.com/${repository.owner}/${repository.name}.git`;
-}
-
-async function ensureRepositoryInitialized(input: {
-  sandbox: SandboxSession;
-  path: string;
-  remoteUrl: string;
-  abortSignal: AbortSignal;
-}): Promise<RepositoryResult<void>> {
-  const gitDirectory = await run(
-    input.sandbox,
-    `test -d ${quoteShellArgument(`${input.path}/.git`)}`,
-    input.abortSignal,
-  );
-  if (gitDirectory.exitCode === 0) {
-    const remoteResult = await run(
-      input.sandbox,
-      `cd ${quoteShellArgument(input.path)} && git remote get-url origin`,
-      input.abortSignal,
-    );
-    const remote = successfulCommand(
-      remoteResult,
-      "Failed to inspect repository origin",
-    );
-    if (remote.isErr()) return err(remote.error);
-    if (remoteResult.stdout.trim() === input.remoteUrl) return ok(undefined);
-
-    const statusResult = await run(
-      input.sandbox,
-      `cd ${quoteShellArgument(input.path)} && git status --porcelain`,
-      input.abortSignal,
-    );
-    const status = successfulCommand(
-      statusResult,
-      "Failed to inspect repository status",
-    );
-    if (status.isErr()) return err(status.error);
-    if (statusResult.stdout.trim() !== "") {
-      return err(new RepositoryError(
-        "REPOSITORY_DIRTY_WORKSPACE",
-        `Refusing to replace a repository workspace with uncommitted changes: ${input.path}`,
-      ));
-    }
-    await input.sandbox.removePath({
-      path: input.path,
-      force: true,
-      recursive: true,
-      abortSignal: input.abortSignal,
-    });
-  } else {
-    await input.sandbox.removePath({
-      path: input.path,
-      force: true,
-      recursive: true,
-      abortSignal: input.abortSignal,
-    });
-  }
-
-  const initializeResult = await run(
-    input.sandbox,
-    `mkdir -p ${quoteShellArgument(input.path)} && cd ${quoteShellArgument(input.path)} && git init && git remote add origin ${quoteShellArgument(input.remoteUrl)}`,
-    input.abortSignal,
-  );
-  return successfulCommand(
-    initializeResult,
-    `Failed to initialize repository workspace ${input.path}`,
-  );
-}
-
-async function hasCommit(
-  sandbox: SandboxSession,
-  path: string,
-  revision: string,
-  abortSignal: AbortSignal,
-): Promise<boolean> {
-  const result = await run(
-    sandbox,
-    `cd ${quoteShellArgument(path)} && git cat-file -e ${quoteShellArgument(`${revision}^{commit}`)}`,
-    abortSignal,
-  );
-  return result.exitCode === 0;
-}
-
-function githubFetchNetworkPolicy(input: {
-  token: string;
-  authenticated: boolean;
-}) {
-  const rules = input.authenticated
-    ? [
-        {
-          transform: [
-            {
-              headers: {
-                Authorization: `Basic ${Buffer.from(
-                  `x-access-token:${input.token}`,
-                ).toString("base64")}`,
-              },
-            },
-          ],
-        },
-      ]
-    : [];
-  return {
-    allow: {
-      "github.com": rules,
-      "codeload.github.com": rules,
-    },
-  };
-}
-
-async function run(
-  sandbox: SandboxSession,
-  command: string,
-  abortSignal: AbortSignal,
-): Promise<SandboxCommandResult> {
-  return await sandbox.run({ command, abortSignal });
 }
 
 function successfulCommand(
