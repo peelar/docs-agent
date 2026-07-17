@@ -12,8 +12,8 @@ const geist = Geist({ subsets: ["latin"], variable: "--font-sans" });
 const geistMono = Geist_Mono({ subsets: ["latin"], variable: "--font-mono" });
 
 export const metadata: Metadata = {
-  title: "Repository settings · Paige",
-  description: "Connect the GitHub repository Paige should maintain.",
+  title: "Paige operator",
+  description: "Inspect Paige sessions and configure its documentation repository.",
 };
 
 export default function RootLayout({ children }: { children: ReactNode }) {

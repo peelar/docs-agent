@@ -4,15 +4,21 @@ import {
   summarizeRepositoryConfiguration,
 } from "../../../../agent/repositories/configuration/service";
 import { RepositoryError } from "../../../../agent/repositories/shared/errors";
+import {
+  isOperatorAccessFailure,
+  localOperatorAccess,
+} from "@/operator-access";
 
 export const dynamic = "force-dynamic";
 
 export async function GET(request: Request): Promise<Response> {
-  const workspaceId = resolveOperatorWorkspace(request);
-  if (workspaceId instanceof Response) return workspaceId;
+  const access = localOperatorAccess(request);
+  if (isOperatorAccessFailure(access)) {
+    return errorResponse(access.status, access.error);
+  }
 
   try {
-    const active = await repositoryConfigurationStore().get(workspaceId).match(
+    const active = await repositoryConfigurationStore().get().match(
       (value) => value,
       raiseRepositoryError,
     );
@@ -34,8 +40,10 @@ export async function GET(request: Request): Promise<Response> {
 }
 
 export async function POST(request: Request): Promise<Response> {
-  const workspaceId = resolveOperatorWorkspace(request);
-  if (workspaceId instanceof Response) return workspaceId;
+  const access = localOperatorAccess(request);
+  if (isOperatorAccessFailure(access)) {
+    return errorResponse(access.status, access.error);
+  }
 
   let body: unknown;
   try {
@@ -59,7 +67,7 @@ export async function POST(request: Request): Promise<Response> {
       { abortSignal: request.signal },
       store,
     );
-    const active = await service.get(workspaceId).match(
+    const active = await service.get().match(
       (value) => value,
       raiseRepositoryError,
     );
@@ -71,7 +79,6 @@ export async function POST(request: Request): Promise<Response> {
       evidenceRepositoryUrls,
     }).match((value) => value, raiseRepositoryError);
     const saved = await service.confirm({
-      workspaceId,
       configuration,
       expectedRevision: active?.revision ?? null,
     }).match((value) => value, raiseRepositoryError);
@@ -91,35 +98,6 @@ export async function POST(request: Request): Promise<Response> {
 }
 
 const noStoreHeaders = { "cache-control": "no-store" };
-
-function resolveOperatorWorkspace(request: Request): string | Response {
-  if (process.env.PAIGE_OPERATOR_ACCESS !== "local") {
-    return errorResponse(
-      403,
-      "Repository management is available only in the local operator app.",
-    );
-  }
-
-  const hostname = new URL(request.url).hostname.toLowerCase();
-  if (
-    hostname !== "localhost" &&
-    !hostname.endsWith(".localhost") &&
-    hostname !== "127.0.0.1" &&
-    hostname !== "::1"
-  ) {
-    return errorResponse(403, "Repository management requires localhost.");
-  }
-
-  const workspaceId = process.env.PAIGE_OPERATOR_WORKSPACE_ID?.trim();
-  if (!workspaceId) {
-    return errorResponse(
-      503,
-      "Set PAIGE_OPERATOR_WORKSPACE_ID to the Slack workspace Paige should manage.",
-    );
-  }
-
-  return workspaceId;
-}
 
 function repositoryErrorResponse(error: unknown): Response {
   if (error instanceof RepositoryError) {

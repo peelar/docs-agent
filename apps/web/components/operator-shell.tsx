@@ -8,9 +8,9 @@ import {
   BookOpenIcon,
   BotIcon,
   CheckCircle2Icon,
+  ListTreeIcon,
   MenuIcon,
   Settings2Icon,
-  WorkflowIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
@@ -31,9 +31,9 @@ import {
 import { cn } from "@/lib/utils";
 
 const navigation = [
+  { label: "Sessions", icon: ListTreeIcon, href: "/sessions" },
   { label: "Repository", icon: BookOpenIcon, href: "/" },
-  { label: "Agent", icon: BotIcon, href: "/agent" },
-  { label: "Runs", icon: WorkflowIcon },
+  { label: "Local session", icon: BotIcon, href: "/agent" },
   { label: "Approvals", icon: CheckCircle2Icon },
 ];
 
