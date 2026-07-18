@@ -129,45 +129,6 @@ describe("repository metadata service", () => {
     assert.match(url, /per_page=100/);
   });
 
-  test("lists open pull requests with their exact head and base refs", async () => {
-    const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse([
-      {
-        number: 77,
-        title: "Update checkout docs",
-        state: "open",
-        html_url: "https://github.com/saleor/saleor/pull/77",
-        draft: true,
-        head: { sha: "abcdef0123456789" },
-        base: { ref: "main" },
-        updated_at: "2026-07-13T10:11:12Z",
-      },
-    ]));
-    vi.stubGlobal("fetch", fetchMock);
-
-    const { service } = createService();
-    const result = await service.listOpenPullRequests({
-      repositoryId: repository.id,
-      limit: 3,
-    });
-
-    assert(result.isOk());
-    assert.deepEqual(result.value, [
-      {
-        number: 77,
-        title: "Update checkout docs",
-        state: "open",
-        url: "https://github.com/saleor/saleor/pull/77",
-        draft: true,
-        headCommitSha: "abcdef0123456789",
-        baseRef: "main",
-        updatedAt: "2026-07-13T10:11:12Z",
-      },
-    ]);
-    const url = fetchMock.mock.calls[0][0].toString();
-    assert.match(url, /pulls\?/);
-    assert.match(url, /per_page=3/);
-  });
-
   test("lists tags and recent commits without normalizing source data", async () => {
     const fetchMock = vi
       .fn<typeof fetch>()

@@ -30,9 +30,14 @@ All configured repositories use one authenticated shallow Git cache under
 - `service.ts` exposes those bounded read operations through the
   `repository_read`
   Eve tool.
-- `metadata/` exposes bounded releases, open issues, open pull requests, tags,
-  and recent commits through the `repository_metadata` Eve tool. These calls
+- `metadata/` exposes bounded releases, open issues, tags, and recent commits
+  through the `repository_metadata` Eve tool. These calls
   use GitHub's API from the trusted app runtime and never acquire a sandbox.
+- `pull-requests/` exposes pull request summaries, details, changed-file
+  metadata, conversation comments, review summaries, and inline comments
+  through the `pull_request_read` Eve tool. It returns exact base and head
+  commit SHAs for optional source inspection through `repository_read`, but it
+  never acquires a sandbox itself or reads CI/CD checks.
 - `documentation/` creates one protected editable worktree, exposes bounded
   text edits and diff inspection, binds approval to a digest of the exact
   proposed bytes, creates an exact local approval commit, then publishes one

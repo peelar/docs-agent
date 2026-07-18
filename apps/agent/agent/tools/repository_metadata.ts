@@ -17,7 +17,6 @@ const queryShape = {
 const actionInputSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("list_releases"), ...queryShape }),
   z.object({ action: z.literal("list_open_issues"), ...queryShape }),
-  z.object({ action: z.literal("list_open_pull_requests"), ...queryShape }),
   z.object({ action: z.literal("list_tags"), ...queryShape }),
   z.object({ action: z.literal("list_commits"), ...queryShape }),
 ]);
@@ -26,7 +25,6 @@ export const repositoryMetadataToolInputSchema = z.object({
   action: z.enum([
     "list_releases",
     "list_open_issues",
-    "list_open_pull_requests",
     "list_tags",
     "list_commits",
   ]),
@@ -36,7 +34,7 @@ export const repositoryMetadataToolInputSchema = z.object({
 
 export default defineTool({
   description:
-    "List bounded GitHub metadata for Paige's configured repositories. Use repository_read catalog to discover repository IDs, then list releases, open issues, open pull requests, tags, or recent commits. Results preserve GitHub source URLs and timestamps. This read-only tool calls GitHub from the trusted app runtime and never runs sandbox shell commands.",
+    "List bounded GitHub metadata for Paige's configured repositories. Use repository_read catalog to discover repository IDs, then list releases, open issues, tags, or recent commits. Use pull_request_read for pull requests. Results preserve GitHub source URLs and timestamps. This read-only tool calls GitHub from the trusted app runtime and never runs sandbox shell commands.",
   inputSchema: repositoryMetadataToolInputSchema,
   async execute(input, ctx) {
     const service = new GitHubRepositoryMetadataService(ctx);
@@ -61,15 +59,6 @@ export default defineTool({
             action: input.action,
             repositoryId: input.repositoryId,
             issues,
-          }),
-          raiseRepositoryError,
-        );
-      case "list_open_pull_requests":
-        return await service.listOpenPullRequests(query).match(
-          (pullRequests) => ({
-            action: input.action,
-            repositoryId: input.repositoryId,
-            pullRequests,
           }),
           raiseRepositoryError,
         );

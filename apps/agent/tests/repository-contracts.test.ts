@@ -9,6 +9,9 @@ import {
   documentationWorkspaceToolInputSchema,
 } from "../agent/tools/documentation_workspace";
 import {
+  pullRequestReadToolInputSchema,
+} from "../agent/tools/pull_request_read";
+import {
   repositoryReadToolInputSchema,
 } from "../agent/tools/repository_read";
 import {
@@ -31,7 +34,6 @@ import type { RepositoryConfig } from "../repositories/types";
 const metadataServiceMethods = [
   "listReleases",
   "listOpenIssues",
-  "listOpenPullRequests",
   "listTags",
   "listCommits",
 ] satisfies Array<keyof RepositoryMetadataService>;
@@ -243,7 +245,7 @@ describe("repository tool contract", () => {
 });
 
 describe("repository metadata tool contract", () => {
-  test("accepts the five bounded read-only actions", () => {
+  test("accepts the four bounded read-only actions", () => {
     assert.deepEqual(
       repositoryMetadataToolInputSchema.parse({
         action: "list_releases",
@@ -263,18 +265,6 @@ describe("repository metadata tool contract", () => {
       }),
       {
         action: "list_open_issues",
-        repositoryId: "saleor-core",
-        limit: 5,
-      },
-    );
-    assert.deepEqual(
-      repositoryMetadataToolInputSchema.parse({
-        action: "list_open_pull_requests",
-        repositoryId: "saleor-core",
-        limit: 5,
-      }),
-      {
-        action: "list_open_pull_requests",
         repositoryId: "saleor-core",
         limit: 5,
       },
@@ -319,6 +309,85 @@ describe("repository metadata tool contract", () => {
         action: "list_commits",
         repositoryId: "saleor-core",
         limit: 101,
+      })
+    );
+  });
+});
+
+describe("pull request read tool contract", () => {
+  test("uses consistent list, read, list_files, and list_comments actions", () => {
+    assert.deepEqual(
+      pullRequestReadToolInputSchema.parse({
+        action: "list",
+        repositoryId: "saleor-core",
+      }),
+      {
+        action: "list",
+        repositoryId: "saleor-core",
+        state: "open",
+        page: 1,
+        limit: 20,
+      },
+    );
+    assert.deepEqual(
+      pullRequestReadToolInputSchema.parse({
+        action: "read",
+        repositoryId: "saleor-core",
+        pullRequestNumber: 77,
+      }),
+      {
+        action: "read",
+        repositoryId: "saleor-core",
+        pullRequestNumber: 77,
+      },
+    );
+    assert.deepEqual(
+      pullRequestReadToolInputSchema.parse({
+        action: "list_files",
+        repositoryId: "saleor-core",
+        pullRequestNumber: 77,
+      }),
+      {
+        action: "list_files",
+        repositoryId: "saleor-core",
+        pullRequestNumber: 77,
+        page: 1,
+        limit: 20,
+      },
+    );
+    assert.deepEqual(
+      pullRequestReadToolInputSchema.parse({
+        action: "list_comments",
+        repositoryId: "saleor-core",
+        pullRequestNumber: 77,
+        commentKind: "inline",
+      }),
+      {
+        action: "list_comments",
+        repositoryId: "saleor-core",
+        pullRequestNumber: 77,
+        commentKind: "inline",
+        page: 1,
+        limit: 20,
+      },
+    );
+  });
+
+  test("rejects arbitrary coordinates and unbounded pages", () => {
+    assert.throws(() =>
+      pullRequestReadToolInputSchema.parse({
+        action: "read",
+        repositoryId: "saleor-core",
+        pullRequestNumber: 77,
+        owner: "someone",
+      })
+    );
+    assert.throws(() =>
+      pullRequestReadToolInputSchema.parse({
+        action: "list_files",
+        repositoryId: "saleor-core",
+        pullRequestNumber: 77,
+        limit: 51,
       })
     );
   });
@@ -386,7 +455,6 @@ describe("repository metadata service contract", () => {
     assert.deepEqual(metadataServiceMethods, [
       "listReleases",
       "listOpenIssues",
-      "listOpenPullRequests",
       "listTags",
       "listCommits",
     ]);

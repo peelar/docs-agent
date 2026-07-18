@@ -28,7 +28,7 @@ export function resolveGitHubToken(
           repositories: [repository.name],
           permissions: repository.role === "documentation"
             ? ["contents:write", "pull_requests:write"]
-            : ["contents:read"],
+            : ["contents:read", "pull_requests:read"],
         },
       ],
     }),

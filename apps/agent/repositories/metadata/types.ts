@@ -18,17 +18,6 @@ export interface RepositoryIssue {
   updatedAt: string;
 }
 
-export interface RepositoryPullRequest {
-  number: number;
-  title: string;
-  state: "open" | "closed";
-  url: string;
-  draft: boolean;
-  headCommitSha: string;
-  baseRef: string;
-  updatedAt: string;
-}
-
 export interface RepositoryTag {
   name: string;
   commitSha: string;

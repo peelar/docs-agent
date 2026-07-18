@@ -20,7 +20,6 @@ import type {
   RepositoryCommitSummary,
   RepositoryIssue,
   RepositoryMetadataQuery,
-  RepositoryPullRequest,
   RepositoryRelease,
   RepositoryTag,
 } from "./types";
@@ -51,17 +50,6 @@ const issueSchema = z.object({
   pull_request: z.unknown().optional(),
 });
 
-const pullRequestSchema = z.object({
-  number: z.number().int(),
-  title: z.string(),
-  state: z.literal("open"),
-  html_url: z.string().min(1),
-  draft: z.boolean(),
-  head: z.object({ sha: z.string().min(1) }),
-  base: z.object({ ref: z.string().min(1) }),
-  updated_at: z.string(),
-});
-
 const tagSchema = z.object({
   name: z.string().min(1),
   commit: z.object({ sha: z.string().min(1) }),
@@ -86,9 +74,6 @@ export interface RepositoryMetadataService {
   listOpenIssues(
     input: RepositoryMetadataQuery,
   ): RepositoryResultAsync<RepositoryIssue[]>;
-  listOpenPullRequests(
-    input: RepositoryMetadataQuery,
-  ): RepositoryResultAsync<RepositoryPullRequest[]>;
   listTags(
     input: RepositoryMetadataQuery,
   ): RepositoryResultAsync<RepositoryTag[]>;
@@ -179,40 +164,6 @@ export class GitHubRepositoryMetadataService
         ),
       {
         filter: "all",
-        state: "open",
-        sort: "updated",
-        direction: "desc",
-      },
-    );
-  }
-
-  listOpenPullRequests(
-    input: RepositoryMetadataQuery,
-  ): RepositoryResultAsync<RepositoryPullRequest[]> {
-    return this.#list(
-      input,
-      "pulls",
-      input.limit,
-      (value) =>
-        parseArray(
-          value,
-          pullRequestSchema,
-          "GitHub pull requests response",
-        ).map((pullRequests) =>
-          pullRequests
-            .slice(0, input.limit)
-            .map((pullRequest) => ({
-              number: pullRequest.number,
-              title: pullRequest.title,
-              state: pullRequest.state,
-              url: pullRequest.html_url,
-              draft: pullRequest.draft,
-              headCommitSha: pullRequest.head.sha,
-              baseRef: pullRequest.base.ref,
-              updatedAt: pullRequest.updated_at,
-            }))
-        ),
-      {
         state: "open",
         sort: "updated",
         direction: "desc",
