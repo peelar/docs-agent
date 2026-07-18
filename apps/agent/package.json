@@ -7,6 +7,7 @@
     "build": "eve build",
     "check": "pnpm typecheck && pnpm test",
     "dev": "eve dev",
+    "dev:inspect": "eve dev --tools full --logs all",
     "dev:portless": "pnpm dev",
     "eval": "eve eval",
     "start": "eve start",

@@ -14,34 +14,35 @@ the coding agent, not a skill exposed to the Paige runtime.
    `paige-workspace`.
 2. Check for `.vercel/project.json`. When the checkout is not linked, ask the
    user which Vercel project to link before running `pnpm dlx vercel link`.
-3. Pull the linked production environment, which contains the Turso database
-   provisioned for this agent:
-
-   ```sh
-   pnpm dlx vercel env pull .env.local --environment=production --yes
-   ```
-
-   Do not print pulled values.
-4. Run the deterministic provisioner:
+3. Run the deterministic provisioner:
 
    ```sh
    pnpm exec node .agents/skills/setup/scripts/setup.mjs
    ```
 
-   It installs dependencies, maps the Vercel-provided Turso variables, and
-   verifies the remote connection, and immediately writes Paige's local
-   database variables to the root `.env.local`. This is the single local
-   environment file shared by the workspace launchers. The provisioner then
-   lists Slack connectors linked to the Vercel project and reuses the single
-   Paige connector. If none is linked, it reuses a matching team connector or
-   creates a managed Slack connector, attaches the project with triggers at
+   It installs dependencies and pulls the linked production environment into
+   a temporary file without printing values. It maps the Vercel-provided Turso
+   variables, verifies the remote connection, and writes app-owned local
+   environments:
+
+   - `apps/agent/.env.local` contains the database, agent connectors, and model
+     access values.
+   - `apps/web/.env.local` contains the database values used by the operator
+     application.
+
+   Shared values are intentionally repeated. Never create a root `.env.local`;
+   each app must load only its own environment. The provisioner removes the
+   temporary pull before starting connector setup. It then lists Slack
+   connectors linked to the Vercel project and reuses the single Paige
+   connector. If none is linked, it reuses a matching team connector or creates
+   a managed Slack connector, attaches the project with triggers at
    `/eve/v1/slack`, and starts the Slack installation flow. A paused Slack
    installation must not undo the completed database setup.
-5. If the provisioner opens Vercel Connect, tell the user to finish the Slack
+4. If the provisioner opens Vercel Connect, tell the user to finish the Slack
    installation in the browser. Pause, then rerun the provisioner. Do not ask
    the user to copy a workspace ID or bot token.
-6. Run `pnpm check`. Fix failures instead of bypassing required integrations.
-7. Report what was configured without printing tokens. Tell the user that
+5. Run `pnpm check`. Fix failures instead of bypassing required integrations.
+6. Report what was configured without printing tokens. Tell the user that
    `pnpm dev` starts the local harness.
 
 Require the shared Turso database. Accept `TURSO_DATABASE_URL` and

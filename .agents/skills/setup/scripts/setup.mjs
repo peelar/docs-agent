@@ -4,6 +4,7 @@ import {
   chmodSync,
   existsSync,
   readFileSync,
+  unlinkSync,
   writeFileSync,
 } from "node:fs";
 import { join } from "node:path";
@@ -25,26 +26,39 @@ if (!existsSync(join(repositoryRoot, ".vercel", "project.json"))) {
   fail("Link this checkout to its Vercel project before running setup.");
 }
 
-const envPath = join(repositoryRoot, ".env.local");
-const existingEnv = existsSync(envPath) ? readFileSync(envPath, "utf8") : "";
+const pulledEnvPath = join(repositoryRoot, ".env.setup.local");
+const legacyRootEnvPath = join(repositoryRoot, ".env.local");
+const agentEnvPath = join(repositoryRoot, "apps", "agent", ".env.local");
+const webEnvPath = join(repositoryRoot, "apps", "web", ".env.local");
 
 run("pnpm", ["install"]);
+run("pnpm", [
+  "dlx",
+  "vercel",
+  "env",
+  "pull",
+  pulledEnvPath,
+  "--environment=production",
+  "--yes",
+]);
+const pulledEnv = readFileSync(pulledEnvPath, "utf8");
+unlinkSync(pulledEnvPath);
 
 const databaseUrl = firstValue(
   process.env.PAIGE_DATABASE_URL?.trim(),
-  envValue(existingEnv, "PAIGE_DATABASE_URL"),
+  envValue(pulledEnv, "PAIGE_DATABASE_URL"),
   process.env.TURSO_DATABASE_URL?.trim(),
-  envValue(existingEnv, "TURSO_DATABASE_URL"),
+  envValue(pulledEnv, "TURSO_DATABASE_URL"),
   process.env.DOCS_AGENT_DATABASE_URL?.trim(),
-  envValue(existingEnv, "DOCS_AGENT_DATABASE_URL"),
+  envValue(pulledEnv, "DOCS_AGENT_DATABASE_URL"),
 );
 const authToken = firstValue(
   process.env.PAIGE_DATABASE_AUTH_TOKEN?.trim(),
-  envValue(existingEnv, "PAIGE_DATABASE_AUTH_TOKEN"),
+  envValue(pulledEnv, "PAIGE_DATABASE_AUTH_TOKEN"),
   process.env.TURSO_AUTH_TOKEN?.trim(),
-  envValue(existingEnv, "TURSO_AUTH_TOKEN"),
+  envValue(pulledEnv, "TURSO_AUTH_TOKEN"),
   process.env.DOCS_AGENT_DATABASE_AUTH_TOKEN?.trim(),
-  envValue(existingEnv, "DOCS_AGENT_DATABASE_AUTH_TOKEN"),
+  envValue(pulledEnv, "DOCS_AGENT_DATABASE_AUTH_TOKEN"),
 );
 if (!databaseUrl || !authToken) {
   fail(
@@ -66,29 +80,37 @@ try {
   database.close();
 }
 
-let nextEnv = upsertEnv(existingEnv, "PAIGE_DATABASE_URL", databaseUrl);
-nextEnv = upsertEnv(
-  nextEnv,
-  "PAIGE_DATABASE_AUTH_TOKEN",
-  authToken,
-);
-writeLocalEnvironment(nextEnv);
+let agentEnv = localEnvironment([
+  ["PAIGE_DATABASE_URL", databaseUrl],
+  ["PAIGE_DATABASE_AUTH_TOKEN", authToken],
+  ["AI_GATEWAY_API_KEY", envValue(pulledEnv, "AI_GATEWAY_API_KEY")],
+  ["EVE_GATEWAY_MODEL", envValue(pulledEnv, "EVE_GATEWAY_MODEL")],
+  ["EVE_SANDBOX_BACKEND", envValue(pulledEnv, "EVE_SANDBOX_BACKEND")],
+  ["PAIGE_GITHUB_CONNECTOR", envValue(pulledEnv, "PAIGE_GITHUB_CONNECTOR")],
+  ["VERCEL_OIDC_TOKEN", envValue(pulledEnv, "VERCEL_OIDC_TOKEN")],
+]);
+writeLocalEnvironment(agentEnvPath, agentEnv);
+writeLocalEnvironment(webEnvPath, localEnvironment([
+  ["PAIGE_DATABASE_URL", databaseUrl],
+  ["PAIGE_DATABASE_AUTH_TOKEN", authToken],
+]));
+if (existsSync(legacyRootEnvPath)) unlinkSync(legacyRootEnvPath);
 
 const configuredConnector = firstValue(
   process.env.PAIGE_SLACK_CONNECTOR?.trim(),
-  envValue(existingEnv, "PAIGE_SLACK_CONNECTOR"),
+  envValue(pulledEnv, "PAIGE_SLACK_CONNECTOR"),
   process.env.DOCS_AGENT_SLACK_CONNECTOR?.trim(),
-  envValue(existingEnv, "DOCS_AGENT_SLACK_CONNECTOR"),
+  envValue(pulledEnv, "DOCS_AGENT_SLACK_CONNECTOR"),
 );
 const slackConnector = resolveSlackConnector(configuredConnector);
 await verifySlackInstallation(slackConnector.uid);
 
-nextEnv = upsertEnv(
-  nextEnv,
+agentEnv = upsertEnv(
+  agentEnv,
   "PAIGE_SLACK_CONNECTOR",
   slackConnector.uid,
 );
-writeLocalEnvironment(nextEnv);
+writeLocalEnvironment(agentEnvPath, agentEnv);
 
 console.log("Local development setup complete.");
 console.log(`Slack connector: ${slackConnector.uid}`);
@@ -177,7 +199,7 @@ function attachSlackConnector(uid) {
 async function verifySlackInstallation(connectorUid) {
   const vercelToken = firstValue(
     process.env.VERCEL_OIDC_TOKEN?.trim(),
-    envValue(existingEnv, "VERCEL_OIDC_TOKEN"),
+    envValue(agentEnv, "VERCEL_OIDC_TOKEN"),
   );
   if (!vercelToken) fail("The pulled Vercel OIDC token is missing.");
 
@@ -257,6 +279,13 @@ function firstValue(...values) {
   return values.find((value) => value !== undefined && value.length > 0);
 }
 
+function localEnvironment(entries) {
+  return entries
+    .filter((entry) => entry[1] !== undefined)
+    .map(([name, value]) => `${name}=${serializeEnvValue(value)}`)
+    .join("\n") + "\n";
+}
+
 function upsertEnv(source, name, value) {
   const line = `${name}=${serializeEnvValue(value)}`;
   const expression = new RegExp(`^${name}=.*$`, "m");
@@ -271,9 +300,9 @@ function serializeEnvValue(value) {
   return /^[A-Za-z0-9_./:@-]+$/.test(value) ? value : JSON.stringify(value);
 }
 
-function writeLocalEnvironment(source) {
-  writeFileSync(envPath, source, "utf8");
-  chmodSync(envPath, 0o600);
+function writeLocalEnvironment(path, source) {
+  writeFileSync(path, source, "utf8");
+  chmodSync(path, 0o600);
 }
 
 function vercelJson(args) {
