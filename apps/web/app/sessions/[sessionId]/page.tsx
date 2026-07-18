@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { agentSessionStore } from "../../../../agent/sessions/database";
+import { resolveAgentSessionService } from "../../../../agent/sessions/database";
 import { assertLocalOperatorAccess } from "@/operator-access";
 
 import { SessionDetail } from "./session-detail";
@@ -14,8 +14,11 @@ export default async function SessionDetailPage({
 }) {
   assertLocalOperatorAccess();
   const { sessionId } = await params;
-  const session = await agentSessionStore().get(sessionId);
-  if (session === undefined) notFound();
+  const result = await resolveAgentSessionService().asyncAndThen((sessions) =>
+    sessions.get(sessionId)
+  );
+  if (result.isErr()) throw result.error;
+  if (result.value === undefined) notFound();
 
-  return <SessionDetail session={session} />;
+  return <SessionDetail session={result.value} />;
 }

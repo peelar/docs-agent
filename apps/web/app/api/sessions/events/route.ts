@@ -1,4 +1,4 @@
-import { agentSessionStore } from "../../../../../agent/sessions/database";
+import { resolveAgentSessionService } from "../../../../../agent/sessions/database";
 import {
   isOperatorAccessFailure,
   localOperatorAccess,
@@ -35,7 +35,11 @@ export function GET(request: Request): Response {
       const poll = async () => {
         if (!active) return;
         try {
-          const snapshot = JSON.stringify(await agentSessionStore().list());
+          const sessions = await resolveAgentSessionService().asyncAndThen(
+            (service) => service.list(),
+          );
+          if (sessions.isErr()) throw sessions.error;
+          const snapshot = JSON.stringify(sessions.value);
           const now = Date.now();
           if (snapshot !== previousSnapshot) {
             controller.enqueue(encoder.encode(

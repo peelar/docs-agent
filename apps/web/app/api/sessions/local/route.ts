@@ -1,4 +1,4 @@
-import { agentSessionStore } from "../../../../../agent/sessions/database";
+import { resolveAgentSessionService } from "../../../../../agent/sessions/database";
 import {
   isOperatorAccessFailure,
   localOperatorAccess,
@@ -23,16 +23,17 @@ export async function POST(request: Request): Promise<Response> {
     return errorResponse(400, "Expected a session ID and first message.");
   }
 
-  try {
-    const session = await agentSessionStore().register({
+  const result = await resolveAgentSessionService().asyncAndThen((sessions) =>
+    sessions.register({
       sessionId: body.sessionId,
       source: "local-web",
       firstMessage: body.firstMessage,
-    });
-    return Response.json({ session }, { headers: noStoreHeaders });
-  } catch {
+    })
+  );
+  if (result.isErr()) {
     return errorResponse(503, "The local session could not be indexed.");
   }
+  return Response.json({ session: result.value }, { headers: noStoreHeaders });
 }
 
 function isRegistrationBody(

@@ -16,7 +16,6 @@
   },
   "dependencies": {
     "@chat-adapter/slack": "4.34.0",
-    "@chat-adapter/state-memory": "4.34.0",
     "@libsql/client": "^0.17.4",
     "@vercel/connect": "0.3.2",
     "chat": "4.34.0",

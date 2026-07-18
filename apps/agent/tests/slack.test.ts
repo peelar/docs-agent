@@ -3,10 +3,11 @@ import assert from "node:assert/strict";
 import type { Message, Thread } from "chat";
 import { test } from "vitest";
 
+import { registerDirectMessages } from "../agent/channels/slack";
 import {
   extractSlackWorkspaceId,
-  registerDirectMessages,
-} from "../agent/channels/slack";
+  SlackChannelService,
+} from "../slack/service";
 
 test("Slack registers only the direct-message path", async () => {
   let handler:
@@ -27,10 +28,13 @@ test("Slack registers only the direct-message path", async () => {
       attributes: { slackWorkspaceId: string };
     };
   }> = [];
-
-  registerDirectMessages(bot, async (message, { thread, auth }) => {
-    calls.push({ message, thread, auth });
-  });
+  const service = new SlackChannelService(
+    async (message, { thread, auth }) => {
+      calls.push({ message, thread, auth });
+      return undefined;
+    },
+  );
+  registerDirectMessages(bot, service);
 
   assert.ok(handler, "the direct-message handler is registered");
   const thread = { id: "slack:D123:" } as Thread;
@@ -52,8 +56,32 @@ test("Slack registers only the direct-message path", async () => {
 });
 
 test("Slack workspace identity fails closed when the verified payload omits it", () => {
-  assert.throws(
-    () => extractSlackWorkspaceId({ raw: {} } as Message),
-    /verified workspace ID/,
+  const result = extractSlackWorkspaceId({ raw: {} } as Message);
+  assert.equal(result.isErr(), true);
+  if (result.isErr()) {
+    assert.equal(result.error.code, "SLACK_INVALID_MESSAGE");
+    assert.match(result.error.message, /verified workspace ID/);
+  }
+});
+
+test("Slack maps Eve dispatch failures into its channel contract", async () => {
+  const service = new SlackChannelService(
+    async () => {
+      throw new Error("Eve is unavailable");
+    },
   );
+
+  const result = await service.handleDirectMessage(
+    { id: "slack:D123:" } as Thread,
+    {
+      text: "Hello Paige",
+      raw: { team_id: "T123" },
+      author: { userId: "U123" },
+    } as Message,
+  );
+
+  assert.equal(result.isErr(), true);
+  if (result.isErr()) {
+    assert.equal(result.error.code, "SLACK_SESSION_DISPATCH_FAILED");
+  }
 });
