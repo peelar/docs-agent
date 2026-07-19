@@ -30,21 +30,36 @@ type SlackMessageBot = {
   onNewMention(
     handler: (thread: Thread, message: Message) => void | Promise<void>,
   ): void;
+  onSubscribedMessage(
+    handler: (thread: Thread, message: Message) => void | Promise<void>,
+  ): void;
 };
 
 export function registerSlackMessages(
   slackMessageBot: SlackMessageBot,
   service: Pick<SlackChannelService, "handleMessage">,
 ): void {
-  const handleMessage = async (thread: Thread, message: Message) => {
-    const result = await service.handleMessage(thread, message);
+  const handleMessage = async (
+    thread: Thread,
+    message: Message,
+    responseMode: "always" | "when-needed" = "always",
+  ) => {
+    const result = await service.handleMessage(thread, message, responseMode);
     if (result.isErr()) throw result.error;
   };
 
-  slackMessageBot.onDirectMessage(handleMessage);
-  // Do not subscribe to mentioned threads: Paige should keep listening only
-  // when someone explicitly asks for her with another @mention.
-  slackMessageBot.onNewMention(handleMessage);
+  slackMessageBot.onDirectMessage((thread, message) =>
+    handleMessage(thread, message)
+  );
+  slackMessageBot.onNewMention(async (thread, message) => {
+    // A mention invites Paige into this conversation. Follow later messages,
+    // but let the agent decide whether answering would help or add noise.
+    await thread.subscribe();
+    await handleMessage(thread, message);
+  });
+  slackMessageBot.onSubscribedMessage((thread, message) =>
+    handleMessage(thread, message, "when-needed")
+  );
 }
 
 registerSlackMessages(

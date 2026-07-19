@@ -7,14 +7,18 @@ import { registerSlackMessages } from "../agent/channels/slack";
 import { postSlackAuthorizationRequired } from "../slack/authorization";
 import {
   extractSlackWorkspaceId,
+  slackThreadFollowUpInstruction,
   SlackChannelService,
 } from "../slack/service";
 
-test("Slack dispatches direct messages and new mentions", async () => {
+test("Slack follows mentioned threads and assesses later messages", async () => {
   let directMessageHandler:
     | ((thread: Thread, message: Message) => void | Promise<void>)
     | undefined;
   let mentionHandler:
+    | ((thread: Thread, message: Message) => void | Promise<void>)
+    | undefined;
+  let subscribedMessageHandler:
     | ((thread: Thread, message: Message) => void | Promise<void>)
     | undefined;
   const bot = {
@@ -24,9 +28,14 @@ test("Slack dispatches direct messages and new mentions", async () => {
     onNewMention(candidate: NonNullable<typeof mentionHandler>) {
       mentionHandler = candidate;
     },
+    onSubscribedMessage(
+      candidate: NonNullable<typeof subscribedMessageHandler>,
+    ) {
+      subscribedMessageHandler = candidate;
+    },
   };
   const calls: Array<{
-    message: string;
+    message: unknown;
     thread: Thread;
     auth: {
       authenticator: "slack";
@@ -45,18 +54,39 @@ test("Slack dispatches direct messages and new mentions", async () => {
 
   assert.ok(directMessageHandler, "the direct-message handler is registered");
   assert.ok(mentionHandler, "the mention handler is registered");
+  assert.ok(
+    subscribedMessageHandler,
+    "the subscribed-thread handler is registered",
+  );
   const directMessageThread = { id: "slack:D123:" } as Thread;
-  await directMessageHandler(directMessageThread, {
-    text: "Hello Paige",
-    raw: { team_id: "T123" },
-    author: { userId: "U123" },
-  } as Message);
-  const mentionThread = { id: "slack:C123:1234.5678" } as Thread;
+  await Reflect.apply(directMessageHandler, undefined, [
+    directMessageThread,
+    {
+      text: "Hello Paige",
+      raw: { team_id: "T123" },
+      author: { userId: "U123" },
+    } as Message,
+    { sdk: "channel argument" },
+    { sdk: "message context" },
+  ]);
+  let subscriptionCount = 0;
+  const mentionThread = {
+    id: "slack:C123:1234.5678",
+    async subscribe() {
+      subscriptionCount += 1;
+    },
+  } as Thread;
   await mentionHandler(mentionThread, {
     text: "<@UPAIGE> can you help?",
     raw: { team_id: "T123" },
     author: { userId: "U456" },
   } as Message);
+  await subscribedMessageHandler(mentionThread, {
+    text: "yup!",
+    raw: { team_id: "T123" },
+    author: { userId: "U456" },
+  } as Message);
+  assert.equal(subscriptionCount, 1);
   assert.deepEqual(calls, [
     {
       message: "Hello Paige",
@@ -70,6 +100,19 @@ test("Slack dispatches direct messages and new mentions", async () => {
     },
     {
       message: "<@UPAIGE> can you help?",
+      thread: mentionThread,
+      auth: {
+        authenticator: "slack",
+        principalType: "user",
+        principalId: "U456",
+        attributes: { slackWorkspaceId: "T123" },
+      },
+    },
+    {
+      message: {
+        message: "yup!",
+        context: [slackThreadFollowUpInstruction],
+      },
       thread: mentionThread,
       auth: {
         authenticator: "slack",
