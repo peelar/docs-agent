@@ -4,6 +4,7 @@ import type { Message, Thread } from "chat";
 import { test } from "vitest";
 
 import { registerDirectMessages } from "../agent/channels/slack";
+import { postSlackAuthorizationRequired } from "../slack/authorization";
 import {
   extractSlackWorkspaceId,
   SlackChannelService,
@@ -84,4 +85,45 @@ test("Slack maps Eve dispatch failures into its channel contract", async () => {
   if (result.isErr()) {
     assert.equal(result.error.code, "SLACK_SESSION_DISPATCH_FAILED");
   }
+});
+
+test("Slack sends Eve authorization challenges to direct messages", async () => {
+  const posts: Array<{ markdown: string }> = [];
+
+  await postSlackAuthorizationRequired({
+    description: "Connect with GitHub to continue.",
+    authorization: {
+      url: "https://example.com/authorize",
+      userCode: "ABCD-1234",
+    },
+  }, {
+    isDM: true,
+    async post(message) {
+      posts.push(message);
+      return undefined;
+    },
+  });
+
+  assert.deepEqual(posts, [{
+    markdown: [
+      "Connect with GitHub to continue.",
+      "https://example.com/authorize",
+      "Code: `ABCD-1234`",
+    ].join("\n\n"),
+  }]);
+});
+
+test("Slack never exposes authorization challenges outside direct messages", async () => {
+  await assert.rejects(
+    postSlackAuthorizationRequired({
+      description: "Connect with GitHub to continue.",
+      authorization: { url: "https://example.com/authorize" },
+    }, {
+      isDM: false,
+      async post() {
+        throw new Error("post must not be called");
+      },
+    }),
+    /outside a direct message/,
+  );
 });
