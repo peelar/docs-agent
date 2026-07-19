@@ -35,9 +35,10 @@ the coding agent, not a skill exposed to the Paige runtime.
    temporary pull before starting connector setup. It then lists Slack
    connectors linked to the Vercel project and reuses the single Paige
    connector. If none is linked, it reuses a matching team connector or creates
-   a managed Slack connector, attaches the project with triggers at
-   `/eve/v1/slack`, and starts the Slack installation flow. A paused Slack
-   installation must not undo the completed database setup.
+   a managed Slack connector branded with Paige's README icon, attaches the
+   project with triggers at `/eve/v1/slack`, and starts the Slack installation
+   flow. A paused Slack installation must not undo the completed database
+   setup.
 4. If the provisioner opens Vercel Connect, tell the user to finish the Slack
    installation in the browser. Pause, then rerun the provisioner. Do not ask
    the user to copy a workspace ID or bot token.

@@ -10,6 +10,8 @@ import {
 import { join } from "node:path";
 import { fileURLToPath, pathToFileURL } from "node:url";
 
+import { brandResolver } from "./brand-resolver.mjs";
+
 const repositoryRoot = fileURLToPath(new URL("../../../..", import.meta.url));
 if (process.argv.includes("--help")) {
   console.log("Usage: pnpm exec node .agents/skills/setup/scripts/setup.mjs");
@@ -131,12 +133,15 @@ function resolveSlackConnector(preferredUid) {
   }
   if (available.length > 1) failMultipleConnectors(available);
 
+  const brand = brandResolver(repositoryRoot);
   const created = vercelJson([
     "connect",
     "create",
     "slack",
     "--name",
-    "Paige",
+    brand.name,
+    "--icon",
+    brand.icon,
     "--triggers",
     "--format=json",
   ]);
