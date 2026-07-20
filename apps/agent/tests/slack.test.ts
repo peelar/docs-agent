@@ -3,15 +3,14 @@ import assert from "node:assert/strict";
 import type { Message, Thread } from "chat";
 import { test } from "vitest";
 
-import { registerSlackMessages } from "../agent/channels/slack";
 import { postSlackAuthorizationRequired } from "../slack/authorization";
+import { registerSlackMessages } from "../slack/messages";
 import {
   extractSlackWorkspaceId,
-  slackThreadFollowUpInstruction,
   SlackChannelService,
 } from "../slack/service";
 
-test("Slack follows mentioned threads and assesses later messages", async () => {
+test("Slack follows mentioned threads and continues every later message", async () => {
   let directMessageHandler:
     | ((thread: Thread, message: Message) => void | Promise<void>)
     | undefined;
@@ -109,10 +108,7 @@ test("Slack follows mentioned threads and assesses later messages", async () => 
       },
     },
     {
-      message: {
-        message: "yup!",
-        context: [slackThreadFollowUpInstruction],
-      },
+      message: "yup!",
       thread: mentionThread,
       auth: {
         authenticator: "slack",

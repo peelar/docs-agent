@@ -38,7 +38,9 @@ the coding agent, not a skill exposed to the Paige runtime.
    a managed Slack connector branded with Paige's README icon, attaches the
    project with triggers at `/eve/v1/slack`, and starts the Slack installation
    flow. A paused Slack installation must not undo the completed database
-   setup.
+   setup. Slack sends inbound events directly to Paige, so the pulled
+   `PAIGE_SLACK_SIGNING_SECRET` is required alongside the Connect connector
+   used for outbound bot credentials.
 4. If the provisioner opens Vercel Connect, tell the user to finish the Slack
    installation in the browser. Pause, then rerun the provisioner. Do not ask
    the user to copy a workspace ID or bot token.

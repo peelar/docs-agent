@@ -62,6 +62,10 @@ const authToken = firstValue(
   process.env.DOCS_AGENT_DATABASE_AUTH_TOKEN?.trim(),
   envValue(pulledEnv, "DOCS_AGENT_DATABASE_AUTH_TOKEN"),
 );
+const slackSigningSecret = firstValue(
+  process.env.PAIGE_SLACK_SIGNING_SECRET?.trim(),
+  envValue(pulledEnv, "PAIGE_SLACK_SIGNING_SECRET"),
+);
 if (!databaseUrl || !authToken) {
   fail(
     "The linked Vercel environment does not contain the Turso URL and auth token.",
@@ -69,6 +73,9 @@ if (!databaseUrl || !authToken) {
 }
 if (!databaseUrl.startsWith("libsql://")) {
   fail("The coding harness requires the linked Turso libSQL database URL.");
+}
+if (!slackSigningSecret) {
+  fail("The linked Vercel environment is missing PAIGE_SLACK_SIGNING_SECRET.");
 }
 
 const agentRequire = createRequire(
@@ -89,6 +96,7 @@ let agentEnv = localEnvironment([
   ["EVE_GATEWAY_MODEL", envValue(pulledEnv, "EVE_GATEWAY_MODEL")],
   ["EVE_SANDBOX_BACKEND", envValue(pulledEnv, "EVE_SANDBOX_BACKEND")],
   ["PAIGE_GITHUB_CONNECTOR", envValue(pulledEnv, "PAIGE_GITHUB_CONNECTOR")],
+  ["PAIGE_SLACK_SIGNING_SECRET", slackSigningSecret],
   ["VERCEL_OIDC_TOKEN", envValue(pulledEnv, "VERCEL_OIDC_TOKEN")],
 ]);
 writeLocalEnvironment(agentEnvPath, agentEnv);
