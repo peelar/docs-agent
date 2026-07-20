@@ -18,6 +18,13 @@ export default defineEval({
     welcome.succeeded();
     welcome.messageIncludes(/connect|set up/i);
     welcome.messageIncludes(/repositor|documentation|docs/i);
+    t.check(
+      welcome.message,
+      satisfies(
+        (message) => hasAtMostWords(message, 45),
+        "Paige keeps the setup welcome brief",
+      ),
+    );
 
     const deferred = await t.send({
       message: "Not now, thanks.",
@@ -54,3 +61,8 @@ export default defineEval({
     resumed.messageIncludes(/connect|set up|repository/i);
   },
 });
+
+function hasAtMostWords(message: unknown, maximum: number): boolean {
+  return typeof message === "string" &&
+    message.trim().split(/\s+/).length <= maximum;
+}

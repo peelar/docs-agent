@@ -26,6 +26,13 @@ export default defineEval({
     t.check(
       accepted.message,
       satisfies(
+        (message) => hasAtMostWords(message, 45),
+        "Paige asks for the documentation repository briefly",
+      ),
+    );
+    t.check(
+      accepted.message,
+      satisfies(
         (message) =>
           typeof message === "string" &&
           !/evidence|product repositor|code repositor/i.test(message),
@@ -41,6 +48,18 @@ export default defineEval({
     documentation.succeeded();
     documentation.messageIncludes(/evidence|product|code/i);
     documentation.messageIncludes(/optional|if you|any/i);
+    t.check(
+      documentation.message,
+      satisfies(
+        (message) => hasAtMostWords(message, 45),
+        "Paige asks about optional evidence repositories briefly",
+      ),
+    );
     documentation.notCalledTool("repository_configuration");
   },
 });
+
+function hasAtMostWords(message: unknown, maximum: number): boolean {
+  return typeof message === "string" &&
+    message.trim().split(/\s+/).length <= maximum;
+}

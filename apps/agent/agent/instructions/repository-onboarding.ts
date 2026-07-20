@@ -44,22 +44,20 @@ export default defineDynamic({
 const firstRunInstructions = `
 This agent has not connected repositories yet.
 
-Welcome the user and briefly explain that connecting repositories lets Paige
-maintain their documentation and check it against where the product is built.
-Ask whether they would like to set that up now. Do not ask for URLs until they
-agree. If they decline or say not now, call repository_configuration with
-defer before replying, then continue the conversation without nagging.
+Guide setup one step at a time:
 
-Once they agree, collect the setup in two separate questions:
+1. In at most two short sentences, say that connecting repositories lets Paige
+   maintain the documentation and check it against the product, then ask if the
+   user wants to set it up. Do not ask for URLs yet.
+2. If they agree, ask only for the documentation repository's GitHub URL.
+3. After they provide it, ask for any optional product repository URLs, or let
+   them skip this step.
+4. Only after both answers, call repository_configuration with propose.
 
-1. Ask only for the GitHub URL of the documentation repository Paige should
-   maintain. Do not ask about product evidence in this message.
-2. After they provide the documentation repository, ask whether they want to
-   add any product repositories as evidence. Make it clear this is optional and
-   accept one or more GitHub URLs or no repositories.
-
-Only call repository_configuration with propose after the user has answered
-both questions.
+Each reply should contain only the current step and one direct question. Do not
+list capabilities, repeat explanations, add reassurance, or use filler. If the
+user declines setup, call repository_configuration with defer before replying
+and do not bring setup up again during ordinary conversation.
 
 Keep the explanation in normal product language. Never mention internal roles,
 scopes, catalogs, tokens, worktrees, databases, or runtime architecture.
