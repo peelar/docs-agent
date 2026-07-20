@@ -3,7 +3,8 @@ import {
   RepositoryConfigurationService,
   summarizeRepositoryConfiguration,
 } from "../../../../agent/repositories/configuration/service";
-import type { RepositoryError } from "../../../../agent/repositories/shared/errors";
+import type { ActiveRepositoryConfiguration } from "../../../../agent/repositories/configuration/types";
+import { RepositoryError } from "../../../../agent/repositories/shared/errors";
 import {
   isOperatorAccessFailure,
   localOperatorAccess,
@@ -24,12 +25,7 @@ export async function GET(request: Request): Promise<Response> {
   return Response.json(
     result.value === undefined
       ? { configured: false }
-      : {
-        configured: true,
-        repository: summarizeRepositoryConfiguration(result.value)
-          .documentationRepository,
-        updatedAt: result.value.updatedAt,
-      },
+      : repositoryResponse(result.value),
     { headers: noStoreHeaders },
   );
 }
@@ -51,47 +47,105 @@ export async function POST(request: Request): Promise<Response> {
     typeof body !== "object" ||
     body === null ||
     !("repositoryUrl" in body) ||
-    typeof body.repositoryUrl !== "string"
+    typeof body.repositoryUrl !== "string" ||
+    !("kind" in body) ||
+    (body.kind !== "documentation" && body.kind !== "evidence")
   ) {
     return errorResponse(400, "Expected a repository URL.");
   }
   const repositoryUrl = body.repositoryUrl;
+  const kind = body.kind;
+  let previousRepository: string | undefined;
+  if ("previousRepository" in body) {
+    if (typeof body.previousRepository !== "string") {
+      return errorResponse(400, "Expected a repository URL.");
+    }
+    previousRepository = body.previousRepository;
+  }
 
-  const result = await resolveRepositoryConfigurationStore()
-    .asyncAndThen((store) => {
-      const service = new RepositoryConfigurationService(
-        { abortSignal: request.signal },
-        store,
+  const storeResult = resolveRepositoryConfigurationStore();
+  if (storeResult.isErr()) return repositoryErrorResponse(storeResult.error);
+
+  const service = new RepositoryConfigurationService(
+    { abortSignal: request.signal },
+    storeResult.value,
+  );
+  const activeResult = await service.get();
+  if (activeResult.isErr()) return repositoryErrorResponse(activeResult.error);
+
+  const active = activeResult.value;
+  let documentationRepositoryUrl = repositoryUrl;
+  if (kind === "evidence") {
+    if (active === undefined) {
+      return repositoryErrorResponse(new RepositoryError(
+        "REPOSITORY_NOT_CONFIGURED",
+        "Connect a documentation repository before adding evidence repositories.",
+      ));
+    }
+    documentationRepositoryUrl = repositoryUrlFor(active.documentationRepository);
+  }
+
+  const currentEvidenceRepositoryUrls = active?.evidenceRepositories.map(
+    repositoryUrlFor,
+  ) ?? [];
+  let evidenceRepositoryUrls = currentEvidenceRepositoryUrls;
+  if (kind === "evidence") {
+    if (previousRepository === undefined) {
+      evidenceRepositoryUrls = [...currentEvidenceRepositoryUrls, repositoryUrl];
+    } else {
+      const previousRepositoryUrl = githubUrlForName(previousRepository);
+      const previousIndex = currentEvidenceRepositoryUrls.indexOf(
+        previousRepositoryUrl,
       );
-      return service.get().andThen((active) => {
-        const evidenceRepositoryUrls = active?.evidenceRepositories.map(
-          ({ owner, name }) => `https://github.com/${owner}/${name}`,
-        ) ?? [];
-        return service.propose({
-          documentationRepositoryUrl: repositoryUrl,
-          evidenceRepositoryUrls,
-        }).andThen((configuration) =>
-          service.confirm({
-            configuration,
-            expectedRevision: active?.revision ?? null,
-          })
-        );
-      });
-    });
+      if (previousIndex === -1) {
+        return repositoryErrorResponse(new RepositoryError(
+          "REPOSITORY_CONFLICT",
+          `${previousRepository} is no longer an evidence repository.`,
+        ));
+      }
+      // Replacing in place keeps the operator's source ordering stable.
+      evidenceRepositoryUrls = currentEvidenceRepositoryUrls.with(
+        previousIndex,
+        repositoryUrl,
+      );
+    }
+  }
+  const proposal = await service.propose({
+    documentationRepositoryUrl,
+    evidenceRepositoryUrls,
+  });
+  if (proposal.isErr()) return repositoryErrorResponse(proposal.error);
+
+  const result = await service.confirm({
+    configuration: proposal.value,
+    expectedRevision: active?.revision ?? null,
+  });
   if (result.isErr()) return repositoryErrorResponse(result.error);
 
-  return Response.json(
-    {
-      configured: true,
-      repository: summarizeRepositoryConfiguration(result.value)
-        .documentationRepository,
-      updatedAt: result.value.updatedAt,
-    },
-    { headers: noStoreHeaders },
-  );
+  return Response.json(repositoryResponse(result.value), {
+    headers: noStoreHeaders,
+  });
 }
 
 const noStoreHeaders = { "cache-control": "no-store" };
+
+function repositoryResponse(configuration: ActiveRepositoryConfiguration) {
+  const summary = summarizeRepositoryConfiguration(configuration);
+  return {
+    configured: true,
+    repository: summary.documentationRepository,
+    evidenceRepositories: summary.evidenceRepositories,
+    updatedAt: configuration.updatedAt,
+  };
+}
+
+function repositoryUrlFor(repository: { owner: string; name: string }): string {
+  return `https://github.com/${repository.owner}/${repository.name}`;
+}
+
+function githubUrlForName(repository: string): string {
+  return `https://github.com/${repository}`;
+}
 
 function repositoryErrorResponse(error: RepositoryError): Response {
   const status = error.code === "REPOSITORY_INVALID_INPUT" ? 400 :

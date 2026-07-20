@@ -1,32 +1,39 @@
 "use client";
 
-import type { FormEvent } from "react";
-import { useEffect, useState } from "react";
+import type { FormEvent, ReactNode } from "react";
+import { useEffect, useRef, useState } from "react";
 import {
-  ArrowRightIcon,
-  CheckCircle2Icon,
-  CircleAlertIcon,
+  BookOpenIcon,
+  CheckIcon,
   GitBranchIcon,
   LoaderCircleIcon,
+  PencilIcon,
+  PlusIcon,
+  SquarePenIcon,
+  XIcon,
 } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Separator } from "@/components/ui/separator";
 
 interface RepositoryState {
   configured: boolean;
   repository?: string;
+  evidenceRepositories?: string[];
   updatedAt?: string;
 }
 
+type Editor =
+  | { kind: "documentation" }
+  | { kind: "evidence"; repository?: string };
+
 export function RepositoryManager() {
-  const [repositoryUrl, setRepositoryUrl] = useState("");
   const [repository, setRepository] = useState<RepositoryState | null>(null);
-  const [status, setStatus] = useState<
-    "loading" | "idle" | "saving" | "saved" | "error"
-  >("loading");
-  const [message, setMessage] = useState("Checking the current connection…");
+  const [loadError, setLoadError] = useState<string | null>(null);
+  const [editor, setEditor] = useState<Editor | null>(null);
+  const [repositoryUrl, setRepositoryUrl] = useState("");
+  const [saveError, setSaveError] = useState<string | null>(null);
+  const [isSaving, setIsSaving] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -38,17 +45,10 @@ export function RepositoryManager() {
         if (!active) return;
 
         setRepository(payload);
-        setStatus("idle");
-        setMessage(
-          payload.configured
-            ? "Paige can read, edit, and prepare documentation changes here."
-            : "Connect the documentation repository Paige should maintain.",
-        );
       })
       .catch((error: unknown) => {
         if (!active) return;
-        setStatus("error");
-        setMessage(errorMessage(error));
+        setLoadError(errorMessage(error));
       });
 
     return () => {
@@ -56,147 +56,366 @@ export function RepositoryManager() {
     };
   }, []);
 
+  function openEditor(nextEditor: Editor) {
+    setEditor(nextEditor);
+    setRepositoryUrl(
+      "repository" in nextEditor && nextEditor.repository
+        ? githubUrl(nextEditor.repository)
+        : nextEditor.kind === "documentation" && repository?.repository
+          ? githubUrl(repository.repository)
+          : "",
+    );
+    setSaveError(null);
+  }
+
+  function closeEditor() {
+    if (isSaving) return;
+    setEditor(null);
+    setRepositoryUrl("");
+    setSaveError(null);
+  }
+
   async function submit(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    setStatus("saving");
-    setMessage("Checking access and connecting the repository…");
+    if (editor === null) return;
+
+    setIsSaving(true);
+    setSaveError(null);
 
     try {
       const response = await fetch("/api/repository", {
         method: "POST",
         headers: { "content-type": "application/json" },
-        body: JSON.stringify({ repositoryUrl }),
+        body: JSON.stringify({
+          kind: editor.kind,
+          repositoryUrl,
+          previousRepository:
+            editor.kind === "evidence" ? editor.repository : undefined,
+        }),
       });
       const payload = await readResponse(response);
       if (!response.ok) throw new Error(payload.error);
 
       setRepository(payload);
+      setEditor(null);
       setRepositoryUrl("");
-      setStatus("saved");
-      setMessage("Repository connected. Paige will use it on the next request.");
     } catch (error) {
-      setStatus("error");
-      setMessage(errorMessage(error));
+      setSaveError(errorMessage(error));
+    } finally {
+      setIsSaving(false);
     }
   }
 
-  const isBusy = status === "loading" || status === "saving";
-  const buttonLabel = status === "saving"
-    ? "Connecting…"
-    : repository?.configured
-    ? "Change repository"
-    : "Connect repository";
+  const evidenceRepositories = repository?.evidenceRepositories ?? [];
 
   return (
     <section className="min-h-svh bg-[#fafafa]" aria-labelledby="repository-title">
       <div className="border-b bg-background px-5 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between">
-          <div>
-            <p className="text-sm font-medium">Repository</p>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Configure the source Paige maintains.
-            </p>
-          </div>
-          <span className="rounded-full border bg-background px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-            Local operator
-          </span>
+        <div className="mx-auto max-w-5xl">
+          <p className="text-sm font-medium">Repositories</p>
+          <p className="mt-0.5 text-xs text-muted-foreground">
+            Configure the sources Paige maintains and reads.
+          </p>
         </div>
       </div>
 
       <div className="mx-auto max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
-        <div className="max-w-2xl">
-          <div className="mb-4 flex size-10 items-center justify-center rounded-lg border bg-background shadow-xs">
-            <GitBranchIcon className="size-5" />
+        <div>
+          <div className="max-w-xl">
+            <div className="mb-4 flex size-10 items-center justify-center rounded-lg border bg-background shadow-xs">
+              <GitBranchIcon className="size-5" />
+            </div>
+            <h1 id="repository-title" className="text-2xl font-semibold tracking-tight sm:text-3xl">
+              GitHub repositories
+            </h1>
+            <p className="mt-3 text-sm leading-6 text-muted-foreground">
+              Paige writes documentation to one repository and reads the others
+              for evidence.
+            </p>
+            {loadError ? (
+              <p className="mt-3 text-sm text-destructive" role="alert">{loadError}</p>
+            ) : null}
           </div>
-          <h1 id="repository-title" className="text-2xl font-semibold tracking-tight sm:text-3xl">
-            Connect a GitHub repository
-          </h1>
-          <p className="mt-3 max-w-xl text-sm leading-6 text-muted-foreground">
-            Paste the repository Paige should maintain. Access is checked before
-            this workspace configuration is updated.
-          </p>
-        </div>
 
-        <div className="mt-10 overflow-hidden rounded-xl border bg-background shadow-xs">
-          <div className="px-5 py-5 sm:px-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-sm font-medium">Documentation repository</h2>
-                <p className="mt-1 text-sm text-muted-foreground">
-                  One writable GitHub repository for documentation work.
-                </p>
-              </div>
+          <div className="mt-10 overflow-hidden rounded-xl border bg-background shadow-xs">
+            <div className="divide-y">
+              {editor?.kind === "documentation" ? (
+                <InlineRepositoryEditor
+                  avatar={<DocumentationAvatar />}
+                  isSaving={isSaving}
+                  onCancel={closeEditor}
+                  onChange={setRepositoryUrl}
+                  onSubmit={submit}
+                  saveError={saveError}
+                  submitLabel={repository?.configured ? "Save change" : "Connect"}
+                  value={repositoryUrl}
+                />
+              ) : repository?.configured && repository.repository ? (
+                <DocumentationRow
+                  onEdit={() => openEditor({ kind: "documentation" })}
+                  repository={repository.repository}
+                />
+              ) : (
+                <AddRepositoryRow
+                  disabled={repository === null && loadError === null}
+                  label="Connect documentation repository"
+                  onClick={() => openEditor({ kind: "documentation" })}
+                />
+              )}
+
               {repository?.configured ? (
-                <span className="inline-flex items-center gap-1.5 rounded-full border border-emerald-200 bg-emerald-50 px-2.5 py-1 text-[11px] font-medium text-emerald-700">
-                  <span className="size-1.5 rounded-full bg-emerald-500" />
-                  Connected
-                </span>
+                <>
+                  <p className="bg-muted/40 px-5 py-2 font-mono text-[10px] uppercase tracking-[0.18em] text-muted-foreground sm:px-6">
+                    Evidence · read-only
+                  </p>
+                  {evidenceRepositories.map((evidenceRepository) =>
+                    editor?.kind === "evidence" &&
+                        editor.repository === evidenceRepository ? (
+                      <InlineRepositoryEditor
+                        avatar={<EvidenceAvatar />}
+                        isSaving={isSaving}
+                        key={evidenceRepository}
+                        onCancel={closeEditor}
+                        onChange={setRepositoryUrl}
+                        onSubmit={submit}
+                        saveError={saveError}
+                        submitLabel="Save change"
+                        value={repositoryUrl}
+                      />
+                    ) : (
+                      <EvidenceRow
+                        key={evidenceRepository}
+                        onEdit={() => openEditor({
+                          kind: "evidence",
+                          repository: evidenceRepository,
+                        })}
+                        repository={evidenceRepository}
+                      />
+                    )
+                  )}
+                  {editor?.kind === "evidence" && editor.repository === undefined ? (
+                    <InlineRepositoryEditor
+                      avatar={<EvidenceAvatar dashed />}
+                      isSaving={isSaving}
+                      onCancel={closeEditor}
+                      onChange={setRepositoryUrl}
+                      onSubmit={submit}
+                      saveError={saveError}
+                      submitLabel="Add repository"
+                      value={repositoryUrl}
+                    />
+                  ) : (
+                    <AddRepositoryRow
+                      label="Add evidence repository"
+                      onClick={() => openEditor({ kind: "evidence" })}
+                    />
+                  )}
+                </>
               ) : null}
             </div>
           </div>
-
-          {repository?.configured ? (
-            <>
-              <Separator />
-              <div className="flex items-center gap-3 px-5 py-4 sm:px-6">
-                <div className="flex size-8 items-center justify-center rounded-md border bg-[#fafafa]">
-                  <GitBranchIcon className="size-4" />
-                </div>
-                <div className="min-w-0">
-                  <p className="truncate text-sm font-medium">{repository.repository}</p>
-                  <p className="text-xs text-muted-foreground">Current repository</p>
-                </div>
-              </div>
-            </>
-          ) : null}
-
-          <Separator />
-          <form className="px-5 py-5 sm:px-6" onSubmit={submit}>
-            <label className="text-sm font-medium" htmlFor="repository-url">
-              GitHub URL
-            </label>
-            <div className="mt-2 flex flex-col gap-2 sm:flex-row">
-              <Input
-                autoComplete="url"
-                className="h-9 flex-1 bg-background"
-                disabled={isBusy}
-                id="repository-url"
-                name="repositoryUrl"
-                onChange={(event) => setRepositoryUrl(event.target.value)}
-                placeholder="https://github.com/owner/repository"
-                required
-                spellCheck={false}
-                type="url"
-                value={repositoryUrl}
-              />
-              <Button className="h-9 px-3" disabled={isBusy} type="submit">
-                {status === "saving" ? (
-                  <LoaderCircleIcon className="animate-spin" data-icon="inline-start" />
-                ) : null}
-                <span>{buttonLabel}</span>
-                {status !== "saving" ? (
-                  <ArrowRightIcon data-icon="inline-end" />
-                ) : null}
-              </Button>
-            </div>
-
-            <div
-              className={`mt-3 flex min-h-5 items-start gap-2 text-xs ${statusColor(status)}`}
-              role="status"
-            >
-              <StatusIcon status={status} />
-              <p className="leading-5">{message}</p>
-            </div>
-          </form>
         </div>
-
-        <p className="mt-5 max-w-2xl text-xs leading-5 text-muted-foreground">
-          Evidence repositories are preserved when this repository changes.
-          Publishing remains a separate, explicit approval step.
-        </p>
       </div>
     </section>
   );
+}
+
+function DocumentationAvatar() {
+  return (
+    <span className="flex size-9 shrink-0 items-center justify-center rounded-lg bg-foreground text-background">
+      <SquarePenIcon className="size-4" />
+    </span>
+  );
+}
+
+function EvidenceAvatar({ dashed = false }: { dashed?: boolean }) {
+  return (
+    <span
+      className={`flex size-9 shrink-0 items-center justify-center rounded-lg border bg-background ${
+        dashed ? "border-dashed text-muted-foreground" : ""
+      }`}
+    >
+      <BookOpenIcon className="size-4" />
+    </span>
+  );
+}
+
+function DocumentationRow({
+  onEdit,
+  repository,
+}: {
+  onEdit: () => void;
+  repository: string;
+}) {
+  return (
+    <div className="group flex items-center gap-3 px-5 py-4 sm:px-6">
+      <DocumentationAvatar />
+      <div className="min-w-0 flex-1">
+        <RepositoryName onEdit={onEdit} repository={repository} />
+        <p className="text-xs text-muted-foreground">
+          Paige writes documentation here
+        </p>
+      </div>
+    </div>
+  );
+}
+
+function EvidenceRow({
+  onEdit,
+  repository,
+}: {
+  onEdit: () => void;
+  repository: string;
+}) {
+  return (
+    <div className="group flex items-center gap-3 px-5 py-3 sm:px-6">
+      <EvidenceAvatar />
+      <div className="min-w-0 flex-1">
+        <RepositoryName onEdit={onEdit} repository={repository} />
+      </div>
+    </div>
+  );
+}
+
+function RepositoryName({
+  onEdit,
+  repository,
+}: {
+  onEdit: () => void;
+  repository: string;
+}) {
+  return (
+    <div className="flex items-center gap-1">
+      <button
+        aria-label={`Edit ${repository}`}
+        className="max-w-full truncate rounded-sm text-left text-sm font-medium underline-offset-4 hover:underline focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+        onClick={onEdit}
+        type="button"
+      >
+        {repository}
+      </button>
+      <Button
+        aria-label={`Edit ${repository}`}
+        className="shrink-0 text-muted-foreground opacity-100 transition-opacity sm:opacity-0 sm:group-hover:opacity-100 sm:group-focus-within:opacity-100"
+        onClick={onEdit}
+        size="icon-xs"
+        variant="ghost"
+      >
+        <PencilIcon />
+      </Button>
+    </div>
+  );
+}
+
+function AddRepositoryRow({
+  disabled = false,
+  label,
+  onClick,
+}: {
+  disabled?: boolean;
+  label: string;
+  onClick: () => void;
+}) {
+  return (
+    <button
+      className="flex w-full items-center gap-3 px-5 py-3 text-left text-sm text-muted-foreground transition-colors hover:bg-muted/50 hover:text-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-inset focus-visible:ring-ring disabled:cursor-not-allowed disabled:opacity-50 sm:px-6"
+      disabled={disabled}
+      onClick={onClick}
+      type="button"
+    >
+      <span className="flex size-9 items-center justify-center rounded-lg border border-dashed bg-background">
+        <PlusIcon className="size-4" />
+      </span>
+      {label}
+    </button>
+  );
+}
+
+function InlineRepositoryEditor({
+  avatar,
+  isSaving,
+  onCancel,
+  onChange,
+  onSubmit,
+  saveError,
+  submitLabel,
+  value,
+}: {
+  avatar: ReactNode;
+  isSaving: boolean;
+  onCancel: () => void;
+  onChange: (value: string) => void;
+  onSubmit: (event: FormEvent<HTMLFormElement>) => void;
+  saveError: string | null;
+  submitLabel: string;
+  value: string;
+}) {
+  const inputRef = useRef<HTMLInputElement | null>(null);
+
+  useEffect(() => {
+    inputRef.current?.focus();
+    inputRef.current?.select();
+  }, []);
+
+  return (
+    <form className="bg-muted/25 px-5 py-3 sm:px-6" onSubmit={onSubmit}>
+      <div className="flex items-center gap-3">
+        {avatar}
+        <Input
+          aria-label="GitHub repository URL"
+          autoComplete="url"
+          className="h-9 flex-1 bg-background"
+          disabled={isSaving}
+          name="repositoryUrl"
+          onChange={(event) => onChange(event.target.value)}
+          onKeyDown={(event) => {
+            if (event.key === "Escape") {
+              event.preventDefault();
+              onCancel();
+            }
+          }}
+          placeholder="https://github.com/owner/repository"
+          ref={inputRef}
+          required
+          spellCheck={false}
+          type="url"
+          value={value}
+        />
+        <div className="flex shrink-0 items-center gap-0.5">
+          <Button
+            aria-label={submitLabel}
+            disabled={isSaving}
+            size="icon-sm"
+            title={submitLabel}
+            type="submit"
+          >
+            {isSaving
+              ? <LoaderCircleIcon className="animate-spin" />
+              : <CheckIcon />}
+          </Button>
+          <Button
+            aria-label="Cancel editing"
+            disabled={isSaving}
+            onClick={onCancel}
+            size="icon-sm"
+            type="button"
+            variant="ghost"
+          >
+            <XIcon />
+          </Button>
+        </div>
+      </div>
+      {saveError ? (
+        <p className="mt-2 pl-12 text-xs leading-5 text-destructive" role="alert">
+          {saveError}
+        </p>
+      ) : null}
+    </form>
+  );
+}
+
+function githubUrl(repository: string): string {
+  return `https://github.com/${repository}`;
 }
 
 async function readResponse(
@@ -207,23 +426,4 @@ async function readResponse(
 
 function errorMessage(error: unknown): string {
   return error instanceof Error ? error.message : "Repository setup failed.";
-}
-
-function statusColor(status: "loading" | "idle" | "saving" | "saved" | "error") {
-  if (status === "error") return "text-destructive";
-  if (status === "saved") return "text-emerald-700";
-  return "text-muted-foreground";
-}
-
-function StatusIcon({
-  status,
-}: {
-  status: "loading" | "idle" | "saving" | "saved" | "error";
-}) {
-  if (status === "error") return <CircleAlertIcon className="mt-0.5 size-3.5 shrink-0" />;
-  if (status === "saved") return <CheckCircle2Icon className="mt-0.5 size-3.5 shrink-0" />;
-  if (status === "loading" || status === "saving") {
-    return <LoaderCircleIcon className="mt-0.5 size-3.5 shrink-0 animate-spin" />;
-  }
-  return <span className="mt-1.5 size-1.5 shrink-0 rounded-full bg-current" />;
 }

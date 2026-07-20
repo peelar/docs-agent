@@ -32,7 +32,7 @@ import { cn } from "@/lib/utils";
 
 const navigation = [
   { label: "Sessions", icon: ListTreeIcon, href: "/sessions" },
-  { label: "Repository", icon: BookOpenIcon, href: "/" },
+  { label: "Repositories", icon: BookOpenIcon, href: "/" },
   { label: "Local session", icon: BotIcon, href: "/agent" },
   { label: "Approvals", icon: CheckCircle2Icon },
 ];
