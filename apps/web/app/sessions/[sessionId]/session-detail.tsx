@@ -20,7 +20,9 @@ import {
 } from "lucide-react";
 
 import type { IndexedAgentSession } from "../../../../agent/sessions/types";
+import { agentSessionTitle } from "../../../../agent/sessions/title";
 import { streamEveEvents } from "../eve-stream";
+import { SlackIcon } from "../slack-icon";
 
 const visibleEventTypes = new Set<HandleMessageStreamEvent["type"]>([
   "session.started",
@@ -92,7 +94,7 @@ export function SessionDetail({
             </Link>
             <div className="min-w-0">
               <h1 id="session-title" className="truncate text-sm font-medium">
-                {session.title}
+                {agentSessionTitle(session.title, session.source)}
               </h1>
               <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
                 {session.sessionId}
@@ -104,21 +106,6 @@ export function SessionDetail({
       </header>
 
       <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-14">
-        {session.source === "slack" ? (
-          <div className="mb-6 flex items-start gap-3 rounded-lg border border-amber-200 bg-amber-50 px-4 py-3 text-amber-900">
-            <AlertTriangleIcon className="mt-0.5 size-4 shrink-0" />
-            <div>
-              <p className="text-xs font-medium">
-                Agent activity, not a complete Slack transcript
-              </p>
-              <p className="mt-1 text-xs leading-5 text-amber-800">
-                This view contains what Paige processed and did. Other human
-                messages in the Slack thread may not appear here.
-              </p>
-            </div>
-          </div>
-        ) : null}
-
         <div className="grid gap-px overflow-hidden rounded-xl border bg-border shadow-xs sm:grid-cols-2">
           <SummaryCell label="Status">
             <span className="inline-flex items-center gap-2 capitalize">
@@ -145,17 +132,21 @@ export function SessionDetail({
             }`} />
             {streamState === "loading" ? "Loading history" :
               streamState === "live" ? "Receiving activity" :
-              streamState === "error" ? "Stream unavailable" : "Up to date"}
+              streamState === "error" ? "Activity unavailable" : "Up to date"}
           </span>
         </div>
 
         {streamError ? (
-          <p className="mt-5 rounded-lg border border-red-200 bg-red-50 px-4 py-3 text-xs text-red-700">
-            {streamError}
-          </p>
+          <div className="mt-5 rounded-xl border bg-background px-5 py-10 text-center shadow-xs">
+            <Clock3Icon className="mx-auto size-4 text-muted-foreground" />
+            <p className="mt-3 text-sm font-medium">Activity is currently unavailable</p>
+            <p className="mt-1 text-xs text-muted-foreground">
+              Check that the local Paige agent is running, then reload this page.
+            </p>
+          </div>
         ) : null}
 
-        <div className="relative mt-5">
+        <div className={`relative mt-5 ${streamError ? "hidden" : ""}`}>
           <div className="absolute bottom-4 left-[17px] top-4 w-px bg-border" />
           {events.length === 0 && streamState !== "error" ? (
             <div className="relative rounded-xl border bg-background px-5 py-12 text-center text-sm text-muted-foreground shadow-xs">
@@ -365,10 +356,11 @@ function SummaryCell({ children, label }: { children: ReactNode; label: string }
 
 function SourceLabel({ source }: { source: IndexedAgentSession["source"] }) {
   const local = source === "local-web";
-  const Icon = local ? LaptopIcon : MessageSquareIcon;
   return (
     <span className="inline-flex shrink-0 items-center gap-1.5 rounded-full border px-2.5 py-1 text-[11px] font-medium text-muted-foreground">
-      <Icon className="size-3" />
+      {local
+        ? <LaptopIcon className="size-3" />
+        : <SlackIcon className="size-3" />}
       {local ? "Local web" : "Slack"}
     </span>
   );

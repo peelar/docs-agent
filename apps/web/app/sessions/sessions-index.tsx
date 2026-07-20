@@ -5,7 +5,6 @@ import Link from "next/link";
 import {
   ArrowRightIcon,
   CircleDotIcon,
-  Globe2Icon,
   LaptopIcon,
   PlusIcon,
 } from "lucide-react";
@@ -14,7 +13,9 @@ import type {
   AgentSessionSource,
   IndexedAgentSession,
 } from "../../../agent/sessions/types";
+import { agentSessionTitle } from "../../../agent/sessions/title";
 import { Button } from "@/components/ui/button";
+import { SlackIcon } from "./slack-icon";
 
 type SourceFilter = "all" | AgentSessionSource;
 
@@ -150,7 +151,9 @@ function SessionRow({ session }: { session: IndexedAgentSession }) {
     >
       <div className="min-w-0">
         <div className="flex items-center gap-2">
-          <p className="truncate text-sm font-medium">{session.title}</p>
+          <p className="truncate text-sm font-medium">
+            {agentSessionTitle(session.title, session.source)}
+          </p>
           <ArrowRightIcon className="size-3.5 shrink-0 text-muted-foreground opacity-0 transition-all group-hover:translate-x-0.5 group-hover:opacity-100" />
         </div>
         <p className="mt-1 truncate font-mono text-[10px] text-muted-foreground">
@@ -167,10 +170,11 @@ function SessionRow({ session }: { session: IndexedAgentSession }) {
 
 function SourceBadge({ source }: { source: AgentSessionSource }) {
   const local = source === "local-web";
-  const Icon = local ? LaptopIcon : Globe2Icon;
   return (
     <span className="inline-flex w-fit items-center gap-1.5 rounded-full border bg-background px-2 py-1 text-[11px] font-medium text-muted-foreground">
-      <Icon className="size-3" />
+      {local
+        ? <LaptopIcon className="size-3" />
+        : <SlackIcon className="size-3" />}
       {local ? "Local web" : "Slack"}
     </span>
   );
@@ -229,7 +233,7 @@ function EmptySessions({ filter }: { filter: SourceFilter }) {
         {filter === "local-web" ? (
           <LaptopIcon className="size-4" />
         ) : filter === "slack" ? (
-          <Globe2Icon className="size-4" />
+          <SlackIcon className="size-4" />
         ) : (
           <CircleDotIcon className="size-4" />
         )}

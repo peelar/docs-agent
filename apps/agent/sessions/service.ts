@@ -31,7 +31,7 @@ export class AgentSessionService {
     return this.#store.register({
       sessionId: input.sessionId,
       source: input.source,
-      title: agentSessionTitle(input.firstMessage),
+      title: agentSessionTitle(input.firstMessage, input.source),
       registeredAt: input.registeredAt,
     });
   }

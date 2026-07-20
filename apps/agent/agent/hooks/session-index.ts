@@ -34,7 +34,9 @@ export function statusForLifecycleEvent(
 export function sessionSourceForChannel(
   channelKind: string | undefined,
 ): AgentSessionSource | undefined {
-  return channelKind === "chat-sdk" ? "slack" : undefined;
+  // Eve namespaces authored channel adapters at runtime, so Slack's original
+  // "chat-sdk" kind reaches hooks as "channel:slack".
+  return channelKind === "channel:slack" ? "slack" : undefined;
 }
 
 async function recordLifecycle(

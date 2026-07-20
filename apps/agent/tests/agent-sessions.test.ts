@@ -92,8 +92,9 @@ describe("agent session lifecycle", () => {
     assert.equal(statusForLifecycleEvent("session.failed"), "failed");
   });
 
-  test("indexes Chat SDK sessions as Slack and ignores other channels", () => {
-    assert.equal(sessionSourceForChannel("chat-sdk"), "slack");
+  test("indexes the authored Slack channel and ignores other channels", () => {
+    assert.equal(sessionSourceForChannel("channel:slack"), "slack");
+    assert.equal(sessionSourceForChannel("chat-sdk"), undefined);
     assert.equal(sessionSourceForChannel("http"), undefined);
     assert.equal(sessionSourceForChannel(undefined), undefined);
   });
@@ -102,6 +103,13 @@ describe("agent session lifecycle", () => {
 test("session titles stay compact", () => {
   assert.equal(agentSessionTitle("\n\t"), "Untitled session");
   assert.equal(agentSessionTitle("word ".repeat(30)).length, 80);
+  assert.equal(
+    agentSessionTitle(
+      "hi @U0BHTLLK4EL, what’s your favorite soup?",
+      "slack",
+    ),
+    "hi @Paige, what’s your favorite soup?",
+  );
 });
 
 function createStore(): AgentSessionService {
