@@ -13,10 +13,16 @@ unreliable or make Paige's expression rigid.
 
 ## Decision
 
-The Slack harness owns protocol feedback. It adds one deterministic working
-reaction to accepted direct messages and explicit mentions, removes it when the
-turn stops working, and suppresses routine reasoning and tool statuses. Passive
-messages in followed threads do not receive this harness acknowledgement.
+The Slack harness owns protocol feedback. It adds an `eyes` working reaction to
+accepted direct messages and explicit mentions, removes it when the turn stops
+working, and suppresses routine reasoning and tool statuses. Passive messages
+in followed threads do not receive this harness acknowledgement.
+
+For long-running turns, the harness may post a small, bounded set of generic
+progress messages. It checks elapsed time at Eve's durable action boundaries,
+posts the first update after one minute and at most one later update, and never
+includes tool names or raw trace details. These updates are reassurance, not a
+workflow log or a substitute for the final response.
 
 Paige may add one discretionary reaction to the message that started the
 current Slack turn. A turn-scoped tool provides that capability without
@@ -31,6 +37,8 @@ those meanings.
 
 - Immediate acceptance remains deterministic and does not depend on a model
   tool call.
+- Long-running work remains visibly active without restoring noisy tool traces
+  or creating an unbounded stream of status messages.
 - Paige can react naturally under light rules without a hardcoded semantic
   emoji matrix.
 - A reaction API failure is logged but does not prevent accepted work from

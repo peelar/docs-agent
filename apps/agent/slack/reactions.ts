@@ -2,7 +2,7 @@ import type { Adapter, Message } from "chat";
 import { defineState } from "eve/context";
 import { z } from "zod";
 
-export const SLACK_WORKING_REACTION = "ice_cube";
+export const SLACK_WORKING_REACTION = "eyes";
 
 const slackReactionNameSchema = z.string()
   .trim()

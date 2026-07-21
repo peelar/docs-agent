@@ -5,7 +5,11 @@ import { test, vi } from "vitest";
 
 import { postSlackAuthorizationRequired } from "../slack/authorization";
 import { registerSlackMessages } from "../slack/messages";
-import { quietSlackProgressEvents } from "../slack/progress";
+import {
+  beginSlackProgressTurn,
+  nextSlackProgressUpdate,
+  quietSlackProgressEvents,
+} from "../slack/progress";
 import {
   agentSlackReactionNameSchema,
   setSlackReactionPresence,
@@ -121,12 +125,12 @@ test("Slack follows mentioned threads and continues every later message", async 
   assert.deepEqual(reactions, [
     {
       messageId: "1111.0001",
-      reaction: "ice_cube",
+      reaction: "eyes",
       threadId: "slack:D123:",
     },
     {
       messageId: "1234.5678",
-      reaction: "ice_cube",
+      reaction: "eyes",
       threadId: "slack:C123:1234.5678",
     },
   ]);
@@ -240,9 +244,28 @@ test("Slack dispatches accepted work when acknowledgement fails", async () => {
   errorLog.mockRestore();
 });
 
-test("Slack suppresses Eve progress and tool trace statuses", () => {
-  assert.doesNotThrow(() => quietSlackProgressEvents["actions.requested"]());
+test("Slack replaces tool traces with delayed, bounded progress updates", () => {
+  assert.equal(typeof quietSlackProgressEvents["actions.requested"], "function");
+  assert.equal(typeof quietSlackProgressEvents["action.result"], "function");
   assert.equal(typeof quietSlackProgressEvents["turn.started"], "function");
+
+  const started = beginSlackProgressTurn("turn-1", 1_000);
+  assert.equal(nextSlackProgressUpdate(started, "turn-1", 60_999).message, null);
+
+  const first = nextSlackProgressUpdate(started, "turn-1", 61_000);
+  assert.equal(first.message, "I’m still working on this — nothing’s stuck.");
+  assert.equal(
+    nextSlackProgressUpdate(first.state, "turn-1", 180_999).message,
+    null,
+  );
+
+  const second = nextSlackProgressUpdate(first.state, "turn-1", 181_000);
+  assert.match(second.message ?? "", /Still on it/);
+  assert.equal(
+    nextSlackProgressUpdate(second.state, "turn-1", 999_999).message,
+    null,
+  );
+  assert.equal(nextSlackProgressUpdate(started, "turn-2", 999_999).message, null);
 });
 
 test("Slack harness and agent reactions use the same operation", async () => {
@@ -260,16 +283,16 @@ test("Slack harness and agent reactions use the same operation", async () => {
     threadId: "slack:C123:1234.5678",
   };
 
-  await setSlackReactionPresence(client, target, "ice_cube", true);
-  await setSlackReactionPresence(client, target, "ice_cube", false);
+  await setSlackReactionPresence(client, target, "eyes", true);
+  await setSlackReactionPresence(client, target, "eyes", false);
   await assert.rejects(
     setSlackReactionPresence(client, target, ":heart:", true),
     /without surrounding colons/,
   );
 
   assert.deepEqual(calls, [
-    "add:slack:C123:1234.5678:1234.9999:ice_cube",
-    "remove:slack:C123:1234.5678:1234.9999:ice_cube",
+    "add:slack:C123:1234.5678:1234.9999:eyes",
+    "remove:slack:C123:1234.5678:1234.9999:eyes",
   ]);
   assert.equal(agentSlackReactionNameSchema.safeParse("heart").success, true);
   assert.equal(
@@ -277,7 +300,7 @@ test("Slack harness and agent reactions use the same operation", async () => {
     true,
   );
   assert.equal(
-    agentSlackReactionNameSchema.safeParse("ice_cube").success,
+    agentSlackReactionNameSchema.safeParse("eyes").success,
     false,
   );
 });
