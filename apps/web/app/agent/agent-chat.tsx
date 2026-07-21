@@ -24,6 +24,10 @@ import {
   PromptInputSubmit,
   PromptInputTextarea,
 } from "@/components/ai-elements/prompt-input";
+import {
+  OperatorPage,
+  OperatorPageHeader,
+} from "@/components/operator-page";
 import { Button } from "@/components/ui/button";
 import { Spinner } from "@/components/ui/spinner";
 import { cn } from "@/lib/utils";
@@ -85,12 +89,12 @@ export function AgentChat({ sessionId }: { sessionId?: string }) {
 
   if (saved === undefined) {
     return (
-      <section
+      <OperatorPage
         aria-label="Loading agent session"
-        className="grid min-h-[calc(100svh-3.5rem)] place-items-center bg-background md:min-h-svh"
+        className="grid place-items-center bg-background"
       >
         <Spinner className="size-4 text-muted-foreground" />
-      </section>
+      </OperatorPage>
     );
   }
 
@@ -214,18 +218,12 @@ function AgentSession({
   );
 
   return (
-    <section
+    <OperatorPage
       aria-labelledby="agent-title"
-      className="flex h-[calc(100svh-3.5rem)] min-h-[32rem] flex-col overflow-hidden bg-muted/20 md:h-svh"
+      className="h-[calc(100svh-3.5rem)] min-h-[32rem] overflow-hidden md:h-svh"
     >
-      <header className="shrink-0 border-b bg-background/95 backdrop-blur">
-        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
-          <div className="flex min-w-0 items-center gap-3">
-            <PaigeAvatar className="size-9" />
-            <h1 className="truncate text-sm font-medium" id="agent-title">
-              Chat with Paige
-            </h1>
-          </div>
+      <OperatorPageHeader
+        actions={
           <div className="flex items-center gap-2">
             {activeSessionId ? (
               <span className="hidden max-w-40 truncate font-mono text-[10px] text-muted-foreground lg:block">
@@ -242,8 +240,11 @@ function AgentSession({
               New chat
             </Button>
           </div>
-        </div>
-      </header>
+        }
+        leading={<PaigeAvatar className="size-9" />}
+        title="Chat with Paige"
+        titleId="agent-title"
+      />
 
       <ErrorMessages agentError={agent.error?.message} indexError={indexError} />
 
@@ -294,7 +295,7 @@ function AgentSession({
           </div>
         </>
       )}
-    </section>
+    </OperatorPage>
   );
 }
 
@@ -349,7 +350,7 @@ function UnavailableSession({
   sessionId?: string;
 }) {
   return (
-    <section className="grid min-h-[calc(100svh-3.5rem)] place-items-center bg-muted/20 px-5 md:min-h-svh">
+    <OperatorPage className="grid place-items-center px-5">
       <div className="max-w-md rounded-xl border bg-background p-6 shadow-xs">
         <h1 className="text-sm font-medium">Session unavailable</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{error}</p>
@@ -367,7 +368,7 @@ function UnavailableSession({
           ) : null}
         </div>
       </div>
-    </section>
+    </OperatorPage>
   );
 }
 

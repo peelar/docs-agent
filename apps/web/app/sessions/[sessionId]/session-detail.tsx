@@ -21,6 +21,11 @@ import {
 
 import type { IndexedAgentSession } from "../../../../agent/sessions/types";
 import { agentSessionTitle } from "../../../../agent/sessions/title";
+import {
+  OperatorPage,
+  OperatorPageContent,
+  OperatorPageHeader,
+} from "@/components/operator-page";
 import { streamEveEvents } from "../eve-stream";
 import { SlackIcon } from "../slack-icon";
 
@@ -81,31 +86,26 @@ export function SessionDetail({
   }, [session.sessionId]);
 
   return (
-    <section className="min-h-svh bg-[#f7f7f5]" aria-labelledby="session-title">
-      <header className="border-b bg-background px-5 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-          <div className="flex min-w-0 items-center gap-3">
-            <Link
-              aria-label="Back to sessions"
-              className="grid size-8 shrink-0 place-items-center rounded-lg border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
-              href="/sessions"
-            >
-              <ArrowLeftIcon className="size-4" />
-            </Link>
-            <div className="min-w-0">
-              <h1 id="session-title" className="truncate text-sm font-medium">
-                {agentSessionTitle(session.title, session.source)}
-              </h1>
-              <p className="mt-0.5 truncate font-mono text-[10px] text-muted-foreground">
-                {session.sessionId}
-              </p>
-            </div>
-          </div>
-          <SourceLabel source={session.source} />
-        </div>
-      </header>
+    <OperatorPage aria-labelledby="session-title">
+      <OperatorPageHeader
+        actions={<SourceLabel source={session.source} />}
+        description={
+          <span className="font-mono text-[10px]">{session.sessionId}</span>
+        }
+        leading={
+          <Link
+            aria-label="Back to sessions"
+            className="grid size-8 place-items-center rounded-lg border text-muted-foreground transition-colors hover:bg-muted hover:text-foreground"
+            href="/sessions"
+          >
+            <ArrowLeftIcon className="size-4" />
+          </Link>
+        }
+        title={agentSessionTitle(session.title, session.source)}
+        titleId="session-title"
+      />
 
-      <div className="mx-auto max-w-5xl px-5 py-10 sm:px-8 sm:py-14">
+      <OperatorPageContent>
         <div className="grid gap-px overflow-hidden rounded-xl border bg-border shadow-xs sm:grid-cols-2">
           <SummaryCell label="Status">
             <span className="inline-flex items-center gap-2 capitalize">
@@ -161,8 +161,8 @@ export function SessionDetail({
             </div>
           )}
         </div>
-      </div>
-    </section>
+      </OperatorPageContent>
+    </OperatorPage>
   );
 }
 

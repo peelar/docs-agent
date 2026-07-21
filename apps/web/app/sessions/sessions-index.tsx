@@ -14,6 +14,11 @@ import type {
   IndexedAgentSession,
 } from "../../../agent/sessions/types";
 import { agentSessionTitle } from "../../../agent/sessions/title";
+import {
+  OperatorPage,
+  OperatorPageContent,
+  OperatorPageHeader,
+} from "@/components/operator-page";
 import { Button } from "@/components/ui/button";
 import { SlackIcon } from "./slack-icon";
 
@@ -59,15 +64,9 @@ export function SessionsIndex({
   );
 
   return (
-    <section className="min-h-svh bg-[#f7f7f5]" aria-labelledby="sessions-title">
-      <header className="border-b bg-background px-5 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4">
-          <div>
-            <h1 id="sessions-title" className="text-sm font-medium">Sessions</h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Inspect Paige activity across channels.
-            </p>
-          </div>
+    <OperatorPage aria-labelledby="sessions-title">
+      <OperatorPageHeader
+        actions={
           <Button
             nativeButton={false}
             render={<Link aria-label="Start a new session" href="/agent" />}
@@ -75,10 +74,13 @@ export function SessionsIndex({
             <PlusIcon data-icon="inline-start" />
             New session
           </Button>
-        </div>
-      </header>
+        }
+        description="Inspect Paige activity across channels."
+        title="Sessions"
+        titleId="sessions-title"
+      />
 
-      <div className="mx-auto max-w-6xl px-5 py-10 sm:px-8 sm:py-14">
+      <OperatorPageContent>
         <div className="flex flex-col justify-between gap-5 sm:flex-row sm:items-end">
           <div className="max-w-xl">
             <p className="font-mono text-[10px] uppercase tracking-[0.22em] text-muted-foreground">
@@ -138,8 +140,8 @@ export function SessionsIndex({
             </div>
           )}
         </div>
-      </div>
-    </section>
+      </OperatorPageContent>
+    </OperatorPage>
   );
 }
 

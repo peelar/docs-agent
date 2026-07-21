@@ -39,7 +39,7 @@ const navigation = [
 
 export function OperatorShell({ children }: { children: ReactNode }) {
   return (
-    <div className="min-h-svh bg-background text-foreground">
+    <div className="min-h-svh bg-muted/20 text-foreground">
       <header className="sticky top-0 z-40 flex h-14 items-center border-b bg-background/95 px-4 backdrop-blur md:hidden">
         <MobileNavigation />
         <Brand className="ml-3" />
@@ -71,7 +71,9 @@ export function OperatorShell({ children }: { children: ReactNode }) {
         </div>
       </aside>
 
-      <main className="md:pl-60">{children}</main>
+      <main className="min-h-[calc(100svh-3.5rem)] md:min-h-svh md:pl-60">
+        {children}
+      </main>
     </div>
   );
 }

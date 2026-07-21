@@ -13,6 +13,11 @@ import {
   XIcon,
 } from "lucide-react";
 
+import {
+  OperatorPage,
+  OperatorPageContent,
+  OperatorPageHeader,
+} from "@/components/operator-page";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
@@ -109,25 +114,22 @@ export function RepositoryManager() {
   const evidenceRepositories = repository?.evidenceRepositories ?? [];
 
   return (
-    <section className="min-h-svh bg-[#fafafa]" aria-labelledby="repository-title">
-      <div className="border-b bg-background px-5 py-4 sm:px-8">
-        <div className="mx-auto max-w-5xl">
-          <p className="text-sm font-medium">Repositories</p>
-          <p className="mt-0.5 text-xs text-muted-foreground">
-            Configure the sources Paige maintains and reads.
-          </p>
-        </div>
-      </div>
+    <OperatorPage aria-labelledby="repository-title">
+      <OperatorPageHeader
+        description="Configure the sources Paige maintains and reads."
+        title="Repositories"
+        titleId="repository-title"
+      />
 
-      <div className="mx-auto max-w-5xl px-5 py-12 sm:px-8 sm:py-16">
+      <OperatorPageContent>
         <div>
           <div className="max-w-xl">
             <div className="mb-4 flex size-10 items-center justify-center rounded-lg border bg-background shadow-xs">
               <GitBranchIcon className="size-5" />
             </div>
-            <h1 id="repository-title" className="text-2xl font-semibold tracking-tight sm:text-3xl">
+            <h2 className="text-2xl font-semibold tracking-tight sm:text-3xl">
               GitHub repositories
-            </h1>
+            </h2>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
               Paige writes documentation to one repository and reads the others
               for evidence.
@@ -215,8 +217,8 @@ export function RepositoryManager() {
             </div>
           </div>
         </div>
-      </div>
-    </section>
+      </OperatorPageContent>
+    </OperatorPage>
   );
 }
 
