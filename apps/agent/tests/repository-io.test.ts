@@ -273,6 +273,8 @@ describe("repository files", () => {
     assert.deepEqual(result.value, {
       repository: resolvedRepository,
       path: "docs/example.md",
+      sourceUrl:
+        "https://github.com/saleor/saleor/blob/0123456789abcdef0123456789abcdef01234567/docs/example.md#L2-L3",
       blobSha: "blob-sha",
       startLine: 2,
       endLine: 3,
@@ -302,7 +304,13 @@ describe("repository files", () => {
 
     assert(result.isOk());
     assert.deepEqual(result.value.matches, [
-      { path: "docs/a.md", line: 12, excerpt: "first" },
+      {
+        path: "docs/a.md",
+        line: 12,
+        excerpt: "first",
+        sourceUrl:
+          "https://github.com/saleor/saleor/blob/0123456789abcdef0123456789abcdef01234567/docs/a.md#L12",
+      },
     ]);
     assert.equal(result.value.truncated, true);
     assert.match(sandbox.run.mock.calls[0][0].command, /git grep/);

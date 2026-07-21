@@ -80,7 +80,17 @@ export class RepositoryFiles {
         .split("\n")
         .filter(Boolean)
         .map(parseSearchMatch)
-        .filter((match): match is RepositorySearchMatch => match !== null);
+        .filter((match): match is Omit<RepositorySearchMatch, "sourceUrl"> =>
+          match !== null
+        )
+        .map((match): RepositorySearchMatch => ({
+          ...match,
+          sourceUrl: repositoryFileSourceUrl(
+            this.#workspace.repository,
+            match.path,
+            { startLine: match.line, endLine: match.line },
+          ),
+        }));
 
       return ok({
         repository: this.#workspace.repository,
@@ -99,6 +109,7 @@ export class RepositoryFiles {
   }): RepositoryResultAsync<{
     repository: RepositoryWorkspace["repository"];
     path: string;
+    sourceUrl: string;
     blobSha: string;
     startLine: number;
     endLine: number;
@@ -168,6 +179,11 @@ export class RepositoryFiles {
       return ok({
         repository: this.#workspace.repository,
         path: input.path,
+        sourceUrl: repositoryFileSourceUrl(
+          this.#workspace.repository,
+          input.path,
+          selection.value,
+        ),
         blobSha: hashResult.stdout.trim(),
         ...selection.value,
       });
@@ -298,7 +314,9 @@ export function assertSearchQuery(value: string): RepositoryResult<string> {
   return ok(query);
 }
 
-function parseSearchMatch(value: string): RepositorySearchMatch | null {
+function parseSearchMatch(
+  value: string,
+): Omit<RepositorySearchMatch, "sourceUrl"> | null {
   const [location, lineValue, excerpt] = value.split("\0", 3);
   if (
     location === undefined ||
@@ -315,6 +333,21 @@ function parseSearchMatch(value: string): RepositorySearchMatch | null {
     line,
     excerpt: excerpt.slice(0, MAX_SEARCH_EXCERPT_CHARACTERS),
   };
+}
+
+function repositoryFileSourceUrl(
+  repository: RepositoryWorkspace["repository"],
+  path: string,
+  lines: { startLine: number; endLine: number },
+): string {
+  const encodedPath = path.split("/").map(encodeURIComponent).join("/");
+  const url = `https://github.com/${encodeURIComponent(repository.owner)}` +
+    `/${encodeURIComponent(repository.name)}/blob/` +
+    `${encodeURIComponent(repository.commitSha)}/${encodedPath}`;
+  const lineAnchor = lines.startLine === lines.endLine
+    ? `#L${lines.startLine}`
+    : `#L${lines.startLine}-L${lines.endLine}`;
+  return `${url}${lineAnchor}`;
 }
 
 function parseNullSeparated(value: string): string[] {

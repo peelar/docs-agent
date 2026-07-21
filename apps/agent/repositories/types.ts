@@ -33,6 +33,7 @@ export interface RepositorySearchMatch {
   path: string;
   line: number;
   excerpt: string;
+  sourceUrl: string;
 }
 
 export interface RepositoryComparison {
