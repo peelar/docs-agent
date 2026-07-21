@@ -1,22 +1,27 @@
 import { defineEval } from "eve/evals";
 
+import { repositoryEvalFixture } from "./repository-fixture";
+
 export default defineEval({
   description: "Paige lists and searches a configured repository",
-  tags: ["repository"],
+  tags: ["integration", "repository"],
   timeoutMs: 180_000,
   async test(t) {
     await t.send(
-      "Use repository_read list_files to find README.md in saleor-dashboard, then use repository_read search to find the phrase 'Saleor Dashboard' in that repository. Briefly report the matching path.",
+      `Find README.md in ${repositoryEvalFixture.repositories.dashboard.id}, then search that repository for the phrase 'Saleor Dashboard'. Briefly report the matching path.`,
     );
     t.succeeded();
     t.noFailedActions();
     t.calledTool("repository_read", {
-      input: { action: "list_files", repositoryId: "saleor-dashboard" },
+      input: {
+        action: "list_files",
+        repositoryId: repositoryEvalFixture.repositories.dashboard.id,
+      },
     });
     t.calledTool("repository_read", {
       input: {
         action: "search",
-        repositoryId: "saleor-dashboard",
+        repositoryId: repositoryEvalFixture.repositories.dashboard.id,
         query: "Saleor Dashboard",
       },
       output: (output) => JSON.stringify(output).includes("README.md"),

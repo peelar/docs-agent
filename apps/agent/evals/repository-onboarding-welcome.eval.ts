@@ -6,7 +6,7 @@ import { onboardingEvalIdentity } from "./repository-onboarding-auth";
 export default defineEval({
   description:
     "Paige offers repository setup once, respects deferral, and resumes only when access is needed",
-  tags: ["repository-onboarding"],
+  tags: ["behavior", "repository-onboarding"],
   timeoutMs: 300_000,
   async test(t) {
     const identity = onboardingEvalIdentity();

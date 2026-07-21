@@ -11,6 +11,8 @@
     "dev:inspect": "eve dev --tools full --logs all",
     "dev:portless": "pnpm dev",
     "eval": "eve eval",
+    "eval:benchmark": "tsx evals/run-benchmark.ts",
+    "eval:run": "tsx evals/run-evals.ts",
     "start": "eve start",
     "test": "vitest run --dir tests",
     "test:watch": "vitest --dir tests",
@@ -30,6 +32,7 @@
     "@types/node": "24.x",
     "drizzle-kit": "^0.31.10",
     "microsandbox": "0.5.7",
+    "tsx": "4.23.1",
     "typescript": "7.0.2",
     "vitest": "4.1.10"
   },

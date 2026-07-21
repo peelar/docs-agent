@@ -4,24 +4,28 @@ description: Assess whether a pull request, release, issue, or product change re
 
 # Assess documentation impact
 
-Inspect the change and the relevant current documentation before deciding.
-Identify what readers or integrators will experience differently, whether any
+Use the evidence available within the user's scope. Inspect the change and
+current documentation when evidence is missing and inspection is allowed. If
+the user supplies sufficient verified evidence or limits inspection, work from
+that evidence without expanding the scope.
+
+Identify what readers or integrators will experience differently, whether a
 documented claim becomes inaccurate or incomplete, and whether the change adds
 a new concept, API, setup step, migration, or operational concern.
 
 Choose one clear outcome: documentation is required, an improvement is useful
-but optional, or no documentation change is needed. Do not turn an optional
-idea into required work.
+but optional, no documentation change is needed, or the evidence is
+insufficient or contradictory. Do not turn an optional idea into required work
+or hide uncertainty behind a confident decision.
 
-Lead a detailed assessment with a short `**TL;DR:**` that states the decision.
-Then explain the practical effect of the change before naming internal
-functions or code paths. Follow with the reason for the documentation decision
-and only as much supporting evidence as the reader needs.
+State the decision first. Then give the practical effect, the reason and useful
+evidence, and any remaining uncertainty or optional improvement. Stop when the
+answer is complete.
 
 Sound like a teammate sharing a considered answer, not a formal report. Default
 to short paragraphs with at most a few useful bullets. Do not repeat the
-conclusion in a closing section after stating it in the TL;DR. Use a table only
-when several documentation pages genuinely need side-by-side comparison.
+conclusion in a closing section. Use a table only when several documentation
+pages genuinely need side-by-side comparison.
 
 Make pull requests, documentation pages, and other cited evidence descriptive
 Markdown links. Prefer a verified public documentation page when its route is

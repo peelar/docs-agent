@@ -64,4 +64,4 @@ Slack · Linear · Releases · Repositories
 | Isolation           | Eve sandbox with Git object caches under `/workspace/repositories`                       |
 | Durable state       | Drizzle with local SQLite or a deployed libSQL-compatible database                      |
 | Writeback           | Digest-bound documentation diff followed by an explicitly approved branch and draft PR   |
-| Regression proof    | Unit tests and live Eve evals for onboarding, repository inspection, and documentation authoring |
+| Regression proof    | Unit tests and [live Eve evals](./EVALS.md) for behavior, safety, and repository integration       |

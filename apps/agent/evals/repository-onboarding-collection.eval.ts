@@ -6,7 +6,7 @@ import { onboardingEvalIdentity } from "./repository-onboarding-auth";
 export default defineEval({
   description:
     "Paige collects the documentation repository before asking separately for optional evidence repositories",
-  tags: ["repository-onboarding"],
+  tags: ["behavior", "repository-onboarding"],
   timeoutMs: 300_000,
   async test(t) {
     const identity = onboardingEvalIdentity();

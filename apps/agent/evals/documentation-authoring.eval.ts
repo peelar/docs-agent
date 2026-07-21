@@ -2,11 +2,11 @@ import { defineEval } from "eve/evals";
 
 export default defineEval({
   description: "Paige prepares, edits, and inspects documentation locally",
-  tags: ["documentation"],
+  tags: ["behavior", "documentation-workflow"],
   timeoutMs: 240_000,
   async test(t) {
     await t.send(
-      "Use documentation_workspace to prepare the documentation repository, write paige-eval-local.md with exactly 'Local eval only.\\n', and inspect the diff. Report the changed path and digest. Do not call documentation_publish.",
+      "Prepare a local documentation change that adds paige-eval-local.md with exactly 'Local eval only.\\n'. Show me the changed path and review digest, but leave publishing for later.",
     );
     t.succeeded();
     t.noFailedActions();

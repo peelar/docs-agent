@@ -1,23 +1,25 @@
 import { defineEval } from "eve/evals";
 
-const pullRequestNumber = 6744;
-const headCommitSha = "723e17e5e789d8824d89ced25cf36ccc3714d919";
+import { repositoryEvalFixture } from "./repository-fixture";
+
+const { number: pullRequestNumber, headSha: headCommitSha } =
+  repositoryEvalFixture.pullRequest;
 
 export default defineEval({
   description:
     "Paige reads pull-request details, files, and discussion separately from source files",
-  tags: ["repository", "pull-request"],
+  tags: ["integration", "repository", "pull-request"],
   timeoutMs: 180_000,
   async test(t) {
     await t.send(
-      "Read saleor-dashboard pull request 6744, list its changed files, and list its conversation comments. Then use repository_read to read the first five lines of .changeset/tough-candies-dig.md at the pull request's exact head commit. Briefly summarize the pull request and discussion. Do not inspect CI/CD checks.",
+      `Read pull request ${pullRequestNumber} in ${repositoryEvalFixture.repositories.dashboard.id}, including its changed files and conversation comments. Read the first five lines of ${repositoryEvalFixture.pullRequest.changedPath} at the exact head commit. Briefly summarize the change and discussion. Do not inspect CI/CD checks.`,
     );
     t.succeeded();
     t.noFailedActions();
     t.calledTool("pull_request_read", {
       input: {
         action: "read",
-        repositoryId: "saleor-dashboard",
+        repositoryId: repositoryEvalFixture.repositories.dashboard.id,
         pullRequestNumber,
       },
       output: (output) => JSON.stringify(output).includes(headCommitSha),
@@ -25,16 +27,16 @@ export default defineEval({
     t.calledTool("pull_request_read", {
       input: {
         action: "list_files",
-        repositoryId: "saleor-dashboard",
+        repositoryId: repositoryEvalFixture.repositories.dashboard.id,
         pullRequestNumber,
       },
       output: (output) =>
-        JSON.stringify(output).includes(".changeset/tough-candies-dig.md"),
+        JSON.stringify(output).includes(repositoryEvalFixture.pullRequest.changedPath),
     });
     t.calledTool("pull_request_read", {
       input: {
         action: "list_comments",
-        repositoryId: "saleor-dashboard",
+        repositoryId: repositoryEvalFixture.repositories.dashboard.id,
         pullRequestNumber,
         commentKind: "conversation",
       },
@@ -42,9 +44,9 @@ export default defineEval({
     t.calledTool("repository_read", {
       input: {
         action: "read",
-        repositoryId: "saleor-dashboard",
+        repositoryId: repositoryEvalFixture.repositories.dashboard.id,
         ref: headCommitSha,
-        path: ".changeset/tough-candies-dig.md",
+        path: repositoryEvalFixture.pullRequest.changedPath,
         startLine: 1,
         endLine: 5,
       },
