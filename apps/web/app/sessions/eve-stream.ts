@@ -25,7 +25,6 @@ export async function streamEveEvents(input: EveStreamInput): Promise<void> {
     `/eve/v1/session/${encodeURIComponent(input.sessionId)}/stream?startIndex=0`,
     {
       cache: "no-store",
-      headers: { "x-paige-operator": "local" },
       signal: input.signal,
     },
   );

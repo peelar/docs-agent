@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 const navigation = [
   { label: "Sessions", icon: ListTreeIcon, href: "/sessions" },
   { label: "Repositories", icon: BookOpenIcon, href: "/" },
-  { label: "Local session", icon: BotIcon, href: "/agent" },
+  { label: "Chat", icon: BotIcon, href: "/agent" },
   { label: "Approvals", icon: CheckCircle2Icon },
 ];
 
@@ -43,9 +43,6 @@ export function OperatorShell({ children }: { children: ReactNode }) {
       <header className="sticky top-0 z-40 flex h-14 items-center border-b bg-background/95 px-4 backdrop-blur md:hidden">
         <MobileNavigation />
         <Brand className="ml-3" />
-        <span className="ml-auto rounded-full border px-2 py-0.5 text-[10px] font-medium text-muted-foreground">
-          Local
-        </span>
       </header>
 
       <aside className="fixed inset-y-0 left-0 z-30 hidden w-60 flex-col border-r bg-background md:flex">
@@ -71,7 +68,6 @@ export function OperatorShell({ children }: { children: ReactNode }) {
         <Separator />
         <div className="p-4">
           <p className="text-xs font-medium">Paige operator</p>
-          <p className="mt-1 text-xs text-muted-foreground">Local workspace</p>
         </div>
       </aside>
 

@@ -27,8 +27,8 @@ the coding agent, not a skill exposed to the Paige runtime.
 
    - `apps/agent/.env.local` contains the database, agent connectors, and model
      access values.
-   - `apps/web/.env.local` contains the database values used by the operator
-     application.
+   - `apps/web/.env.local` contains the database values plus the production
+     agent URL and server-only Vercel identity used by the operator application.
 
    Shared values are intentionally repeated. Never create a root `.env.local`;
    each app must load only its own environment. The provisioner removes the
@@ -46,7 +46,7 @@ the coding agent, not a skill exposed to the Paige runtime.
    the user to copy a workspace ID or bot token.
 5. Run `pnpm check`. Fix failures instead of bypassing required integrations.
 6. Report what was configured without printing tokens. Tell the user that
-   `pnpm dev` starts the local harness.
+   `pnpm dev` starts the local operator app connected to the production agent.
 
 Require the shared Turso database. Accept `TURSO_DATABASE_URL` and
 `TURSO_AUTH_TOKEN`, or their legacy `DOCS_AGENT_DATABASE_*` names, from the

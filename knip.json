@@ -19,6 +19,15 @@
         "evals/**/*.ts",
         "tests/**/*.ts"
       ]
+    },
+    "apps/web": {
+      "ignoreIssues": {
+        "components/ai-elements/**": ["exports", "types"],
+        "components/ui/{badge,button-group,command,dialog,dropdown-menu,input-group,select}.tsx": [
+          "exports",
+          "types"
+        ]
+      }
     }
   }
 }

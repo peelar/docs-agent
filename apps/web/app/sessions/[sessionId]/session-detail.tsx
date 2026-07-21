@@ -141,7 +141,7 @@ export function SessionDetail({
             <Clock3Icon className="mx-auto size-4 text-muted-foreground" />
             <p className="mt-3 text-sm font-medium">Activity is currently unavailable</p>
             <p className="mt-1 text-xs text-muted-foreground">
-              Check that the local Paige agent is running, then reload this page.
+              Check that Paige is available, then reload this page.
             </p>
           </div>
         ) : null}

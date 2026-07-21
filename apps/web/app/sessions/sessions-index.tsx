@@ -22,7 +22,7 @@ type SourceFilter = "all" | AgentSessionSource;
 const filters: Array<{ label: string; value: SourceFilter }> = [
   { label: "All", value: "all" },
   { label: "Slack", value: "slack" },
-  { label: "Local web", value: "local-web" },
+  { label: "Web chat", value: "local-web" },
 ];
 
 export function SessionsIndex({
@@ -70,10 +70,10 @@ export function SessionsIndex({
           </div>
           <Button
             nativeButton={false}
-            render={<Link aria-label="Start a new local session" href="/agent" />}
+            render={<Link aria-label="Start a new session" href="/agent" />}
           >
             <PlusIcon data-icon="inline-start" />
-            New local session
+            New session
           </Button>
         </div>
       </header>
@@ -88,8 +88,8 @@ export function SessionsIndex({
               What Paige has been doing
             </h2>
             <p className="mt-3 text-sm leading-6 text-muted-foreground">
-              Slack and local development remain separate conversations. This
-              index gives them one read-only operational view.
+              Slack and web chat remain separate conversations. This index gives
+              them one read-only operational view.
             </p>
           </div>
           <div className="inline-flex items-center gap-2 text-[11px] text-muted-foreground">

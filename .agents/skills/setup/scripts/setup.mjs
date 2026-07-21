@@ -46,37 +46,68 @@ run("pnpm", [
 const pulledEnv = readFileSync(pulledEnvPath, "utf8");
 unlinkSync(pulledEnvPath);
 
-const databaseUrl = firstValue(
-  process.env.PAIGE_DATABASE_URL?.trim(),
-  envValue(pulledEnv, "PAIGE_DATABASE_URL"),
-  process.env.TURSO_DATABASE_URL?.trim(),
-  envValue(pulledEnv, "TURSO_DATABASE_URL"),
-  process.env.DOCS_AGENT_DATABASE_URL?.trim(),
-  envValue(pulledEnv, "DOCS_AGENT_DATABASE_URL"),
-);
-const authToken = firstValue(
-  process.env.PAIGE_DATABASE_AUTH_TOKEN?.trim(),
-  envValue(pulledEnv, "PAIGE_DATABASE_AUTH_TOKEN"),
-  process.env.TURSO_AUTH_TOKEN?.trim(),
-  envValue(pulledEnv, "TURSO_AUTH_TOKEN"),
-  process.env.DOCS_AGENT_DATABASE_AUTH_TOKEN?.trim(),
-  envValue(pulledEnv, "DOCS_AGENT_DATABASE_AUTH_TOKEN"),
+const databaseCredentials = [
+  {
+    url: firstValue(
+      process.env.PAIGE_DATABASE_URL?.trim(),
+      envValue(pulledEnv, "PAIGE_DATABASE_URL"),
+    ),
+    authToken: firstValue(
+      process.env.PAIGE_DATABASE_AUTH_TOKEN?.trim(),
+      envValue(pulledEnv, "PAIGE_DATABASE_AUTH_TOKEN"),
+    ),
+  },
+  {
+    url: firstValue(
+      process.env.TURSO_DATABASE_URL?.trim(),
+      envValue(pulledEnv, "TURSO_DATABASE_URL"),
+    ),
+    authToken: firstValue(
+      process.env.TURSO_AUTH_TOKEN?.trim(),
+      envValue(pulledEnv, "TURSO_AUTH_TOKEN"),
+    ),
+  },
+  {
+    url: firstValue(
+      process.env.DOCS_AGENT_DATABASE_URL?.trim(),
+      envValue(pulledEnv, "DOCS_AGENT_DATABASE_URL"),
+    ),
+    authToken: firstValue(
+      process.env.DOCS_AGENT_DATABASE_AUTH_TOKEN?.trim(),
+      envValue(pulledEnv, "DOCS_AGENT_DATABASE_AUTH_TOKEN"),
+    ),
+  },
+].find(({ url, authToken }) =>
+  url?.startsWith("libsql://") && authToken !== undefined
 );
 const slackSigningSecret = firstValue(
   process.env.PAIGE_SLACK_SIGNING_SECRET?.trim(),
   envValue(pulledEnv, "PAIGE_SLACK_SIGNING_SECRET"),
 );
-if (!databaseUrl || !authToken) {
+const vercelOidcToken = firstValue(
+  process.env.VERCEL_OIDC_TOKEN?.trim(),
+  envValue(pulledEnv, "VERCEL_OIDC_TOKEN"),
+);
+if (!databaseCredentials) {
   fail(
     "The linked Vercel environment does not contain the Turso URL and auth token.",
   );
 }
-if (!databaseUrl.startsWith("libsql://")) {
-  fail("The coding harness requires the linked Turso libSQL database URL.");
-}
+const { url: databaseUrl, authToken } = databaseCredentials;
 if (!slackSigningSecret) {
   fail("The linked Vercel environment is missing PAIGE_SLACK_SIGNING_SECRET.");
 }
+if (!vercelOidcToken) {
+  fail("The pulled Vercel OIDC token is missing.");
+}
+
+const productionAgentUrl = resolveProductionAgentUrl(
+  firstValue(
+    process.env.PAIGE_PRODUCTION_AGENT_URL?.trim(),
+    envValue(pulledEnv, "PAIGE_PRODUCTION_AGENT_URL"),
+  ),
+);
+await verifyProductionAgent(productionAgentUrl, vercelOidcToken);
 
 const agentRequire = createRequire(
   join(repositoryRoot, "apps", "agent", "package.json"),
@@ -97,12 +128,14 @@ let agentEnv = localEnvironment([
   ["EVE_SANDBOX_BACKEND", envValue(pulledEnv, "EVE_SANDBOX_BACKEND")],
   ["PAIGE_GITHUB_CONNECTOR", envValue(pulledEnv, "PAIGE_GITHUB_CONNECTOR")],
   ["PAIGE_SLACK_SIGNING_SECRET", slackSigningSecret],
-  ["VERCEL_OIDC_TOKEN", envValue(pulledEnv, "VERCEL_OIDC_TOKEN")],
+  ["VERCEL_OIDC_TOKEN", vercelOidcToken],
 ]);
 writeLocalEnvironment(agentEnvPath, agentEnv);
 writeLocalEnvironment(webEnvPath, localEnvironment([
   ["PAIGE_DATABASE_URL", databaseUrl],
   ["PAIGE_DATABASE_AUTH_TOKEN", authToken],
+  ["PAIGE_PRODUCTION_AGENT_URL", productionAgentUrl],
+  ["VERCEL_OIDC_TOKEN", vercelOidcToken],
 ]));
 if (existsSync(legacyRootEnvPath)) unlinkSync(legacyRootEnvPath);
 
@@ -126,6 +159,60 @@ console.log("Local development setup complete.");
 console.log(`Slack connector: ${slackConnector.uid}`);
 console.log("Slack installation: verified");
 console.log("Database: Turso connection verified");
+console.log("Production agent: verified");
+
+function resolveProductionAgentUrl(configuredUrl) {
+  if (configuredUrl) return normalizedHttpsOrigin(configuredUrl);
+
+  const project = JSON.parse(
+    readFileSync(join(repositoryRoot, ".vercel", "project.json"), "utf8"),
+  );
+  const remote = vercelJson(["api", `/v9/projects/${project.projectId}`]);
+  const production = remote.targets?.production;
+  const aliases = Array.isArray(production?.alias) ? production.alias : [];
+  const automaticAliases = new Set(
+    Array.isArray(production?.automaticAliases)
+      ? production.automaticAliases
+      : [],
+  );
+  const publicAlias = aliases.find((alias) => !automaticAliases.has(alias));
+  if (!publicAlias) {
+    fail(
+      "The linked Vercel project needs a public production alias for the operator app.",
+    );
+  }
+  return normalizedHttpsOrigin(`https://${publicAlias}`);
+}
+
+async function verifyProductionAgent(origin, oidcToken) {
+  let response;
+  try {
+    response = await fetch(new URL("/eve/v1/info", origin), {
+      headers: { authorization: `Bearer ${oidcToken}` },
+      redirect: "manual",
+    });
+  } catch {
+    fail("The production Paige agent could not be reached.");
+  }
+  if (!response.ok) {
+    fail(
+      `The production Paige agent rejected the operator connection (${response.status}).`,
+    );
+  }
+}
+
+function normalizedHttpsOrigin(value) {
+  let url;
+  try {
+    url = new URL(value);
+  } catch {
+    fail("PAIGE_PRODUCTION_AGENT_URL must be a valid HTTPS origin.");
+  }
+  if (url.protocol !== "https:" || url.pathname !== "/") {
+    fail("PAIGE_PRODUCTION_AGENT_URL must be a valid HTTPS origin.");
+  }
+  return url.origin;
+}
 
 function resolveSlackConnector(preferredUid) {
   const linked = listSlackConnectors(false);

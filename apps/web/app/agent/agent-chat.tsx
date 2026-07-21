@@ -1,29 +1,34 @@
 "use client";
 
-import type { FormEvent } from "react";
-import { useEffect, useRef, useState } from "react";
-import Link from "next/link";
-import {
-  ArrowUpIcon,
-  BotIcon,
-  LoaderCircleIcon,
-  RotateCcwIcon,
-  SquareIcon,
-  WrenchIcon,
-} from "lucide-react";
+import type { UserContent } from "ai";
 import type { HandleMessageStreamEvent, SessionState } from "eve/client";
+import { useEveAgent } from "eve/react";
 import {
-  useEveAgent,
-  type EveDynamicToolPart,
-  type EveMessage,
-  type EveMessagePart,
-} from "eve/react";
+  AlertCircleIcon,
+  PlusIcon,
+} from "lucide-react";
+import Image from "next/image";
+import Link from "next/link";
+import { useEffect, useRef, useState } from "react";
 
-import { Button } from "@/components/ui/button";
-import { Separator } from "@/components/ui/separator";
-import { Textarea } from "@/components/ui/textarea";
 import { collectEveEvents } from "@/app/sessions/eve-stream";
+import {
+  Conversation,
+  ConversationContent,
+  ConversationScrollButton,
+} from "@/components/ai-elements/conversation";
+import {
+  PromptInput,
+  PromptInputFooter,
+  type PromptInputMessage,
+  PromptInputSubmit,
+  PromptInputTextarea,
+} from "@/components/ai-elements/prompt-input";
+import { Button } from "@/components/ui/button";
+import { Spinner } from "@/components/ui/spinner";
+import { cn } from "@/lib/utils";
 
+import { AgentMessage } from "./agent-message";
 import {
   clearLegacyAgentSession,
   readContinuationToken,
@@ -35,11 +40,7 @@ interface SavedAgentSession {
   session?: SessionState;
 }
 
-export function AgentChat({
-  sessionId,
-}: {
-  sessionId?: string;
-}) {
+export function AgentChat({ sessionId }: { sessionId?: string }) {
   const [saved, setSaved] = useState<SavedAgentSession | undefined>(
     sessionId === undefined ? {} : undefined,
   );
@@ -52,7 +53,7 @@ export function AgentChat({
     const continuationToken = readContinuationToken(sessionId);
     if (!continuationToken) {
       setLoadError(
-        "This browser does not have the continuation token for this local session.",
+        "This browser does not have the continuation token for this session.",
       );
       return;
     }
@@ -84,20 +85,16 @@ export function AgentChat({
 
   if (saved === undefined) {
     return (
-      <section className="min-h-svh bg-[#fafafa]" aria-label="Loading agent session">
-        <div className="grid min-h-svh place-items-center text-xs text-muted-foreground">
-          <LoaderCircleIcon className="size-4 animate-spin" />
-        </div>
+      <section
+        aria-label="Loading agent session"
+        className="grid min-h-[calc(100svh-3.5rem)] place-items-center bg-background md:min-h-svh"
+      >
+        <Spinner className="size-4 text-muted-foreground" />
       </section>
     );
   }
 
-  return (
-    <AgentSession
-      initialSessionId={sessionId}
-      saved={saved}
-    />
-  );
+  return <AgentSession initialSessionId={sessionId} saved={saved} />;
 }
 
 function AgentSession({
@@ -107,14 +104,11 @@ function AgentSession({
   saved: SavedAgentSession;
   initialSessionId?: string;
 }) {
-  const [draft, setDraft] = useState("");
   const [indexError, setIndexError] = useState<string>();
-  const messagesEndRef = useRef<HTMLDivElement>(null);
   const firstMessageRef = useRef<string | undefined>(undefined);
   const registrationInFlightRef = useRef<string | undefined>(undefined);
   const registeredSessionIdRef = useRef(initialSessionId);
   const agent = useEveAgent({
-    headers: { "x-paige-operator": "local" },
     initialEvents: saved.events ?? [],
     initialSession: saved.session,
     onSessionChange: storeContinuationToken,
@@ -127,7 +121,7 @@ function AgentSession({
     }),
   });
   const isBusy = agent.status === "submitted" || agent.status === "streaming";
-
+  const isEmpty = agent.data.messages.length === 0;
   const activeSessionId = agent.session.sessionId;
   const activeContinuationToken = agent.session.continuationToken;
 
@@ -151,11 +145,11 @@ function AgentSession({
     }).then(async (response) => {
       if (!response.ok) {
         const payload = await response.json() as { error?: string };
-        throw new Error(payload.error ?? "The local session could not be indexed.");
+        throw new Error(payload.error ?? "The web session could not be indexed.");
       }
       registeredSessionIdRef.current = activeSessionId;
       setIndexError(undefined);
-      // Keep the live Eve hook mounted while giving refreshes a durable URL.
+      // Keep the Eve hook mounted while giving refreshes a durable session URL.
       window.history.replaceState(
         window.history.state,
         "",
@@ -173,286 +167,178 @@ function AgentSession({
     initialSessionId,
   ]);
 
-  useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [agent.data.messages]);
-
-  function submit(event: FormEvent<HTMLFormElement>) {
-    event.preventDefault();
-    const message = draft.trim();
-    if (!message || isBusy) return;
+  async function submit(message: PromptInputMessage) {
+    const text = message.text.trim();
+    if ((text.length === 0 && message.files.length === 0) || isBusy) return;
 
     if (!agent.session.sessionId && firstMessageRef.current === undefined) {
-      firstMessageRef.current = message;
+      firstMessageRef.current = firstMessageTitle(message);
     }
-    setDraft("");
-    void agent.send({ message });
+
+    if (message.files.length === 0) {
+      await agent.send({ message: text });
+      return;
+    }
+
+    const parts: UserContent = [];
+    if (text.length > 0) parts.push({ text, type: "text" });
+    for (const file of message.files) {
+      parts.push({
+        data: file.url,
+        filename: file.filename,
+        mediaType: file.mediaType,
+        type: "file",
+      });
+    }
+    await agent.send({ message: parts });
   }
 
-  function resetSession() {
-    window.location.assign("/agent");
-  }
+  const composer = (
+    <PromptInput
+      className="rounded-xl bg-background shadow-sm"
+      onSubmit={submit}
+    >
+      <PromptInputTextarea
+        aria-label="Message Paige"
+        className="min-h-24 px-3 pt-3"
+        disabled={isBusy}
+        placeholder="Ask Paige about your documentation…"
+      />
+      <PromptInputFooter>
+        <span className="text-[11px] font-normal text-muted-foreground">
+          Enter to send · Shift + Enter for a new line
+        </span>
+        <PromptInputSubmit onStop={agent.stop} status={agent.status} />
+      </PromptInputFooter>
+    </PromptInput>
+  );
 
   return (
-    <section className="flex min-h-svh flex-col bg-[#fafafa]" aria-labelledby="agent-title">
-      <header className="border-b bg-background px-5 py-4 sm:px-8">
-        <div className="mx-auto flex max-w-5xl items-center justify-between gap-4">
-          <div>
-            <h1 id="agent-title" className="text-sm font-medium">
-              Local development
+    <section
+      aria-labelledby="agent-title"
+      className="flex h-[calc(100svh-3.5rem)] min-h-[32rem] flex-col overflow-hidden bg-muted/20 md:h-svh"
+    >
+      <header className="shrink-0 border-b bg-background/95 backdrop-blur">
+        <div className="mx-auto flex h-16 w-full max-w-6xl items-center justify-between gap-4 px-5 sm:px-8">
+          <div className="flex min-w-0 items-center gap-3">
+            <PaigeAvatar className="size-9" />
+            <h1 className="truncate text-sm font-medium" id="agent-title">
+              Chat with Paige
             </h1>
-            <p className="mt-0.5 text-xs text-muted-foreground">
-              Start and continue a browser-local Paige session.
-            </p>
           </div>
           <div className="flex items-center gap-2">
-            {agent.session.sessionId ? (
-              <span className="hidden max-w-44 truncate font-mono text-[10px] text-muted-foreground sm:block">
-                {agent.session.sessionId}
+            {activeSessionId ? (
+              <span className="hidden max-w-40 truncate font-mono text-[10px] text-muted-foreground lg:block">
+                {activeSessionId}
               </span>
             ) : null}
             <Button
               aria-label="Start a new session"
-              onClick={resetSession}
-              size="icon"
-              title="Start a new session"
+              onClick={() => window.location.assign("/agent")}
+              type="button"
               variant="outline"
             >
-              <RotateCcwIcon />
+              <PlusIcon data-icon="inline-start" />
+              New chat
             </Button>
           </div>
         </div>
       </header>
 
-      <div className="mx-auto flex w-full max-w-5xl flex-1 flex-col px-5 sm:px-8">
-        <div className="flex-1 py-8 sm:py-12">
-          {agent.data.messages.length === 0 ? (
-            <EmptyConversation />
-          ) : (
-            <div className="space-y-8">
-              {agent.data.messages.map((message) => (
-                <Message key={message.id} message={message} onRespond={agent.send} />
-              ))}
-              {isBusy ? <StreamingIndicator status={agent.status} /> : null}
-            </div>
-          )}
-          <div ref={messagesEndRef} />
-        </div>
+      <ErrorMessages agentError={agent.error?.message} indexError={indexError} />
 
-        <div className="sticky bottom-0 bg-[#fafafa] pb-5 pt-3 sm:pb-8">
-          {agent.error ? (
-            <p className="mb-2 text-xs text-destructive">{agent.error.message}</p>
-          ) : null}
-          {indexError ? (
-            <p className="mb-2 text-xs text-destructive">{indexError}</p>
-          ) : null}
-          <form
-            className="rounded-xl border bg-background p-2 shadow-sm"
-            onSubmit={submit}
-          >
-            <Textarea
-              aria-label="Message Paige"
-              className="max-h-40 min-h-20 resize-none border-0 bg-transparent px-2 py-2 shadow-none focus-visible:ring-0"
-              disabled={isBusy}
-              onChange={(event) => setDraft(event.target.value)}
-              onKeyDown={(event) => {
-                if (event.key === "Enter" && !event.shiftKey) {
-                  event.preventDefault();
-                  event.currentTarget.form?.requestSubmit();
-                }
-              }}
-              placeholder="Ask Paige about your documentation…"
-              value={draft}
-            />
-            <div className="flex items-center justify-between px-1 pb-1">
-              <p className="text-[11px] text-muted-foreground">
-                Local development · Shift + Enter for a new line
-              </p>
-              {isBusy ? (
-                <Button
-                  aria-label="Stop response"
-                  onClick={agent.stop}
-                  size="icon"
-                  type="button"
-                  variant="outline"
-                >
-                  <SquareIcon />
-                </Button>
-              ) : (
-                <Button
-                  aria-label="Send message"
-                  disabled={draft.trim().length === 0}
-                  size="icon"
-                  type="submit"
-                >
-                  <ArrowUpIcon />
-                </Button>
-              )}
-            </div>
-          </form>
-          <p className="mt-2 text-center text-[11px] text-muted-foreground">
-            The URL identifies this session after the first message. Only its
-            continuation token is kept in this browser.
-          </p>
+      {isEmpty ? (
+        <div className="mx-auto flex w-full max-w-xl flex-1 flex-col items-center justify-center gap-8 px-5 pb-[8vh] sm:px-8">
+          <div className="text-center">
+            <PaigeAvatar className="mx-auto size-12" />
+            <h2 className="mt-5 text-2xl font-semibold tracking-tight">
+              What should Paige look into?
+            </h2>
+            <p className="mt-2 text-sm leading-6 text-muted-foreground">
+              Share a pull request, issue, or documentation question to get started.
+            </p>
+          </div>
+          <div className="w-full">{composer}</div>
         </div>
-      </div>
+      ) : (
+        <>
+          <Conversation className="min-h-0 flex-1">
+            <ConversationContent className="mx-auto w-full max-w-6xl gap-6 px-5 py-8 sm:px-8">
+              {agent.data.messages.map((message, index) => (
+                <AgentMessage
+                  canRespond={!isBusy}
+                  isStreaming={
+                    agent.status === "streaming" &&
+                    index === agent.data.messages.length - 1
+                  }
+                  key={message.id}
+                  message={message}
+                  onInputResponses={(inputResponses) =>
+                    agent.send({ inputResponses })}
+                />
+              ))}
+              {agent.status === "submitted" ? (
+                <div
+                  aria-live="polite"
+                  className="flex items-center gap-2 text-xs text-muted-foreground"
+                >
+                  <Spinner className="size-3.5" />
+                  Paige is starting…
+                </div>
+              ) : null}
+            </ConversationContent>
+            <ConversationScrollButton />
+          </Conversation>
+          <div className="shrink-0 border-t bg-background/90 px-5 pb-5 pt-4 backdrop-blur sm:px-8 sm:pb-6">
+            <div className="mx-auto w-full max-w-6xl">{composer}</div>
+          </div>
+        </>
+      )}
     </section>
   );
 }
 
-function EmptyConversation() {
+function PaigeAvatar({ className }: { readonly className?: string }) {
   return (
-    <div className="mx-auto grid max-w-lg place-items-center py-24 text-center">
-      <div className="grid size-11 place-items-center rounded-xl border bg-background shadow-xs">
-        <BotIcon className="size-5" />
-      </div>
-      <h2 className="mt-5 text-xl font-semibold tracking-tight">Talk to Paige</h2>
-      <p className="mt-2 text-sm leading-6 text-muted-foreground">
-        Nothing is created until you send the first message. Paige will then
-        give this local session its own URL.
-      </p>
+    <span
+      className={cn(
+        "block shrink-0 overflow-hidden rounded-full border bg-background shadow-xs",
+        className,
+      )}
+    >
+      <Image
+        alt=""
+        className="size-full object-cover"
+        height={48}
+        priority
+        src="/paige-magpie.png"
+        width={48}
+      />
+    </span>
+  );
+}
+
+function ErrorMessages({
+  agentError,
+  indexError,
+}: {
+  agentError?: string;
+  indexError?: string;
+}) {
+  if (!agentError && !indexError) return null;
+  return (
+    <div className="mx-auto w-full max-w-6xl shrink-0 px-5 pt-3 sm:px-8">
+      {[agentError, indexError].filter(Boolean).map((error) => (
+        <div
+          className="mb-2 flex items-start gap-2 rounded-lg border border-destructive/30 bg-destructive/5 px-3 py-2 text-xs"
+          key={error}
+        >
+          <AlertCircleIcon className="mt-0.5 size-3.5 shrink-0 text-destructive" />
+          <p>{error}</p>
+        </div>
+      ))}
     </div>
   );
-}
-
-function Message({
-  message,
-  onRespond,
-}: {
-  message: EveMessage;
-  onRespond: ReturnType<typeof useEveAgent>["send"];
-}) {
-  const isUser = message.role === "user";
-
-  return (
-    <article className={isUser ? "ml-auto max-w-2xl" : "max-w-3xl"}>
-      <div className="mb-2 flex items-center gap-2 text-xs font-medium text-muted-foreground">
-        {isUser ? "You" : "Paige"}
-        {message.metadata?.status === "streaming" ? (
-          <LoaderCircleIcon className="size-3 animate-spin" />
-        ) : null}
-      </div>
-      <div
-        className={
-          isUser
-            ? "rounded-xl bg-foreground px-4 py-3 text-sm leading-6 text-background"
-            : "space-y-3 text-sm leading-7"
-        }
-      >
-        {message.parts.map((part, index) => (
-          <MessagePart
-            key={`${message.id}-${index}`}
-            onRespond={onRespond}
-            part={part}
-          />
-        ))}
-      </div>
-    </article>
-  );
-}
-
-function MessagePart({
-  part,
-  onRespond,
-}: {
-  part: EveMessagePart;
-  onRespond: ReturnType<typeof useEveAgent>["send"];
-}) {
-  if (part.type === "text") {
-    return <p className="whitespace-pre-wrap">{part.text}</p>;
-  }
-
-  if (part.type === "dynamic-tool") {
-    return <ToolActivity onRespond={onRespond} part={part} />;
-  }
-
-  if (part.type === "authorization") {
-    return (
-      <div className="rounded-lg border bg-background p-3">
-        <p className="font-medium">{part.displayName}</p>
-        <p className="mt-1 text-xs text-muted-foreground">{part.description}</p>
-        {part.state === "required" && part.authorization?.url ? (
-          <a
-            className="mt-3 inline-flex text-xs font-medium underline underline-offset-4"
-            href={part.authorization.url}
-            rel="noreferrer"
-            target="_blank"
-          >
-            Sign in
-          </a>
-        ) : null}
-      </div>
-    );
-  }
-
-  return null;
-}
-
-function ToolActivity({
-  part,
-  onRespond,
-}: {
-  part: EveDynamicToolPart;
-  onRespond: ReturnType<typeof useEveAgent>["send"];
-}) {
-  const request = part.toolMetadata?.eve?.inputRequest;
-
-  return (
-    <div className="overflow-hidden rounded-lg border bg-background text-xs">
-      <div className="flex items-center gap-2 px-3 py-2 text-muted-foreground">
-        <WrenchIcon className="size-3.5" />
-        <span className="font-medium text-foreground">
-          {part.toolMetadata?.eve?.name ?? part.toolName}
-        </span>
-        <span className="ml-auto">{toolStateLabel(part.state)}</span>
-      </div>
-      {request && part.state === "approval-requested" ? (
-        <>
-          <Separator />
-          <div className="p-3">
-            <p className="text-sm">{request.prompt}</p>
-            <div className="mt-3 flex flex-wrap gap-2">
-              {request.options?.map((option) => (
-                <Button
-                  key={option.id}
-                  onClick={() => {
-                    void onRespond({
-                      inputResponses: [{
-                        requestId: request.requestId,
-                        optionId: option.id,
-                      }],
-                    });
-                  }}
-                  size="sm"
-                  type="button"
-                  variant={option.style === "primary" ? "default" : "outline"}
-                >
-                  {option.label}
-                </Button>
-              ))}
-            </div>
-          </div>
-        </>
-      ) : null}
-    </div>
-  );
-}
-
-function StreamingIndicator({ status }: { status: "submitted" | "streaming" }) {
-  return (
-    <div className="flex items-center gap-2 text-xs text-muted-foreground">
-      <LoaderCircleIcon className="size-3.5 animate-spin" />
-      {status === "submitted" ? "Starting session…" : "Paige is working…"}
-    </div>
-  );
-}
-
-function toolStateLabel(state: EveDynamicToolPart["state"]) {
-  if (state === "output-available") return "Completed";
-  if (state === "output-error") return "Failed";
-  if (state === "output-denied") return "Denied";
-  if (state === "approval-requested") return "Approval needed";
-  return "Working";
 }
 
 function UnavailableSession({
@@ -463,13 +349,13 @@ function UnavailableSession({
   sessionId?: string;
 }) {
   return (
-    <section className="grid min-h-svh place-items-center bg-[#fafafa] px-5">
+    <section className="grid min-h-[calc(100svh-3.5rem)] place-items-center bg-muted/20 px-5 md:min-h-svh">
       <div className="max-w-md rounded-xl border bg-background p-6 shadow-xs">
-        <h1 className="text-sm font-medium">Local session unavailable</h1>
+        <h1 className="text-sm font-medium">Session unavailable</h1>
         <p className="mt-2 text-sm leading-6 text-muted-foreground">{error}</p>
         <div className="mt-5 flex gap-3 text-xs font-medium">
           <Link className="underline underline-offset-4" href="/agent">
-            Start a new local session
+            Start a new session
           </Link>
           {sessionId ? (
             <Link
@@ -483,6 +369,13 @@ function UnavailableSession({
       </div>
     </section>
   );
+}
+
+function firstMessageTitle(message: PromptInputMessage): string {
+  const text = message.text.trim();
+  if (text.length > 0) return text;
+  return message.files.map((file) => file.filename).filter(Boolean).join(", ") ||
+    "Attachment";
 }
 
 function errorMessage(error: unknown): string {

@@ -16,7 +16,7 @@ export async function POST(request: Request): Promise<Response> {
   try {
     body = await request.json();
   } catch {
-    return errorResponse(400, "Expected local session metadata.");
+    return errorResponse(400, "Expected web session metadata.");
   }
 
   if (!isRegistrationBody(body)) {
@@ -31,7 +31,7 @@ export async function POST(request: Request): Promise<Response> {
     })
   );
   if (result.isErr()) {
-    return errorResponse(503, "The local session could not be indexed.");
+    return errorResponse(503, "The web session could not be indexed.");
   }
   return Response.json({ session: result.value }, { headers: noStoreHeaders });
 }

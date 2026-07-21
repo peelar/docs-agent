@@ -1,10 +1,6 @@
 {
   "script": "dev:portless",
   "apps": {
-    "apps/agent": {
-      "name": "agent.paige",
-      "proxy": true
-    },
     "apps/web": {
       "name": "paige",
       "proxy": true

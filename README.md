@@ -19,7 +19,9 @@ Ask your coding agent to **use the
 [`$setup`](./.agents/skills/setup/SKILL.md) skill to prepare the checkout for
 local development**. It installs dependencies, pulls the linked Vercel
 production environment, connects the shared Turso database, and verifies the
-coding harness. Then run `pnpm dev`.
+coding harness. Then run `pnpm dev` to start the local operator app. Its chat
+connects to the production Paige agent through a server-side authenticated
+proxy; run `pnpm dev:agent` separately only when working on the agent runtime.
 
 Paige requires the shared Turso database provisioned through the linked Vercel
 project. Local development does not silently create a separate database.
