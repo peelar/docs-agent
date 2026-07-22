@@ -16,6 +16,13 @@ import type {
   RepositoryResultAsync,
 } from "../shared/errors";
 import { RepositoryError } from "../shared/errors";
+import { MAX_DIFF_FILES, MAX_FILE_BYTES } from "./policy";
+import {
+  parseNullSeparated,
+  quoteShellArgument,
+  successfulCommand,
+  summarizeCommandFailure,
+} from "./sandbox-command";
 import type {
   DocumentationDiff,
   DocumentationSearchMatch,
@@ -24,8 +31,6 @@ import type {
 } from "./types";
 
 const MAX_EDIT_BYTES = 200_000;
-const MAX_FILE_BYTES = 1_000_000;
-const MAX_DIFF_FILES = 50;
 const MAX_DIFF_BYTES = 120_000;
 const MAX_SEARCH_FILES = 2_000;
 const MAX_SEARCH_EXCERPT_CHARACTERS = 500;
@@ -527,33 +532,4 @@ export function createDocumentationDiffDigest(
     }
   }
   return `sha256:${hash.digest("hex")}`;
-}
-
-function successfulCommand(
-  result: SandboxCommandResult,
-  message: string,
-): RepositoryResult<void> {
-  if (result.exitCode !== 0) {
-    return err(new RepositoryError(
-      "REPOSITORY_SANDBOX_FAILED",
-      `${message}: ${summarizeCommandFailure(result)}`,
-    ));
-  }
-  return ok(undefined);
-}
-
-function summarizeCommandFailure(result: SandboxCommandResult): string {
-  return (
-    result.stderr.trim() ||
-    result.stdout.trim() ||
-    `command exited with ${result.exitCode}`
-  ).slice(0, 1_000);
-}
-
-function parseNullSeparated(value: string): string[] {
-  return value.split("\0").filter(Boolean);
-}
-
-function quoteShellArgument(value: string): string {
-  return `'${value.replaceAll("'", "'\\''")}'`;
 }

@@ -16,6 +16,17 @@ import {
   createDocumentationDiffDigest,
   DocumentationDraft,
 } from "./draft";
+import {
+  isValidPaigeBranch,
+  MAX_DIFF_FILES,
+  MAX_FILE_BYTES,
+} from "./policy";
+import {
+  parseNullSeparated,
+  quoteShellArgument,
+  successfulCommand,
+  summarizeCommandFailure,
+} from "./sandbox-command";
 import type {
   ApprovedDocumentationPublication,
   DocumentationCommit,
@@ -25,8 +36,6 @@ import type {
 } from "./types";
 
 const WORKTREE_ROOT = "/workspace/worktrees";
-const MAX_FILE_BYTES = 1_000_000;
-const MAX_DIFF_FILES = 50;
 
 export class DocumentationWorkspace {
   readonly #sandbox: SandboxSession;
@@ -743,15 +752,6 @@ function parseWorkspaceState(
   return ok(state as DocumentationWorkspaceState);
 }
 
-function isValidPaigeBranch(value: string): boolean {
-  return (
-    /^paige\/[a-z0-9][a-z0-9._/-]*[a-z0-9]$/.test(value) &&
-    !value.includes("..") &&
-    !value.includes("//") &&
-    value.length <= 120
-  );
-}
-
 function toDocumentationWorkspace(
   state: DocumentationWorkspaceState,
 ): DocumentationWorkspaceOutput {
@@ -779,36 +779,7 @@ function githubRemoteUrl(repository: RepositoryConfig): string {
   return `https://github.com/${repository.owner}/${repository.name}.git`;
 }
 
-function successfulCommand(
-  result: SandboxCommandResult,
-  message: string,
-): RepositoryResult<void> {
-  if (result.exitCode !== 0) {
-    return err(new RepositoryError(
-      "REPOSITORY_SANDBOX_FAILED",
-      `${message}: ${summarizeCommandFailure(result)}`,
-    ));
-  }
-  return ok(undefined);
-}
-
-function summarizeCommandFailure(result: SandboxCommandResult): string {
-  return (
-    result.stderr.trim() ||
-    result.stdout.trim() ||
-    `command exited with ${result.exitCode}`
-  ).slice(0, 1_000);
-}
-
-function parseNullSeparated(value: string): string[] {
-  return value.split("\0").filter(Boolean);
-}
-
 function sameStrings(left: string[], right: string[]): boolean {
   return left.length === right.length &&
     left.every((value, index) => value === right[index]);
-}
-
-function quoteShellArgument(value: string): string {
-  return `'${value.replaceAll("'", "'\\''")}'`;
 }

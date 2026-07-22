@@ -6,6 +6,11 @@ import { RepositoryError } from "../shared/errors";
 import type { GitHubRepository } from "../shared/github";
 import type { DocumentationRepository } from "../types";
 import { createDocumentationDiffDigest, DocumentationDraft } from "./draft";
+import {
+  isValidPaigeBranch,
+  MAX_DIFF_FILES,
+  MAX_FILE_BYTES,
+} from "./policy";
 import type {
   DocumentationCommit,
   DocumentationWorkspaceState,
@@ -14,9 +19,6 @@ import type {
   ProposedDocumentationFile,
 } from "./types";
 import { DocumentationWorkspace } from "./workspace";
-
-const MAX_FILE_BYTES = 1_000_000;
-const MAX_DIFF_FILES = 50;
 
 export class DocumentationPublisher {
   readonly #state: DocumentationWorkspaceState;
@@ -355,13 +357,4 @@ export function validateDocumentationWritebackInput(
     ));
   }
   return ok(normalized);
-}
-
-function isValidPaigeBranch(value: string): boolean {
-  return (
-    /^paige\/[a-z0-9][a-z0-9._/-]*[a-z0-9]$/.test(value) &&
-    !value.includes("..") &&
-    !value.includes("//") &&
-    value.length <= 120
-  );
 }
