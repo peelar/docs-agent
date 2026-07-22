@@ -26,7 +26,7 @@
     "@libsql/client": "^0.17.4",
     "@paige/repositories": "workspace:*",
     "@paige/sessions": "workspace:*",
-    "@vercel/connect": "0.3.2",
+    "@vercel/connect": "0.4.2",
     "chat": "4.34.0",
     "eve": "^0.23.0",
     "neverthrow": "^8.2.0",
