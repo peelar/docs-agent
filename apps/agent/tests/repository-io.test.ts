@@ -8,7 +8,7 @@ import { afterEach, describe, test, vi } from "vitest";
 import { SandboxGit } from "../repositories/git";
 import { RepositoryFiles } from "../repositories/files";
 import { RepositoryService } from "../repositories/service";
-import { DocumentationGitHubRepository } from "../repositories/documentation/github";
+import { GitHubPublisher } from "../repositories/documentation/github-publisher";
 import { RepositoryError } from "@paige/repositories/errors";
 import {
   createGitHubRequest,
@@ -480,7 +480,7 @@ describe("repository GitHub boundary", () => {
     assert.equal(result.value, undefined);
   });
 
-  test("reuses an existing approved draft pull request", async () => {
+  test("finds an existing draft pull request", async () => {
     const fetchMock = vi.fn<typeof fetch>().mockResolvedValue(jsonResponse([
       {
         number: 42,
@@ -492,13 +492,13 @@ describe("repository GitHub boundary", () => {
     ]));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await new DocumentationGitHubRepository(
+    const result = await new GitHubPublisher(
       documentationRepository,
       createGitHubRequest({
         token: "token",
         abortSignal: new AbortController().signal,
       }),
-    ).createOrReuseDraftPullRequest({
+    ).createOrFindDraftPullRequest({
       branch: "paige/example",
       baseBranch: "main",
       title: "Update docs",
@@ -506,7 +506,7 @@ describe("repository GitHub boundary", () => {
     });
 
     assert(result.isOk());
-    assert.equal(result.value.reused, true);
+    assert.equal(result.value.existing, true);
     assert.equal(result.value.number, 42);
     assert.equal(fetchMock.mock.calls.length, 1);
   });
@@ -522,13 +522,13 @@ describe("repository GitHub boundary", () => {
       }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await new DocumentationGitHubRepository(
+    const result = await new GitHubPublisher(
       documentationRepository,
       createGitHubRequest({
         token: "token",
         abortSignal: new AbortController().signal,
       }),
-    ).createOrReuseDraftPullRequest({
+    ).createOrFindDraftPullRequest({
       branch: "paige/example",
       baseBranch: "main",
       title: "Update docs",
@@ -536,7 +536,7 @@ describe("repository GitHub boundary", () => {
     });
 
     assert(result.isOk());
-    assert.equal(result.value.reused, false);
+    assert.equal(result.value.existing, false);
     assert.equal(fetchMock.mock.calls[1][1]?.method, "POST");
     assert.match(
       String(fetchMock.mock.calls[1][1]?.body),

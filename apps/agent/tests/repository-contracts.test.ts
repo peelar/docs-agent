@@ -6,8 +6,8 @@ import documentationPublishTool, {
   documentationPublishToolInputSchema,
 } from "../agent/tools/documentation_publish";
 import {
-  documentationWorkspaceToolInputSchema,
-} from "../agent/tools/documentation_workspace";
+  documentationEditToolInputSchema,
+} from "../agent/tools/documentation_edit";
 import {
   pullRequestReadToolInputSchema,
 } from "../agent/tools/pull_request_read";
@@ -396,11 +396,11 @@ describe("pull request read tool contract", () => {
 describe("documentation tool contract", () => {
   test("separates local authoring from approval-gated publication", async () => {
     assert.deepEqual(
-      documentationWorkspaceToolInputSchema.parse({ action: "prepare" }),
-      { action: "prepare" },
+      documentationEditToolInputSchema.parse({ action: "open" }),
+      { action: "open" },
     );
     assert.deepEqual(
-      documentationWorkspaceToolInputSchema.parse({
+      documentationEditToolInputSchema.parse({
         action: "write",
         path: "docs/example.md",
         content: "Example\n",
@@ -412,13 +412,13 @@ describe("documentation tool contract", () => {
       },
     );
     assert.deepEqual(
-      documentationWorkspaceToolInputSchema.parse({
-        action: "inspect_diff",
+      documentationEditToolInputSchema.parse({
+        action: "review",
       }),
-      { action: "inspect_diff" },
+      { action: "review" },
     );
     const publish = documentationPublishToolInputSchema.parse({
-      digest: `sha256:${"a".repeat(64)}`,
+      reviewId: `sha256:${"a".repeat(64)}`,
       branch: "paige/update-example",
       commitMessage: "docs: update example",
       pullRequestTitle: "Update example",
@@ -437,10 +437,10 @@ describe("documentation tool contract", () => {
     );
   });
 
-  test("rejects arbitrary branches and malformed approval digests", () => {
+  test("rejects arbitrary branches and malformed review IDs", () => {
     assert.throws(() =>
       documentationPublishToolInputSchema.parse({
-        digest: "not-a-digest",
+        reviewId: "not-a-review-id",
         branch: "feature/update-example",
         commitMessage: "docs: update example",
         pullRequestTitle: "Update example",

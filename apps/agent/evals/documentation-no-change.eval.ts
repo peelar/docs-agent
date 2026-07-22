@@ -6,15 +6,15 @@ export default defineEval({
   timeoutMs: 240_000,
   async test(t) {
     await t.send(
-      "Prepare the documentation repository for local work and check whether it already has changes. Do not edit or publish anything; briefly report the result.",
+      "Open the documentation editor and check whether it already has changes. Do not edit or publish anything; briefly report the result.",
     );
     t.succeeded();
     t.noFailedActions();
-    t.calledTool("documentation_workspace", {
-      input: { action: "prepare" },
+    t.calledTool("documentation_edit", {
+      input: { action: "open" },
     });
-    t.calledTool("documentation_workspace", {
-      input: { action: "inspect_diff" },
+    t.calledTool("documentation_edit", {
+      input: { action: "review" },
       output: (output) =>
         JSON.stringify(output).includes('"hasChanges":false') &&
         JSON.stringify(output).includes('"changedFiles":[]'),

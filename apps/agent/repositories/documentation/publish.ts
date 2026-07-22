@@ -1,79 +1,99 @@
+import type { SandboxSession } from "eve/sandbox";
 import { err, ok } from "neverthrow";
 
 import { assertRepositoryRelativePath } from "../files";
 import type { RepositoryResult } from "@paige/repositories/errors";
 import { RepositoryError } from "@paige/repositories/errors";
-import { createDocumentationDiffDigest, DocumentationDraft } from "./draft";
-import type { DocumentationGitHubRepository } from "./github";
+import { DocumentationEditor } from "./editor";
+import type { GitHubPublisher } from "./github-publisher";
+import type { DocumentationCommit } from "./publish-checkpoint";
+import { PublishCheckpoint } from "./publish-checkpoint";
+import { createReviewId } from "./review";
+import type { ChangedFile } from "./review";
 import {
-  isValidPaigeBranch,
-  MAX_DIFF_FILES,
+  isValidPublishBranch,
+  MAX_CHANGED_FILES,
   MAX_FILE_BYTES,
-} from "./policy";
-import type {
-  DocumentationCommit,
-  DocumentationWorkspaceState,
-  DocumentationWriteback,
-  DocumentationWritebackInput,
-  ProposedDocumentationFile,
-} from "./types";
-import { DocumentationWorkspace } from "./workspace";
+} from "./rules";
+import { SandboxShell } from "./sandbox-shell";
+import type { WorkspaceRecord } from "./workspace-record";
+import { WorkspaceRecordStore } from "./workspace-record";
+
+export interface PublishInput {
+  reviewId: string;
+  branch: string;
+  commitMessage: string;
+  pullRequestTitle: string;
+  pullRequestBody: string;
+}
+
+export interface PublishResult {
+  commit: DocumentationCommit;
+  pullRequest: {
+    number: number;
+    url: string;
+    draft: true;
+  };
+  resumed: boolean;
+}
 
 export class DocumentationPublisher {
-  readonly #state: DocumentationWorkspaceState;
-  readonly #workspace: DocumentationWorkspace;
-  readonly #draft: DocumentationDraft;
-  readonly #github: DocumentationGitHubRepository;
+  readonly #record: WorkspaceRecord;
+  readonly #records: WorkspaceRecordStore;
+  readonly #checkpoints: PublishCheckpoint;
+  readonly #editor: DocumentationEditor;
+  readonly #github: GitHubPublisher;
 
   constructor(input: {
-    state: DocumentationWorkspaceState;
-    workspace: DocumentationWorkspace;
-    draft: DocumentationDraft;
-    github: DocumentationGitHubRepository;
+    sandbox: SandboxSession;
+    record: WorkspaceRecord;
+    abortSignal: AbortSignal;
+    github: GitHubPublisher;
   }) {
-    this.#state = input.state;
-    this.#workspace = input.workspace;
-    this.#draft = input.draft;
+    this.#record = input.record;
+    this.#records = new WorkspaceRecordStore(input);
+    this.#checkpoints = new PublishCheckpoint(new SandboxShell(input));
+    this.#editor = new DocumentationEditor(input);
     this.#github = input.github;
   }
 
   async publish(
-    input: DocumentationWritebackInput,
-  ): Promise<RepositoryResult<DocumentationWriteback>> {
-    const approval = {
-      digest: input.digest,
+    input: PublishInput,
+  ): Promise<RepositoryResult<PublishResult>> {
+    const publishRequest = {
+      reviewId: input.reviewId,
       branch: input.branch,
       commitMessage: input.commitMessage,
     };
-    const existingCommit = await this.#workspace.readApprovedCommit({
-      state: this.#state,
-      approval,
+    const existingCheckpoint = await this.#checkpoints.find({
+      record: this.#record,
+      publishRequest,
     });
-    if (existingCommit.isErr()) return err(existingCommit.error);
+    if (existingCheckpoint.isErr()) return err(existingCheckpoint.error);
 
     let remoteBranchCommitSha: string | undefined;
     let remoteBranchWasChecked = false;
-    if (existingCommit.value !== undefined) {
+    if (existingCheckpoint.value !== undefined) {
       const remoteBranch = await this.#github.resolveBranchCommitSha(
-        existingCommit.value.branch,
+        existingCheckpoint.value.branch,
       );
       if (remoteBranch.isErr()) return err(remoteBranch.error);
       remoteBranchCommitSha = remoteBranch.value;
       remoteBranchWasChecked = true;
       if (
         remoteBranchCommitSha !== undefined &&
-        remoteBranchCommitSha !== this.#state.baseCommitSha
+        remoteBranchCommitSha !== this.#record.baseCommitSha
       ) {
         const published = await this.#verifyPublishedCommit({
-          branch: existingCommit.value.branch,
+          branch: existingCheckpoint.value.branch,
           commitSha: remoteBranchCommitSha,
-          digest: input.digest,
+          reviewId: input.reviewId,
           message: input.commitMessage,
         });
         if (published.isErr()) return err(published.error);
         const existingPullRequest = await this.#github.findDraftPullRequest({
-          branch: existingCommit.value.branch,
-          baseBranch: this.#state.baseBranch,
+          branch: existingCheckpoint.value.branch,
+          baseBranch: this.#record.baseBranch,
           title: input.pullRequestTitle,
           body: input.pullRequestBody,
         });
@@ -84,101 +104,101 @@ export class DocumentationPublisher {
           return ok({
             commit: published.value,
             pullRequest: existingPullRequest.value,
-            reused: true,
+            resumed: true,
           });
         }
       }
     }
 
     let changedFiles: string[] | undefined;
-    if (existingCommit.value === undefined) {
-      const diff = await this.#draft.inspectDiff();
-      if (diff.isErr()) return err(diff.error);
-      if (!diff.value.hasChanges || diff.value.digest === null) {
+    if (existingCheckpoint.value === undefined) {
+      const review = await this.#editor.review();
+      if (review.isErr()) return err(review.error);
+      if (!review.value.hasChanges || review.value.reviewId === null) {
         return err(new RepositoryError(
-          "REPOSITORY_APPROVAL_MISMATCH",
-          "The approved documentation diff no longer contains changes.",
+          "REPOSITORY_REVIEW_MISMATCH",
+          "The reviewed documentation no longer contains changes.",
         ));
       }
-      if (diff.value.digest !== input.digest) {
+      if (review.value.reviewId !== input.reviewId) {
         return err(new RepositoryError(
-          "REPOSITORY_APPROVAL_MISMATCH",
-          "The documentation workspace no longer matches the approved diff digest.",
+          "REPOSITORY_REVIEW_MISMATCH",
+          "The documentation workspace no longer matches the reviewed changes.",
         ));
       }
-      changedFiles = diff.value.changedFiles;
+      changedFiles = review.value.changedFiles;
     }
 
-    const recorded = await this.#workspace.recordApprovedPublication(
-      this.#state,
-      approval,
+    const recorded = await this.#records.savePublishRequest(
+      this.#record,
+      publishRequest,
     );
     if (recorded.isErr()) return err(recorded.error);
 
     const remoteBase = await this.#github.resolveCommit();
     if (remoteBase.isErr()) return err(remoteBase.error);
     if (
-      remoteBase.value.ref !== this.#state.baseBranch ||
-      remoteBase.value.commitSha !== this.#state.baseCommitSha
+      remoteBase.value.ref !== this.#record.baseBranch ||
+      remoteBase.value.commitSha !== this.#record.baseCommitSha
     ) {
       return err(new RepositoryError(
         "REPOSITORY_CONFLICT",
-        `The remote base ${this.#state.baseBranch} moved after the documentation diff was prepared.`,
+        `The remote base ${this.#record.baseBranch} moved after the documentation changes were reviewed.`,
       ));
     }
 
-    let commit = existingCommit.value;
-    if (commit === undefined) {
+    let checkpoint = existingCheckpoint.value;
+    if (checkpoint === undefined) {
       if (changedFiles === undefined) {
         return err(new RepositoryError(
-          "REPOSITORY_APPROVAL_MISMATCH",
-          "The approved documentation diff is unavailable.",
+          "REPOSITORY_REVIEW_MISMATCH",
+          "The reviewed documentation changes are unavailable.",
         ));
       }
-      const created = await this.#workspace.createApprovedCommit({
-        state: this.#state,
+      const created = await this.#checkpoints.create({
+        record: this.#record,
         branch: input.branch,
         message: input.commitMessage,
         changedFiles,
       });
       if (created.isErr()) return err(created.error);
-      commit = created.value;
+      checkpoint = created.value;
     }
 
-    const committed = await this.#workspace.inspectCommit(
-      this.#state,
-      commit.commitSha,
+    const checkpointChanges = await this.#checkpoints.readChanges(
+      this.#record,
+      checkpoint.commitSha,
     );
-    if (committed.isErr()) return err(committed.error);
-    if (committed.value.digest !== input.digest) {
+    if (checkpointChanges.isErr()) return err(checkpointChanges.error);
+    if (checkpointChanges.value.reviewId !== input.reviewId) {
       return err(new RepositoryError(
-        "REPOSITORY_APPROVAL_MISMATCH",
-        "The committed documentation bytes do not match the approved diff digest.",
+        "REPOSITORY_REVIEW_MISMATCH",
+        "The publish checkpoint does not match the reviewed changes.",
       ));
     }
 
     if (!remoteBranchWasChecked) {
       const remoteBranch = await this.#github.resolveBranchCommitSha(
-        commit.branch,
+        checkpoint.branch,
       );
       if (remoteBranch.isErr()) return err(remoteBranch.error);
       remoteBranchCommitSha = remoteBranch.value;
     }
     const published = await this.#publishCommit({
-      commit,
+      commit: checkpoint,
       remoteBranchCommitSha,
-      digest: input.digest,
+      reviewId: input.reviewId,
       message: input.commitMessage,
-      files: committed.value.files,
+      files: checkpointChanges.value.files,
     });
     if (published.isErr()) return err(published.error);
-    const reused =
-      existingCommit.value !== undefined ||
+    const resumed =
+      existingCheckpoint.value !== undefined ||
       remoteBranchCommitSha !== undefined;
 
-    const pullRequest = await this.#github.createOrReuseDraftPullRequest({
+    const pullRequest = await this.#github.createOrFindDraftPullRequest({
       branch: published.value.branch,
-      baseBranch: this.#state.baseBranch,
+      baseBranch: this.#record.baseBranch,
       title: input.pullRequestTitle,
       body: input.pullRequestBody,
     });
@@ -190,22 +210,22 @@ export class DocumentationPublisher {
         url: pullRequest.value.url,
         draft: true,
       },
-      reused: reused || pullRequest.value.reused,
+      resumed: resumed || pullRequest.value.existing,
     });
   }
 
   async #publishCommit(input: {
     commit: DocumentationCommit;
     remoteBranchCommitSha: string | undefined;
-    digest: string;
+    reviewId: string;
     message: string;
-    files: ProposedDocumentationFile[];
+    files: ChangedFile[];
   }): Promise<RepositoryResult<DocumentationCommit>> {
     let remoteCommitSha = input.remoteBranchCommitSha;
     if (remoteCommitSha === undefined) {
       const created = await this.#github.createBranch({
         branch: input.commit.branch,
-        commitSha: this.#state.baseCommitSha,
+        commitSha: this.#record.baseCommitSha,
       });
       if (created.isErr()) {
         const raced = await this.#github.resolveBranchCommitSha(
@@ -215,13 +235,13 @@ export class DocumentationPublisher {
         if (raced.value === undefined) return err(created.error);
         remoteCommitSha = raced.value;
       } else {
-        remoteCommitSha = this.#state.baseCommitSha;
+        remoteCommitSha = this.#record.baseCommitSha;
       }
     }
-    if (remoteCommitSha === this.#state.baseCommitSha) {
+    if (remoteCommitSha === this.#record.baseCommitSha) {
       const created = await this.#github.createCommitOnBranch({
         branch: input.commit.branch,
-        expectedHeadCommitSha: this.#state.baseCommitSha,
+        expectedHeadCommitSha: this.#record.baseCommitSha,
         message: input.message,
         files: input.files,
       });
@@ -231,7 +251,7 @@ export class DocumentationPublisher {
     return await this.#verifyPublishedCommit({
       branch: input.commit.branch,
       commitSha: remoteCommitSha,
-      digest: input.digest,
+      reviewId: input.reviewId,
       message: input.message,
     });
   }
@@ -239,21 +259,21 @@ export class DocumentationPublisher {
   async #verifyPublishedCommit(input: {
     branch: string;
     commitSha: string;
-    digest: string;
+    reviewId: string;
     message: string;
   }): Promise<RepositoryResult<DocumentationCommit>> {
     const details = await this.#github.readCommitDetails(input.commitSha);
     if (details.isErr()) return err(details.error);
     if (
-      details.value.parentSha !== this.#state.baseCommitSha ||
+      details.value.parentSha !== this.#record.baseCommitSha ||
       details.value.message !== input.message
     ) {
       return err(new RepositoryError(
         "REPOSITORY_CONFLICT",
-        `Remote branch ${input.branch} does not contain the approved commit.`,
+        `Remote branch ${input.branch} does not contain the reviewed commit.`,
       ));
     }
-    const files: ProposedDocumentationFile[] = [];
+    const files: ChangedFile[] = [];
     for (const file of details.value.files) {
       const path = assertRepositoryRelativePath(file.path, {
         allowRoot: false,
@@ -297,46 +317,43 @@ export class DocumentationPublisher {
       }
       files.push({ path: path.value, content: content.value });
     }
-    if (files.length === 0 || files.length > MAX_DIFF_FILES) {
+    if (files.length === 0 || files.length > MAX_CHANGED_FILES) {
       return err(new RepositoryError(
         "REPOSITORY_CONFLICT",
         `Remote branch ${input.branch} has an invalid changed-file set.`,
       ));
     }
-    if (
-      createDocumentationDiffDigest(this.#state.baseCommitSha, files) !==
-        input.digest
-    ) {
+    if (createReviewId(this.#record.baseCommitSha, files) !== input.reviewId) {
       return err(new RepositoryError(
         "REPOSITORY_CONFLICT",
-        `Remote branch ${input.branch} does not match the approved documentation diff.`,
+        `Remote branch ${input.branch} does not match the reviewed documentation changes.`,
       ));
     }
     return ok({
       branch: input.branch,
       commitSha: input.commitSha,
-      baseCommitSha: this.#state.baseCommitSha,
+      baseCommitSha: this.#record.baseCommitSha,
     });
   }
 }
 
-export function validateDocumentationWritebackInput(
-  input: DocumentationWritebackInput,
-): RepositoryResult<DocumentationWritebackInput> {
+export function validatePublishInput(
+  input: PublishInput,
+): RepositoryResult<PublishInput> {
   const normalized = {
-    digest: input.digest.trim(),
+    reviewId: input.reviewId.trim(),
     branch: input.branch.trim(),
     commitMessage: input.commitMessage.trim(),
     pullRequestTitle: input.pullRequestTitle.trim(),
     pullRequestBody: input.pullRequestBody.trim(),
   };
-  if (!/^sha256:[a-f0-9]{64}$/.test(normalized.digest)) {
+  if (!/^sha256:[a-f0-9]{64}$/.test(normalized.reviewId)) {
     return err(new RepositoryError(
       "REPOSITORY_INVALID_INPUT",
-      "Use the exact sha256 documentation diff digest returned by inspect_diff.",
+      "Use the exact review ID returned by documentation_edit review.",
     ));
   }
-  if (!isValidPaigeBranch(normalized.branch)) {
+  if (!isValidPublishBranch(normalized.branch)) {
     return err(new RepositoryError(
       "REPOSITORY_INVALID_INPUT",
       "Use a valid deterministic branch in the paige/ namespace.",
@@ -352,7 +369,7 @@ export function validateDocumentationWritebackInput(
   ) {
     return err(new RepositoryError(
       "REPOSITORY_INVALID_INPUT",
-      "Approved commit and pull request metadata is missing, too large, or the commit message is not single-line.",
+      "Commit and pull request details are missing, too large, or the commit message is not single-line.",
     ));
   }
   return ok(normalized);

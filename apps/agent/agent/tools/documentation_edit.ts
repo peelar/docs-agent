@@ -1,10 +1,10 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
-import { DocumentationRepositoryService } from "../../repositories/documentation/service";
+import { DocumentationActions } from "../../repositories/documentation/actions";
 
 const actionInputSchema = z.discriminatedUnion("action", [
-  z.object({ action: z.literal("prepare") }),
+  z.object({ action: z.literal("open") }),
   z.object({
     action: z.literal("list_files"),
     pathPrefix: z.string().default("."),
@@ -32,18 +32,18 @@ const actionInputSchema = z.discriminatedUnion("action", [
     action: z.literal("remove"),
     path: z.string().min(1),
   }),
-  z.object({ action: z.literal("inspect_diff") }),
+  z.object({ action: z.literal("review") }),
 ]);
 
-export const documentationWorkspaceToolInputSchema = z.object({
+export const documentationEditToolInputSchema = z.object({
   action: z.enum([
-    "prepare",
+    "open",
     "list_files",
     "search",
     "read",
     "write",
     "remove",
-    "inspect_diff",
+    "review",
   ]),
   pathPrefix: z.string().optional(),
   limit: z.number().int().positive().optional(),
@@ -57,44 +57,44 @@ export const documentationWorkspaceToolInputSchema = z.object({
 
 export default defineTool({
   description:
-    "Draft changes in Paige's configured documentation repository without publishing. Use prepare first, then bounded list/search/read/write/remove actions, and inspect_diff to present the complete reviewable patch and approval digest. For read-only documentation work, repository_read is also available.",
-  inputSchema: documentationWorkspaceToolInputSchema,
+    "Edit Paige's configured documentation repository without publishing. Use open first, then bounded list/search/read/write/remove actions, and review to present the complete patch and review ID. For read-only documentation work, repository_read is also available.",
+  inputSchema: documentationEditToolInputSchema,
   async execute(input, ctx) {
-    const service = new DocumentationRepositoryService(ctx);
+    const actions = new DocumentationActions(ctx);
 
     switch (input.action) {
-      case "prepare":
-        return await service.prepareWorkspace().match(
+      case "open":
+        return await actions.open().match(
           (workspace) => ({ action: input.action, workspace }),
           raiseRepositoryError,
         );
       case "list_files":
-        return await service.listFiles(input).match(
+        return await actions.listFiles(input).match(
           (output) => ({ action: input.action, ...output }),
           raiseRepositoryError,
         );
       case "search":
-        return await service.search(input).match(
+        return await actions.search(input).match(
           (output) => ({ action: input.action, ...output }),
           raiseRepositoryError,
         );
       case "read":
-        return await service.read(input).match(
+        return await actions.read(input).match(
           (output) => ({ action: input.action, ...output }),
           raiseRepositoryError,
         );
       case "write":
-        return await service.write(input).match(
+        return await actions.write(input).match(
           (output) => ({ action: input.action, ...output }),
           raiseRepositoryError,
         );
       case "remove":
-        return await service.remove(input).match(
+        return await actions.remove(input).match(
           (output) => ({ action: input.action, ...output }),
           raiseRepositoryError,
         );
-      case "inspect_diff":
-        return await service.inspectDiff().match(
+      case "review":
+        return await actions.review().match(
           (output) => ({ action: input.action, ...output }),
           raiseRepositoryError,
         );

@@ -31,7 +31,7 @@ export function resolveConfiguredRepository(
   return ok(repository);
 }
 
-/** Enforces the only repository role that may enter a writeback workflow. */
+/** Enforces the only repository role that may enter a publishing workflow. */
 export function assertDocumentationRepository(
   repository: RepositoryConfig,
 ): RepositoryResult<DocumentationRepository> {

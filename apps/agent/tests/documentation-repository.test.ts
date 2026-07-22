@@ -18,14 +18,18 @@ import type {
 } from "eve/sandbox";
 import { afterEach, describe, test, vi } from "vitest";
 
-import { DocumentationDraft } from "../repositories/documentation/draft";
-import { DocumentationGitHubRepository } from "../repositories/documentation/github";
-import { DocumentationPublisher } from "../repositories/documentation/publisher";
+import { DocumentationEditor } from "../repositories/documentation/editor";
+import { GitHubPublisher } from "../repositories/documentation/github-publisher";
+import {
+  DocumentationPublisher,
+  type PublishInput,
+} from "../repositories/documentation/publish";
+import { PublishCheckpoint } from "../repositories/documentation/publish-checkpoint";
+import { SandboxShell } from "../repositories/documentation/sandbox-shell";
 import type {
-  ApprovedDocumentationPublication,
-  DocumentationWorkspaceState,
-  DocumentationWritebackInput,
-} from "../repositories/documentation/types";
+  PublishRequest,
+  WorkspaceRecord,
+} from "../repositories/documentation/workspace-record";
 import { DocumentationWorkspace } from "../repositories/documentation/workspace";
 import { createGitHubRequest } from "@paige/repositories/github";
 import type {
@@ -49,7 +53,7 @@ describe("documentation workspace", () => {
   test("reuses a clean detached workspace at its recorded base", async () => {
     const fixture = await createFixture();
 
-    const result = await prepareDocumentationWorkspace({
+    const result = await openDocumentationWorkspace({
       sandbox: fixture.sandbox,
       cache: fixture.cache,
       abortSignal: fixture.abortSignal,
@@ -66,7 +70,7 @@ describe("documentation workspace", () => {
       "dirty\n",
     );
 
-    const result = await prepareDocumentationWorkspace({
+    const result = await openDocumentationWorkspace({
       sandbox: fixture.sandbox,
       cache: fixture.cache,
       abortSignal: fixture.abortSignal,
@@ -76,23 +80,23 @@ describe("documentation workspace", () => {
     assert.equal(result.error.code, "REPOSITORY_DIRTY_WORKSPACE");
   });
 
-  test("checkpoints an interrupted approved draft on the next operation", async () => {
+  test("checkpoints an interrupted reviewed change on the next operation", async () => {
     const fixture = await createFixture();
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "approved\n",
+      content: "reviewed\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
-    await recordApprovedPublication(fixture, {
-      digest: diff.value.digest,
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
+    await savePublishRequest(fixture, {
+      reviewId: review.value.reviewId,
       branch: "paige/interrupted-draft",
       commitMessage: "docs: update readme",
     });
 
-    const result = await prepareDocumentationWorkspace({
+    const result = await openDocumentationWorkspace({
       sandbox: fixture.sandbox,
       cache: fixture.cache,
       abortSignal: fixture.abortSignal,
@@ -106,32 +110,32 @@ describe("documentation workspace", () => {
     assert.equal(localCommit.exitCode, 0);
     assert.notEqual(
       localCommit.stdout.trim(),
-      fixture.state.baseCommitSha,
+      fixture.record.baseCommitSha,
     );
   });
 
-  test("preserves post-approval edits and rejects normalization", async () => {
+  test("preserves post-review edits and refuses recovery", async () => {
     const fixture = await createFixture();
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "approved\n",
+      content: "reviewed\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
-    await recordApprovedPublication(fixture, {
-      digest: diff.value.digest,
-      branch: "paige/post-approval-drift",
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
+    await savePublishRequest(fixture, {
+      reviewId: review.value.reviewId,
+      branch: "paige/post-review-drift",
       commitMessage: "docs: update readme",
     });
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "changed after approval\n",
+      content: "changed after review\n",
     });
 
-    const result = await prepareDocumentationWorkspace({
+    const result = await openDocumentationWorkspace({
       sandbox: fixture.sandbox,
       cache: fixture.cache,
       abortSignal: fixture.abortSignal,
@@ -143,7 +147,7 @@ describe("documentation workspace", () => {
       fixture.actualPath("worktrees/saleor-docs/README.md"),
       "utf8",
     );
-    assert.equal(content, "changed after approval\n");
+    assert.equal(content, "changed after review\n");
   });
 
   test("rejects a clean unknown branch without deleting it", async () => {
@@ -153,7 +157,7 @@ describe("documentation workspace", () => {
     );
     assert.equal(created.exitCode, 0);
 
-    const result = await prepareDocumentationWorkspace({
+    const result = await openDocumentationWorkspace({
       sandbox: fixture.sandbox,
       cache: fixture.cache,
       abortSignal: fixture.abortSignal,
@@ -168,18 +172,18 @@ describe("documentation workspace", () => {
     assert.equal(branch.stdout.trim(), "unknown/manual");
   });
 
-  test("normalizes approved leftovers before moving to a new remote base", async () => {
+  test("restores publish leftovers before moving to a new remote base", async () => {
     const fixture = await createFixture();
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "approved\n",
+      content: "reviewed\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
-    await recordApprovedPublication(fixture, {
-      digest: diff.value.digest,
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
+    await savePublishRequest(fixture, {
+      reviewId: review.value.reviewId,
       branch: "paige/moved-base",
       commitMessage: "docs: update readme",
     });
@@ -198,7 +202,7 @@ describe("documentation workspace", () => {
     );
     const movedCommitSha = moved.stdout.trim();
 
-    const result = await prepareDocumentationWorkspace({
+    const result = await openDocumentationWorkspace({
       sandbox: fixture.sandbox,
       cache: {
         ...fixture.cache,
@@ -219,7 +223,7 @@ describe("documentation workspace", () => {
   });
 
   test(
-    "includes tracked, deleted, and untracked text in a stable digest",
+    "includes tracked, deleted, and untracked text in a stable review ID",
     async () => {
       const fixture = await createFixture();
       const wrote = await writeDocumentationFile({
@@ -240,8 +244,8 @@ describe("documentation workspace", () => {
       });
       assert(removed.isOk());
 
-      const first = await inspectDocumentationDiff(fixture.operation);
-      const second = await inspectDocumentationDiff(fixture.operation);
+      const first = await reviewDocumentation(fixture.operation);
+      const second = await reviewDocumentation(fixture.operation);
 
       assert(first.isOk());
       assert(second.isOk());
@@ -253,21 +257,21 @@ describe("documentation workspace", () => {
       ]);
       assert.match(first.value.patch, /updated/);
       assert.match(first.value.patch, /new\.md/);
-      assert.equal(first.value.digest, second.value.digest);
+      assert.equal(first.value.reviewId, second.value.reviewId);
 
       await writeDocumentationFile({
         ...fixture.operation,
         path: "docs/new.md",
         content: "changed after review\n",
       });
-      const drifted = await inspectDocumentationDiff(fixture.operation);
+      const drifted = await reviewDocumentation(fixture.operation);
       assert(drifted.isOk());
-      assert.notEqual(drifted.value.digest, first.value.digest);
+      assert.notEqual(drifted.value.reviewId, first.value.reviewId);
     },
     15_000,
   );
 
-  test("rejects symlink traversal and binary proposed files", async () => {
+  test("rejects symlink traversal and binary changed files", async () => {
     const fixture = await createFixture();
     const outside = fixture.actualPath("outside");
     await mkdir(outside, { recursive: true });
@@ -282,20 +286,20 @@ describe("documentation workspace", () => {
       content: "escape\n",
     });
     assert(symlinkWrite.isErr());
-    assert.equal(symlinkWrite.error.code, "REPOSITORY_DIFF_REJECTED");
+    assert.equal(symlinkWrite.error.code, "REPOSITORY_CHANGES_REJECTED");
 
     await rm(fixture.actualPath("worktrees/saleor-docs/linked"));
     await writeFile(
       fixture.actualPath("worktrees/saleor-docs/binary.dat"),
       Buffer.from([0, 1, 2, 3]),
     );
-    const binaryDiff = await inspectDocumentationDiff(fixture.operation);
+    const binaryDiff = await reviewDocumentation(fixture.operation);
     assert(binaryDiff.isErr());
-    assert.equal(binaryDiff.error.code, "REPOSITORY_DIFF_REJECTED");
+    assert.equal(binaryDiff.error.code, "REPOSITORY_CHANGES_REJECTED");
     assert.match(binaryDiff.error.message, /binary/);
   });
 
-  test("rejects diffs that exceed the complete review file limit", async () => {
+  test("rejects changes that exceed the review file limit", async () => {
     const fixture = await createFixture();
     const changes = fixture.actualPath("worktrees/saleor-docs/changes");
     await mkdir(changes, { recursive: true });
@@ -305,27 +309,27 @@ describe("documentation workspace", () => {
       ),
     );
 
-    const result = await inspectDocumentationDiff(fixture.operation);
+    const result = await reviewDocumentation(fixture.operation);
 
     assert(result.isErr());
-    assert.equal(result.error.code, "REPOSITORY_DIFF_REJECTED");
+    assert.equal(result.error.code, "REPOSITORY_CHANGES_REJECTED");
     assert.match(result.error.message, /51 files/);
   });
 });
 
-describe("documentation writeback", () => {
-  test("replays publish from an interrupted approved draft", async () => {
+describe("documentation publishing", () => {
+  test("replays publish from an interrupted reviewed change", async () => {
     const fixture = await createFixture();
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "approved\n",
+      content: "reviewed\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
-    await recordApprovedPublication(fixture, {
-      digest: diff.value.digest,
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
+    await savePublishRequest(fixture, {
+      reviewId: review.value.reviewId,
       branch: "paige/interrupted-publish",
       commitMessage: "docs: update readme",
     });
@@ -338,10 +342,10 @@ describe("documentation writeback", () => {
         private: true,
       }))
       .mockResolvedValueOnce(jsonResponse({
-        sha: fixture.state.baseCommitSha,
+        sha: fixture.record.baseCommitSha,
       }))
       .mockResolvedValueOnce(jsonResponse({
-        object: { sha: fixture.state.baseCommitSha },
+        object: { sha: fixture.record.baseCommitSha },
       }))
       .mockResolvedValueOnce(jsonResponse({
         data: {
@@ -352,13 +356,13 @@ describe("documentation writeback", () => {
       }))
       .mockResolvedValueOnce(jsonResponse({
         commit: { message: "docs: update readme" },
-        parents: [{ sha: fixture.state.baseCommitSha }],
+        parents: [{ sha: fixture.record.baseCommitSha }],
         files: [{ filename: "README.md", status: "modified" }],
       }))
       .mockResolvedValueOnce(jsonResponse({
         type: "file",
         encoding: "base64",
-        content: Buffer.from("approved\n").toString("base64"),
+        content: Buffer.from("reviewed\n").toString("base64"),
       }))
       .mockResolvedValueOnce(jsonResponse([]))
       .mockResolvedValueOnce(jsonResponse({
@@ -368,13 +372,13 @@ describe("documentation writeback", () => {
       }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await writebackDocumentation({
+    const result = await publishDocumentation({
       sandbox: fixture.sandbox,
       repository: fixture.repository,
       github: fixture.github,
       abortSignal: fixture.abortSignal,
       input: {
-        digest: diff.value.digest,
+        reviewId: review.value.reviewId,
         branch: "paige/interrupted-publish",
         commitMessage: "docs: update readme",
         pullRequestTitle: "Update readme",
@@ -385,7 +389,7 @@ describe("documentation writeback", () => {
     assert(result.isOk(), result.isErr() ? result.error.message : "");
     assert.equal(result.value.commit.commitSha, remoteCommit);
     assert.equal(result.value.pullRequest.number, 46);
-    assert.equal(result.value.reused, true);
+    assert.equal(result.value.resumed, true);
     await assertWorkspaceAtBase(fixture);
     const localCommit = await fixture.run(
       `git -C '${fixture.actualPath("worktrees/saleor-docs")}' rev-parse refs/heads/paige/interrupted-publish`,
@@ -393,33 +397,33 @@ describe("documentation writeback", () => {
     assert.equal(localCommit.exitCode, 0);
     assert.notEqual(
       localCommit.stdout.trim(),
-      fixture.state.baseCommitSha,
+      fixture.record.baseCommitSha,
     );
   });
 
-  test("preserves workspace changes that no longer match approval", async () => {
+  test("preserves workspace changes that no longer match the review", async () => {
     const fixture = await createFixture();
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "approved\n",
+      content: "reviewed\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "changed after approval\n",
+      content: "changed after review\n",
     });
 
-    const result = await writebackDocumentation({
+    const result = await publishDocumentation({
       sandbox: fixture.sandbox,
       repository: fixture.repository,
       github: fixture.github,
       abortSignal: fixture.abortSignal,
       input: {
-        digest: diff.value.digest,
+        reviewId: review.value.reviewId,
         branch: "paige/drifted",
         commitMessage: "docs: update readme",
         pullRequestTitle: "Update readme",
@@ -428,92 +432,92 @@ describe("documentation writeback", () => {
     });
 
     assert(result.isErr());
-    assert.equal(result.error.code, "REPOSITORY_APPROVAL_MISMATCH");
+    assert.equal(result.error.code, "REPOSITORY_REVIEW_MISMATCH");
     const content = await readFile(
       fixture.actualPath("worktrees/saleor-docs/README.md"),
       "utf8",
     );
-    assert.equal(content, "changed after approval\n");
+    assert.equal(content, "changed after review\n");
   });
 
-  test("stages exactly the approved paths and reuses the approved local commit", async () => {
+  test("stages exactly the reviewed paths and reuses the publish checkpoint", async () => {
     const fixture = await createFixture();
     await writeDocumentationFile({
       ...fixture.operation,
       path: "docs/new.md",
-      content: "approved\n",
+      content: "reviewed\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
 
-    const commit = await createApprovedCommit({
+    const commit = await createPublishCheckpoint({
       ...fixture.operation,
-      branch: "paige/approved-docs",
-      message: "docs: add approved page",
-      changedFiles: diff.value.changedFiles,
+      branch: "paige/reviewed-docs",
+      message: "docs: add reviewed page",
+      changedFiles: review.value.changedFiles,
     });
     assert(
       commit.isOk(),
       commit.isErr() ? `${commit.error.code}: ${commit.error.message}` : "",
     );
     const committedPaths = await fixture.run(
-      `git -C '${fixture.actualPath("worktrees/saleor-docs")}' diff --name-only '${fixture.state.baseCommitSha}' '${commit.value.commitSha}'`,
+      `git -C '${fixture.actualPath("worktrees/saleor-docs")}' diff --name-only '${fixture.record.baseCommitSha}' '${commit.value.commitSha}'`,
     );
     assert.equal(committedPaths.stdout.trim(), "docs/new.md");
 
-    const retried = await readApprovedCommit({
+    const retried = await findPublishCheckpoint({
       ...fixture.operation,
       input: {
-        digest: diff.value.digest,
-        branch: "paige/approved-docs",
-        commitMessage: "docs: add approved page",
+        reviewId: review.value.reviewId,
+        branch: "paige/reviewed-docs",
+        commitMessage: "docs: add reviewed page",
       },
     });
     assert(retried.isOk());
     assert.equal(retried.value?.commitSha, commit.value.commitSha);
 
-    await recordApprovedPublication(fixture, {
-      digest: diff.value.digest,
-      branch: "paige/approved-docs",
-      commitMessage: "docs: add approved page",
+    await savePublishRequest(fixture, {
+      reviewId: review.value.reviewId,
+      branch: "paige/reviewed-docs",
+      commitMessage: "docs: add reviewed page",
     });
-    const preparedAgain = await prepareDocumentationWorkspace({
+    const reopened = await openDocumentationWorkspace({
       sandbox: fixture.sandbox,
       cache: fixture.cache,
       abortSignal: fixture.abortSignal,
     });
     assert(
-      preparedAgain.isOk(),
-      preparedAgain.isErr() ? preparedAgain.error.message : "",
+      reopened.isOk(),
+      reopened.isErr() ? reopened.error.message : "",
     );
     await assertWorkspaceAtBase(fixture);
 
-    const driftedApproval = await readApprovedCommit({
+    const driftedRequest = await findPublishCheckpoint({
       ...fixture.operation,
       input: {
-        digest: `sha256:${"0".repeat(64)}`,
-        branch: "paige/approved-docs",
-        commitMessage: "docs: add approved page",
+        reviewId: `sha256:${"0".repeat(64)}`,
+        branch: "paige/reviewed-docs",
+        commitMessage: "docs: add reviewed page",
       },
     });
-    assert(driftedApproval.isErr());
+    assert(driftedRequest.isErr());
     assert.equal(
-      driftedApproval.error.code,
-      "REPOSITORY_APPROVAL_MISMATCH",
+      driftedRequest.error.code,
+      "REPOSITORY_REVIEW_MISMATCH",
     );
   });
 
-  test("refuses writeback when the remote base moved", async () => {
+  test("refuses publishing when the remote base moved", async () => {
     const fixture = await createFixture();
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "approved\n",
+      content: "reviewed\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
     const movedCommitSha = "f".repeat(40);
     vi.stubGlobal(
       "fetch",
@@ -525,13 +529,13 @@ describe("documentation writeback", () => {
         .mockResolvedValueOnce(jsonResponse({ sha: movedCommitSha })),
     );
 
-    const result = await writebackDocumentation({
+    const result = await publishDocumentation({
       sandbox: fixture.sandbox,
       repository: fixture.repository,
       github: fixture.github,
       abortSignal: fixture.abortSignal,
       input: {
-        digest: diff.value.digest,
+        reviewId: review.value.reviewId,
         branch: "paige/remote-moved",
         commitMessage: "docs: update readme",
         pullRequestTitle: "Update readme",
@@ -546,7 +550,7 @@ describe("documentation writeback", () => {
       result.error.message,
     );
     assert.match(result.error.message, /remote base/);
-    const nextOperation = await prepareDocumentationWorkspace({
+    const nextOperation = await openDocumentationWorkspace({
       sandbox: fixture.sandbox,
       cache: fixture.cache,
       abortSignal: fixture.abortSignal,
@@ -560,20 +564,20 @@ describe("documentation writeback", () => {
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "approved\n",
+      content: "reviewed\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
-    const commit = await createApprovedCommit({
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
+    const commit = await createPublishCheckpoint({
       ...fixture.operation,
       branch: "paige/completed-retry",
       message: "docs: update readme",
-      changedFiles: diff.value.changedFiles,
+      changedFiles: review.value.changedFiles,
     });
     assert(commit.isOk());
-    await recordApprovedPublication(fixture, {
-      digest: diff.value.digest,
+    await savePublishRequest(fixture, {
+      reviewId: review.value.reviewId,
       branch: "paige/completed-retry",
       commitMessage: "docs: update readme",
     });
@@ -585,13 +589,13 @@ describe("documentation writeback", () => {
       }))
       .mockResolvedValueOnce(jsonResponse({
         commit: { message: "docs: update readme" },
-        parents: [{ sha: fixture.state.baseCommitSha }],
+        parents: [{ sha: fixture.record.baseCommitSha }],
         files: [{ filename: "README.md", status: "modified" }],
       }))
       .mockResolvedValueOnce(jsonResponse({
         type: "file",
         encoding: "base64",
-        content: Buffer.from("approved\n").toString("base64"),
+        content: Buffer.from("reviewed\n").toString("base64"),
       }))
       .mockResolvedValueOnce(jsonResponse([
         {
@@ -604,13 +608,13 @@ describe("documentation writeback", () => {
       ]));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await writebackDocumentation({
+    const result = await publishDocumentation({
       sandbox: fixture.sandbox,
       repository: fixture.repository,
       github: fixture.github,
       abortSignal: fixture.abortSignal,
       input: {
-        digest: diff.value.digest,
+        reviewId: review.value.reviewId,
         branch: "paige/completed-retry",
         commitMessage: "docs: update readme",
         pullRequestTitle: "Update readme",
@@ -619,31 +623,31 @@ describe("documentation writeback", () => {
     });
 
     assert(result.isOk());
-    assert.equal(result.value.reused, true);
+    assert.equal(result.value.resumed, true);
     assert.equal(result.value.commit.commitSha, remoteCommit);
     assert.equal(result.value.pullRequest.number, 44);
     assert.equal(fetchMock.mock.calls.length, 4);
   });
 
-  test("retries an approved local commit through GitHub without sandbox credentials", async () => {
+  test("retries a publish checkpoint through GitHub without sandbox credentials", async () => {
     const fixture = await createFixture();
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "approved\n",
+      content: "reviewed\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
-    const localCommit = await createApprovedCommit({
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
+    const localCommit = await createPublishCheckpoint({
       ...fixture.operation,
       branch: "paige/manual-test",
       message: "docs: update readme",
-      changedFiles: diff.value.changedFiles,
+      changedFiles: review.value.changedFiles,
     });
     assert(localCommit.isOk());
-    await recordApprovedPublication(fixture, {
-      digest: diff.value.digest,
+    await savePublishRequest(fixture, {
+      reviewId: review.value.reviewId,
       branch: "paige/manual-test",
       commitMessage: "docs: update readme",
     });
@@ -656,10 +660,10 @@ describe("documentation writeback", () => {
         private: true,
       }))
       .mockResolvedValueOnce(jsonResponse({
-        sha: fixture.state.baseCommitSha,
+        sha: fixture.record.baseCommitSha,
       }))
       .mockResolvedValueOnce(jsonResponse({
-        object: { sha: fixture.state.baseCommitSha },
+        object: { sha: fixture.record.baseCommitSha },
       }))
       .mockResolvedValueOnce(jsonResponse({
         data: {
@@ -670,13 +674,13 @@ describe("documentation writeback", () => {
       }))
       .mockResolvedValueOnce(jsonResponse({
         commit: { message: "docs: update readme" },
-        parents: [{ sha: fixture.state.baseCommitSha }],
+        parents: [{ sha: fixture.record.baseCommitSha }],
         files: [{ filename: "README.md", status: "modified" }],
       }))
       .mockResolvedValueOnce(jsonResponse({
         type: "file",
         encoding: "base64",
-        content: Buffer.from("approved\n").toString("base64"),
+        content: Buffer.from("reviewed\n").toString("base64"),
       }))
       .mockResolvedValueOnce(jsonResponse([]))
       .mockResolvedValueOnce(jsonResponse({
@@ -689,13 +693,13 @@ describe("documentation writeback", () => {
       fetchMock,
     );
 
-    const result = await writebackDocumentation({
+    const result = await publishDocumentation({
       sandbox: fixture.sandbox,
       repository: fixture.repository,
       github: fixture.github,
       abortSignal: fixture.abortSignal,
       input: {
-        digest: diff.value.digest,
+        reviewId: review.value.reviewId,
         branch: "paige/manual-test",
         commitMessage: "docs: update readme",
         pullRequestTitle: "Update readme",
@@ -706,7 +710,7 @@ describe("documentation writeback", () => {
     assert(result.isOk(), result.isErr() ? result.error.message : "");
     assert.equal(result.value.commit.commitSha, remoteCommit);
     assert.equal(result.value.pullRequest.number, 45);
-    assert.equal(result.value.reused, true);
+    assert.equal(result.value.resumed, true);
     assert.equal(fixture.networkPolicies.length, 0);
     assert.equal(
       fixture.commands.some((command) => command.includes(" push origin ")),
@@ -716,7 +720,7 @@ describe("documentation writeback", () => {
     assert.equal(mutation[0], "https://api.github.com/graphql");
     assert.equal(
       String(mutation[1]?.body).includes(
-        Buffer.from("approved\n").toString("base64"),
+        Buffer.from("reviewed\n").toString("base64"),
       ),
       true,
     );
@@ -732,13 +736,13 @@ describe("documentation writeback", () => {
       }))
       .mockResolvedValueOnce(jsonResponse({
         commit: { message: "docs: update readme" },
-        parents: [{ sha: fixture.state.baseCommitSha }],
+        parents: [{ sha: fixture.record.baseCommitSha }],
         files: [{ filename: "README.md", status: "modified" }],
       }))
       .mockResolvedValueOnce(jsonResponse({
         type: "file",
         encoding: "base64",
-        content: Buffer.from("approved\n").toString("base64"),
+        content: Buffer.from("reviewed\n").toString("base64"),
       }))
       .mockResolvedValueOnce(jsonResponse([
         {
@@ -751,13 +755,13 @@ describe("documentation writeback", () => {
       ]));
     vi.stubGlobal("fetch", retryFetchMock);
 
-    const retried = await writebackDocumentation({
+    const retried = await publishDocumentation({
       sandbox: fixture.sandbox,
       repository: fixture.repository,
       github: fixture.github,
       abortSignal: fixture.abortSignal,
       input: {
-        digest: diff.value.digest,
+        reviewId: review.value.reviewId,
         branch: "paige/manual-test",
         commitMessage: "docs: update readme",
         pullRequestTitle: "Update readme",
@@ -766,7 +770,7 @@ describe("documentation writeback", () => {
     });
 
     assert(retried.isOk(), retried.isErr() ? retried.error.message : "");
-    assert.equal(retried.value.reused, true);
+    assert.equal(retried.value.resumed, true);
     assert.equal(retried.value.pullRequest.number, 45);
   });
 
@@ -777,9 +781,9 @@ describe("documentation writeback", () => {
       path: "paige-manual-test.md",
       content: "Paige manual test.\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
     const remoteCommit = "c".repeat(40);
     vi.stubGlobal(
       "fetch",
@@ -789,14 +793,14 @@ describe("documentation writeback", () => {
           private: true,
         }))
         .mockResolvedValueOnce(jsonResponse({
-          sha: fixture.state.baseCommitSha,
+          sha: fixture.record.baseCommitSha,
         }))
         .mockResolvedValueOnce(jsonResponse({
           object: { sha: remoteCommit },
         }))
         .mockResolvedValueOnce(jsonResponse({
           commit: { message: "Add paige-manual-test.md" },
-          parents: [{ sha: fixture.state.baseCommitSha }],
+          parents: [{ sha: fixture.record.baseCommitSha }],
           files: [{
             filename: "paige-manual-test.md",
             status: "added",
@@ -818,13 +822,13 @@ describe("documentation writeback", () => {
         ])),
     );
 
-    const result = await writebackDocumentation({
+    const result = await publishDocumentation({
       sandbox: fixture.sandbox,
       repository: fixture.repository,
       github: fixture.github,
       abortSignal: fixture.abortSignal,
       input: {
-        digest: diff.value.digest,
+        reviewId: review.value.reviewId,
         branch: "paige/manual-test",
         commitMessage: "Add paige-manual-test.md",
         pullRequestTitle: "New manual test title",
@@ -834,14 +838,14 @@ describe("documentation writeback", () => {
 
     assert(result.isErr());
     assert.equal(result.error.code, "REPOSITORY_CONFLICT");
-    assert.match(result.error.message, /different approved metadata/);
+    assert.match(result.error.message, /different requested details/);
 
-    const preparedAgain = await prepareDocumentationWorkspace({
+    const reopened = await openDocumentationWorkspace({
       sandbox: fixture.sandbox,
       cache: fixture.cache,
       abortSignal: fixture.abortSignal,
     });
-    assert(preparedAgain.isOk());
+    assert(reopened.isOk());
     await assertWorkspaceAtBase(fixture);
 
     const localBranch = await fixture.run(
@@ -855,11 +859,11 @@ describe("documentation writeback", () => {
     await writeDocumentationFile({
       ...fixture.operation,
       path: "README.md",
-      content: "approved\n",
+      content: "reviewed\n",
     });
-    const diff = await inspectDocumentationDiff(fixture.operation);
-    assert(diff.isOk());
-    assert(diff.value.digest);
+    const review = await reviewDocumentation(fixture.operation);
+    assert(review.isOk());
+    assert(review.value.reviewId);
     vi.stubGlobal(
       "fetch",
       vi.fn<typeof fetch>()
@@ -868,11 +872,11 @@ describe("documentation writeback", () => {
           private: true,
         }))
         .mockResolvedValueOnce(jsonResponse({
-          sha: fixture.state.baseCommitSha,
+          sha: fixture.record.baseCommitSha,
         }))
         .mockResolvedValueOnce(new Response(null, { status: 404 }))
         .mockResolvedValueOnce(jsonResponse({
-          object: { sha: fixture.state.baseCommitSha },
+          object: { sha: fixture.record.baseCommitSha },
         }))
         .mockResolvedValueOnce(jsonResponse({
           data: { createCommitOnBranch: null },
@@ -880,13 +884,13 @@ describe("documentation writeback", () => {
         })),
     );
 
-    const result = await writebackDocumentation({
+    const result = await publishDocumentation({
       sandbox: fixture.sandbox,
       repository: fixture.repository,
       github: fixture.github,
       abortSignal: fixture.abortSignal,
       input: {
-        digest: diff.value.digest,
+        reviewId: review.value.reviewId,
         branch: "paige/publish-failure",
         commitMessage: "docs: update readme",
         pullRequestTitle: "Update readme",
@@ -897,7 +901,7 @@ describe("documentation writeback", () => {
     assert(result.isErr());
     assert.equal(result.error.code, "REPOSITORY_GITHUB_FAILED");
     assert.equal(fixture.networkPolicies.length, 0);
-    const nextOperation = await prepareDocumentationWorkspace({
+    const nextOperation = await openDocumentationWorkspace({
       sandbox: fixture.sandbox,
       cache: fixture.cache,
       abortSignal: fixture.abortSignal,
@@ -907,82 +911,78 @@ describe("documentation writeback", () => {
   });
 });
 
-function prepareDocumentationWorkspace(input: {
+function openDocumentationWorkspace(input: {
   sandbox: SandboxSession;
   cache: RepositoryWorkspace<DocumentationRepository>;
   abortSignal: AbortSignal;
 }) {
-  return new DocumentationWorkspace(input).prepare(input.cache);
+  return new DocumentationWorkspace(input).open(input.cache);
 }
 
 function writeDocumentationFile(input: {
   sandbox: SandboxSession;
-  state: DocumentationWorkspaceState;
+  record: WorkspaceRecord;
   abortSignal: AbortSignal;
   path: string;
   content: string;
 }) {
-  return new DocumentationDraft(input).write(input);
+  return new DocumentationEditor(input).write(input);
 }
 
 function removeDocumentationFile(input: {
   sandbox: SandboxSession;
-  state: DocumentationWorkspaceState;
+  record: WorkspaceRecord;
   abortSignal: AbortSignal;
   path: string;
 }) {
-  return new DocumentationDraft(input).remove(input);
+  return new DocumentationEditor(input).remove(input);
 }
 
-function inspectDocumentationDiff(input: {
+function reviewDocumentation(input: {
   sandbox: SandboxSession;
-  state: DocumentationWorkspaceState;
+  record: WorkspaceRecord;
   abortSignal: AbortSignal;
 }) {
-  return new DocumentationDraft(input).inspectDiff();
+  return new DocumentationEditor(input).review();
 }
 
-async function createApprovedCommit(input: {
+async function createPublishCheckpoint(input: {
   sandbox: SandboxSession;
-  state: DocumentationWorkspaceState;
+  record: WorkspaceRecord;
   abortSignal: AbortSignal;
   branch: string;
   message: string;
   changedFiles: string[];
 }) {
-  return await new DocumentationWorkspace(input).createApprovedCommit(input);
+  return await new PublishCheckpoint(new SandboxShell(input)).create(input);
 }
 
-async function readApprovedCommit(input: {
+async function findPublishCheckpoint(input: {
   sandbox: SandboxSession;
-  state: DocumentationWorkspaceState;
+  record: WorkspaceRecord;
   abortSignal: AbortSignal;
-  input: ApprovedDocumentationPublication;
+  input: PublishRequest;
 }) {
-  return await new DocumentationWorkspace(input).readApprovedCommit({
-    state: input.state,
-    approval: input.input,
+  return await new PublishCheckpoint(new SandboxShell(input)).find({
+    record: input.record,
+    publishRequest: input.input,
   });
 }
 
-async function writebackDocumentation(input: {
+async function publishDocumentation(input: {
   sandbox: SandboxSession;
   repository: DocumentationRepository;
-  github: DocumentationGitHubRepository;
+  github: GitHubPublisher;
   abortSignal: AbortSignal;
-  input: DocumentationWritebackInput;
+  input: PublishInput;
 }) {
   const workspace = new DocumentationWorkspace(input);
-  const loaded = await workspace.load(input.repository);
+  const loaded = await workspace.reopen(input.repository);
   if (loaded.isErr()) return loaded;
   return await new DocumentationPublisher({
-    state: loaded.value,
-    workspace,
-    draft: new DocumentationDraft({
-      sandbox: input.sandbox,
-      state: loaded.value,
-      abortSignal: input.abortSignal,
-    }),
+    sandbox: input.sandbox,
+    record: loaded.value,
+    abortSignal: input.abortSignal,
     github: input.github,
   }).publish(input.input);
 }
@@ -999,22 +999,22 @@ async function assertWorkspaceAtBase(
   const branch = await fixture.run(
     `git -C '${fixture.actualPath("worktrees/saleor-docs")}' symbolic-ref --quiet --short HEAD`,
   );
-  assert.equal(head.stdout.trim(), fixture.state.baseCommitSha);
+  assert.equal(head.stdout.trim(), fixture.record.baseCommitSha);
   assert.equal(status.stdout.trim(), "");
   assert.equal(branch.exitCode, 1);
 }
 
-async function recordApprovedPublication(
+async function savePublishRequest(
   fixture: Awaited<ReturnType<typeof createFixture>>,
-  publication: NonNullable<
-    DocumentationWorkspaceState["approvedPublication"]
+  publishRequest: NonNullable<
+    WorkspaceRecord["publishRequest"]
   >,
 ) {
   await fixture.sandbox.writeTextFile({
     path: "/workspace/worktrees/.saleor-docs.json",
     content: `${JSON.stringify({
-      ...fixture.state,
-      approvedPublication: publication,
+      ...fixture.record,
+      publishRequest: publishRequest,
     })}\n`,
     abortSignal: fixture.abortSignal,
   });
@@ -1057,26 +1057,26 @@ async function createFixture() {
   };
   const local = createLocalSandbox(actualWorkspace);
   const abortSignal = new AbortController().signal;
-  const github = new DocumentationGitHubRepository(
+  const github = new GitHubPublisher(
     repository,
     createGitHubRequest({
       token: "secret-token",
       abortSignal,
     }),
   );
-  const prepared = await prepareDocumentationWorkspace({
+  const opened = await openDocumentationWorkspace({
     sandbox: local.sandbox,
     cache,
     abortSignal,
   });
-  assert(prepared.isOk());
-  const state: DocumentationWorkspaceState = {
-    version: 1,
-    path: prepared.value.path,
+  assert(opened.isOk());
+  const record: WorkspaceRecord = {
+    version: 2,
+    path: opened.value.path,
     cachePath: cache.path,
     repository,
-    baseBranch: prepared.value.baseBranch,
-    baseCommitSha: prepared.value.baseCommitSha,
+    baseBranch: opened.value.baseBranch,
+    baseCommitSha: opened.value.baseCommitSha,
   };
 
   return {
@@ -1086,11 +1086,11 @@ async function createFixture() {
     github,
     operation: {
       sandbox: local.sandbox,
-      state,
+      record,
       abortSignal,
     },
     repository,
-    state,
+    record,
     actualPath(path: string) {
       return join(actualWorkspace, path);
     },

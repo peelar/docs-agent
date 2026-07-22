@@ -321,7 +321,7 @@ export class GitHubRepository<
     });
   }
 
-  /** Finds the existing open draft pull request for one approved branch. */
+  /** Finds the existing open draft pull request for one publish branch. */
   findDraftPullRequest(input: {
     branch: string;
     baseBranch: string;
@@ -368,7 +368,7 @@ export class GitHubRepository<
         if (title !== input.title || body !== input.body || draft !== true) {
           return err(new RepositoryError(
             "REPOSITORY_CONFLICT",
-            `An open pull request already exists for ${input.branch} with different approved metadata.`,
+            `An open pull request already exists for ${input.branch} with different requested details.`,
           ));
         }
         return ok({ number, url, draft: true as const });

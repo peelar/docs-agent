@@ -1,4 +1,3 @@
-import { createHash } from "node:crypto";
 import { posix } from "node:path";
 
 import type { SandboxSession } from "eve/sandbox";
@@ -13,38 +12,41 @@ import type {
   RepositoryResultAsync,
 } from "@paige/repositories/errors";
 import { RepositoryError } from "@paige/repositories/errors";
-import { MAX_DIFF_FILES, MAX_FILE_BYTES } from "./policy";
+import { MAX_CHANGED_FILES, MAX_FILE_BYTES } from "./rules";
 import {
-  type DocumentationSandboxCommand,
-  DocumentationSandboxShell,
+  type ShellResult,
+  SandboxShell,
   quoteShellArgument,
 } from "./sandbox-shell";
-import type {
-  DocumentationDiff,
-  DocumentationSearchMatch,
-  DocumentationWorkspaceState,
-  ProposedDocumentationFile,
-} from "./types";
+import { createReviewId } from "./review";
+import type { ChangedFile, DocumentationReview } from "./review";
+import type { WorkspaceRecord } from "./workspace-record";
 
 const MAX_EDIT_BYTES = 200_000;
-const MAX_DIFF_BYTES = 120_000;
+const MAX_REVIEW_BYTES = 120_000;
 const MAX_SEARCH_FILES = 2_000;
 const MAX_SEARCH_EXCERPT_CHARACTERS = 500;
 
-export class DocumentationDraft {
+export interface DocumentationSearchMatch {
+  path: string;
+  line: number;
+  excerpt: string;
+}
+
+export class DocumentationEditor {
   readonly #sandbox: SandboxSession;
-  readonly #shell: DocumentationSandboxShell;
-  readonly #state: DocumentationWorkspaceState;
+  readonly #shell: SandboxShell;
+  readonly #record: WorkspaceRecord;
   readonly #abortSignal: AbortSignal;
 
   constructor(input: {
     sandbox: SandboxSession;
-    state: DocumentationWorkspaceState;
+    record: WorkspaceRecord;
     abortSignal: AbortSignal;
   }) {
     this.#sandbox = input.sandbox;
-    this.#shell = new DocumentationSandboxShell(input);
-    this.#state = input.state;
+    this.#shell = new SandboxShell(input);
+    this.#record = input.record;
     this.#abortSignal = input.abortSignal;
   }
 
@@ -62,7 +64,7 @@ export class DocumentationDraft {
         ? ""
         : ` -- ${quoteShellArgument(input.pathPrefix)}`;
       const result = await this.#run(
-        `git -C ${quoteShellArgument(this.#state.path)} ls-files -co --exclude-standard -z${pathspec}`,
+        `git -C ${quoteShellArgument(this.#record.path)} ls-files -co --exclude-standard -z${pathspec}`,
       );
       const listed = result.assertSucceeded(
         "Failed to list documentation workspace files",
@@ -151,7 +153,7 @@ export class DocumentationDraft {
       const directory = posix.dirname(input.path);
       if (directory !== ".") {
         const created = await this.#run(
-          `mkdir -p ${quoteShellArgument(`${this.#state.path}/${directory}`)}`,
+          `mkdir -p ${quoteShellArgument(`${this.#record.path}/${directory}`)}`,
         );
         const createdOk = created.assertSucceeded(
           "Failed to create documentation directory",
@@ -161,7 +163,7 @@ export class DocumentationDraft {
       const directoryCheck = await this.#assertSafePath(input.path);
       if (directoryCheck.isErr()) return err(directoryCheck.error);
       await this.#sandbox.writeTextFile({
-        path: `${this.#state.path}/${input.path}`,
+        path: `${this.#record.path}/${input.path}`,
         content: input.content,
         abortSignal: this.#abortSignal,
       });
@@ -175,7 +177,7 @@ export class DocumentationDraft {
       if (editable.isErr()) return err(editable.error);
       const safe = await this.#assertSafePath(input.path);
       if (safe.isErr()) return err(safe.error);
-      const absolutePath = `${this.#state.path}/${input.path}`;
+      const absolutePath = `${this.#record.path}/${input.path}`;
       const regular = await this.#run(
         `test -f ${quoteShellArgument(absolutePath)} && test ! -L ${quoteShellArgument(absolutePath)}`,
       );
@@ -194,22 +196,22 @@ export class DocumentationDraft {
     })());
   }
 
-  inspectDiff(): RepositoryResultAsync<DocumentationDiff> {
+  review(): RepositoryResultAsync<DocumentationReview> {
     return new ResultAsync((async () => {
       const editable = await this.#assertEditableBase();
       if (editable.isErr()) return err(editable.error);
       const trackedResult = await this.#run(
-        `git -C ${quoteShellArgument(this.#state.path)} diff --name-only --no-renames -z ${quoteShellArgument(this.#state.baseCommitSha)} --`,
+        `git -C ${quoteShellArgument(this.#record.path)} diff --name-only --no-renames -z ${quoteShellArgument(this.#record.baseCommitSha)} --`,
       );
       const trackedOk = trackedResult.assertSucceeded(
-        "Failed to inspect tracked documentation changes",
+        "Failed to review tracked documentation changes",
       );
       if (trackedOk.isErr()) return err(trackedOk.error);
       const untrackedResult = await this.#run(
-        `git -C ${quoteShellArgument(this.#state.path)} ls-files --others --exclude-standard -z`,
+        `git -C ${quoteShellArgument(this.#record.path)} ls-files --others --exclude-standard -z`,
       );
       const untrackedOk = untrackedResult.assertSucceeded(
-        "Failed to inspect untracked documentation files",
+        "Failed to review untracked documentation files",
       );
       if (untrackedOk.isErr()) return err(untrackedOk.error);
 
@@ -222,29 +224,29 @@ export class DocumentationDraft {
       ].sort();
       if (changedFiles.length === 0) {
         return ok({
-          baseCommitSha: this.#state.baseCommitSha,
-          digest: null,
+          baseCommitSha: this.#record.baseCommitSha,
+          reviewId: null,
           hasChanges: false,
           patch: "",
           changedFiles: [],
         });
       }
-      if (changedFiles.length > MAX_DIFF_FILES) {
+      if (changedFiles.length > MAX_CHANGED_FILES) {
         return err(new RepositoryError(
-          "REPOSITORY_DIFF_REJECTED",
-          `Documentation diff changes ${changedFiles.length} files; the limit is ${MAX_DIFF_FILES}.`,
+          "REPOSITORY_CHANGES_REJECTED",
+          `Documentation review contains ${changedFiles.length} files; the limit is ${MAX_CHANGED_FILES}.`,
         ));
       }
 
-      const proposedFiles = await this.#readProposedFiles(changedFiles);
-      if (proposedFiles.isErr()) return err(proposedFiles.error);
+      const files = await this.#readChangedFiles(changedFiles);
+      if (files.isErr()) return err(files.error);
       const patch = await this.#createPatch(changedFiles, untracked);
       if (patch.isErr()) return err(patch.error);
       return ok({
-        baseCommitSha: this.#state.baseCommitSha,
-        digest: createDocumentationDiffDigest(
-          this.#state.baseCommitSha,
-          proposedFiles.value,
+        baseCommitSha: this.#record.baseCommitSha,
+        reviewId: createReviewId(
+          this.#record.baseCommitSha,
+          files.value,
         ),
         hasChanges: true,
         patch: patch.value,
@@ -255,11 +257,11 @@ export class DocumentationDraft {
 
   async #assertEditableBase(): Promise<RepositoryResult<void>> {
     const head = await this.#readCommand(
-      `git -C ${quoteShellArgument(this.#state.path)} rev-parse HEAD`,
+      `git -C ${quoteShellArgument(this.#record.path)} rev-parse HEAD`,
       "Failed to inspect documentation workspace HEAD",
     );
     if (head.isErr()) return err(head.error);
-    return head.value === this.#state.baseCommitSha
+    return head.value === this.#record.baseCommitSha
       ? ok(undefined)
       : err(new RepositoryError(
           "REPOSITORY_CONFLICT",
@@ -274,7 +276,7 @@ export class DocumentationDraft {
         "Documentation edits cannot access Git internals.",
       ));
     }
-    let current = this.#state.path;
+    let current = this.#record.path;
     for (const component of path.split("/")) {
       current = `${current}/${component}`;
       const symlink = await this.#run(
@@ -282,7 +284,7 @@ export class DocumentationDraft {
       );
       if (symlink.exitCode === 0) {
         return err(new RepositoryError(
-          "REPOSITORY_DIFF_REJECTED",
+          "REPOSITORY_CHANGES_REJECTED",
           `Documentation paths cannot contain symlinks: ${path}`,
         ));
       }
@@ -299,7 +301,7 @@ export class DocumentationDraft {
   async #readRequiredText(path: string): Promise<RepositoryResult<string>> {
     const safe = await this.#assertSafePath(path);
     if (safe.isErr()) return err(safe.error);
-    const absolutePath = `${this.#state.path}/${path}`;
+    const absolutePath = `${this.#record.path}/${path}`;
     const regular = await this.#run(
       `test -f ${quoteShellArgument(absolutePath)} && test ! -L ${quoteShellArgument(absolutePath)}`,
     );
@@ -313,7 +315,7 @@ export class DocumentationDraft {
     if (size.isErr()) return err(size.error);
     if (size.value > MAX_FILE_BYTES) {
       return err(new RepositoryError(
-        "REPOSITORY_DIFF_REJECTED",
+        "REPOSITORY_CHANGES_REJECTED",
         `Documentation file is too large: ${path}`,
       ));
     }
@@ -329,13 +331,13 @@ export class DocumentationDraft {
           ))
         : content.includes("\0")
         ? err(new RepositoryError(
-            "REPOSITORY_DIFF_REJECTED",
+            "REPOSITORY_CHANGES_REJECTED",
             `Documentation file is binary: ${path}`,
           ))
         : ok(content);
     } catch (cause) {
       return err(new RepositoryError(
-        "REPOSITORY_DIFF_REJECTED",
+        "REPOSITORY_CHANGES_REJECTED",
         `Documentation file is not valid UTF-8 text: ${path}`,
         { cause },
       ));
@@ -347,7 +349,7 @@ export class DocumentationDraft {
   ): Promise<RepositoryResult<string | null>> {
     const safe = await this.#assertSafePath(path);
     if (safe.isErr()) {
-      return safe.error.code === "REPOSITORY_DIFF_REJECTED"
+      return safe.error.code === "REPOSITORY_CHANGES_REJECTED"
         ? ok(null)
         : err(safe.error);
     }
@@ -355,7 +357,7 @@ export class DocumentationDraft {
     if (size.isErr() || size.value > MAX_FILE_BYTES) return ok(null);
     try {
       const content = await this.#sandbox.readTextFile({
-        path: `${this.#state.path}/${path}`,
+        path: `${this.#record.path}/${path}`,
         abortSignal: this.#abortSignal,
       });
       return content === null || content.includes("\0")
@@ -368,7 +370,7 @@ export class DocumentationDraft {
 
   async #fileSize(path: string): Promise<RepositoryResult<number>> {
     const result = await this.#readCommand(
-      `wc -c < ${quoteShellArgument(`${this.#state.path}/${path}`)}`,
+      `wc -c < ${quoteShellArgument(`${this.#record.path}/${path}`)}`,
       `Failed to inspect documentation file size: ${path}`,
     );
     if (result.isErr()) return err(result.error);
@@ -381,63 +383,63 @@ export class DocumentationDraft {
         ));
   }
 
-  async #readProposedFiles(
+  async #readChangedFiles(
     changedFiles: string[],
-  ): Promise<RepositoryResult<ProposedDocumentationFile[]>> {
-    const files: ProposedDocumentationFile[] = [];
+  ): Promise<RepositoryResult<ChangedFile[]>> {
+    const files: ChangedFile[] = [];
     for (const path of changedFiles) {
       const normalized = assertRepositoryRelativePath(path, {
         allowRoot: false,
       });
       if (normalized.isErr() || normalized.value !== path) {
         return err(new RepositoryError(
-          "REPOSITORY_DIFF_REJECTED",
-          `Documentation diff contains an invalid path: ${path}`,
+          "REPOSITORY_CHANGES_REJECTED",
+          `Documentation review contains an invalid path: ${path}`,
         ));
       }
       const safe = await this.#assertSafePath(path);
       if (safe.isErr()) return err(safe.error);
       const baseMode = await this.#readCommand(
-        `git -C ${quoteShellArgument(this.#state.path)} ls-tree ${quoteShellArgument(this.#state.baseCommitSha)} -- ${quoteShellArgument(path)}`,
+        `git -C ${quoteShellArgument(this.#record.path)} ls-tree ${quoteShellArgument(this.#record.baseCommitSha)} -- ${quoteShellArgument(path)}`,
         `Failed to inspect the base file mode: ${path}`,
       );
       if (baseMode.isErr()) return err(baseMode.error);
       if (baseMode.value.startsWith("120000 ")) {
         return err(new RepositoryError(
-          "REPOSITORY_DIFF_REJECTED",
-          `Documentation diffs cannot change symlinks: ${path}`,
+          "REPOSITORY_CHANGES_REJECTED",
+          `Documentation changes cannot modify symlinks: ${path}`,
         ));
       }
       const binary = await this.#run(
-        `git -C ${quoteShellArgument(this.#state.path)} diff --numstat ${quoteShellArgument(this.#state.baseCommitSha)} -- ${quoteShellArgument(path)}`,
+        `git -C ${quoteShellArgument(this.#record.path)} diff --numstat ${quoteShellArgument(this.#record.baseCommitSha)} -- ${quoteShellArgument(path)}`,
       );
       const binaryOk = binary.assertSucceeded(
-        `Failed to inspect documentation diff type: ${path}`,
+        `Failed to inspect documentation change type: ${path}`,
       );
       if (binaryOk.isErr()) return err(binaryOk.error);
       if (binary.stdout.startsWith("-\t-")) {
         return err(new RepositoryError(
-          "REPOSITORY_DIFF_REJECTED",
-          `Documentation diffs cannot include binary files: ${path}`,
+          "REPOSITORY_CHANGES_REJECTED",
+          `Documentation changes cannot include binary files: ${path}`,
         ));
       }
-      if (!(await this.#pathExists(`${this.#state.path}/${path}`))) {
+      if (!(await this.#pathExists(`${this.#record.path}/${path}`))) {
         files.push({ path, content: null });
         continue;
       }
-      const proposedBinary = await this.#run(
-        `cd ${quoteShellArgument(this.#state.path)} && git diff --no-index --numstat -- /dev/null ${quoteShellArgument(path)}`,
+      const changedFileType = await this.#run(
+        `cd ${quoteShellArgument(this.#record.path)} && git diff --no-index --numstat -- /dev/null ${quoteShellArgument(path)}`,
       );
-      if (proposedBinary.exitCode !== 0 && proposedBinary.exitCode !== 1) {
+      if (changedFileType.exitCode !== 0 && changedFileType.exitCode !== 1) {
         return err(new RepositoryError(
           "REPOSITORY_SANDBOX_FAILED",
-          `Failed to inspect proposed documentation file type: ${path}`,
+          `Failed to inspect changed documentation file type: ${path}`,
         ));
       }
-      if (proposedBinary.stdout.startsWith("-\t-")) {
+      if (changedFileType.stdout.startsWith("-\t-")) {
         return err(new RepositoryError(
-          "REPOSITORY_DIFF_REJECTED",
-          `Documentation diffs cannot include binary files: ${path}`,
+          "REPOSITORY_CHANGES_REJECTED",
+          `Documentation changes cannot include binary files: ${path}`,
         ));
       }
       const content = await this.#readRequiredText(path);
@@ -453,7 +455,7 @@ export class DocumentationDraft {
   ): Promise<RepositoryResult<string>> {
     const pathspec = changedFiles.map(quoteShellArgument).join(" ");
     const tracked = await this.#run(
-      `git -C ${quoteShellArgument(this.#state.path)} diff --no-ext-diff --no-renames --no-color ${quoteShellArgument(this.#state.baseCommitSha)} -- ${pathspec}`,
+      `git -C ${quoteShellArgument(this.#record.path)} diff --no-ext-diff --no-renames --no-color ${quoteShellArgument(this.#record.baseCommitSha)} -- ${pathspec}`,
     );
     const trackedOk = tracked.assertSucceeded(
       "Failed to create the documentation patch",
@@ -462,7 +464,7 @@ export class DocumentationDraft {
     let patch = tracked.stdout;
     for (const path of [...untrackedFiles].sort()) {
       const untracked = await this.#run(
-        `cd ${quoteShellArgument(this.#state.path)} && git diff --no-index --no-color -- /dev/null ${quoteShellArgument(path)}`,
+        `cd ${quoteShellArgument(this.#record.path)} && git diff --no-index --no-color -- /dev/null ${quoteShellArgument(path)}`,
       );
       if (untracked.exitCode !== 0 && untracked.exitCode !== 1) {
         return err(new RepositoryError(
@@ -472,10 +474,10 @@ export class DocumentationDraft {
       }
       patch += untracked.stdout;
     }
-    if (Buffer.byteLength(patch) > MAX_DIFF_BYTES) {
+    if (Buffer.byteLength(patch) > MAX_REVIEW_BYTES) {
       return err(new RepositoryError(
-        "REPOSITORY_DIFF_REJECTED",
-        `Documentation patch exceeds the ${MAX_DIFF_BYTES}-byte review limit.`,
+        "REPOSITORY_CHANGES_REJECTED",
+        `Documentation patch exceeds the ${MAX_REVIEW_BYTES}-byte review limit.`,
       ));
     }
     return ok(patch);
@@ -493,30 +495,7 @@ export class DocumentationDraft {
     return await this.#shell.read(command, message, options);
   }
 
-  async #run(command: string): Promise<DocumentationSandboxCommand> {
+  async #run(command: string): Promise<ShellResult> {
     return await this.#shell.run(command);
   }
-}
-
-export function createDocumentationDiffDigest(
-  baseCommitSha: string,
-  files: ProposedDocumentationFile[],
-): string {
-  const hash = createHash("sha256");
-  hash.update("paige-documentation-diff-v1\0");
-  hash.update(`${baseCommitSha.length}:${baseCommitSha}\0`);
-  for (const file of [...files].sort((left, right) =>
-    left.path.localeCompare(right.path)
-  )) {
-    hash.update(`${file.path.length}:${file.path}\0`);
-    if (file.content === null) {
-      hash.update("deleted\0");
-    } else {
-      const bytes = Buffer.from(file.content, "utf8");
-      hash.update(`present:${bytes.length}\0`);
-      hash.update(bytes);
-      hash.update("\0");
-    }
-  }
-  return `sha256:${hash.digest("hex")}`;
 }

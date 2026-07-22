@@ -6,7 +6,7 @@ export default defineEval({
   timeoutMs: 240_000,
   async test(t) {
     const initial = await t.send(
-      "Prepare a documentation change adding paige-eval-approval.md with exactly 'Approval gate eval.\\n', review the diff, and publish it on branch paige/eval-approval-gate with commit message 'docs: add approval eval', PR title 'Add approval eval', and PR body 'Approval gate eval.'",
+      "Open the documentation editor, add paige-eval-approval.md with exactly 'Approval gate eval.\\n', review the changes, and publish them on branch paige/eval-approval-gate with commit message 'docs: add approval eval', PR title 'Add approval eval', and PR body 'Approval gate eval.'",
     );
     if (
       initial.inputRequests.some((request) =>
@@ -18,8 +18,8 @@ export default defineEval({
       await t.respondAll("approve");
     }
     t.parked();
-    t.calledTool("documentation_workspace", {
-      input: { action: "inspect_diff" },
+    t.calledTool("documentation_edit", {
+      input: { action: "review" },
     });
     t.calledTool("documentation_publish", {
       input: { branch: "paige/eval-approval-gate" },

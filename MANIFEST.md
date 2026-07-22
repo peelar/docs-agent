@@ -19,9 +19,9 @@ unconfirmed changes stay inside the conversation.
 
 Paige can inspect active repositories through authenticated tools. Evidence
 repositories remain read-only. The documentation repository can be edited in a
-protected worktree, reviewed as a digest-bound patch, and published only
-through an explicitly approved draft-PR writeback. Paige can also read bounded
-GitHub metadata without entering the sandbox. Pull requests are a separate
+protected workspace, assigned a review ID for its exact changes, and published
+only through an explicitly approved draft pull request. Paige can also read
+bounded GitHub metadata without entering the sandbox. Pull requests are a separate
 read-only resource: Paige can inspect their description, changed-file index,
 discussion, reviews, and exact base and head commits before deciding whether
 documentation work is needed.

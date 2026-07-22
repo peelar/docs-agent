@@ -42,16 +42,16 @@ All configured repositories use one authenticated shallow Git cache under
   through the `pull_request_read` Eve tool. It returns exact base and head
   commit SHAs for optional source inspection through `repository_read`, but it
   never acquires a sandbox itself or reads CI/CD checks.
-- `documentation/` creates one protected editable worktree, exposes bounded
-  text edits and diff inspection, binds approval to a digest of the exact
-  proposed bytes, creates an exact local approval commit, then publishes one
-  atomic GitHub commit and draft PR from the trusted app runtime. The remote
-  commit is re-read and matched to the approved digest before success.
+- `documentation/` creates one protected editable workspace, exposes bounded
+  text edits and review, and gives the exact reviewed bytes a review ID. After
+  approval, it creates a local publish checkpoint, publishes one atomic GitHub
+  commit and draft PR from the trusted app runtime, then re-reads the remote
+  commit and matches it to the review ID before reporting success.
 
 The role is the authority boundary:
 
 - `evidence` repositories can be fetched and inspected but never enter a
-  writeback workflow.
-- the `documentation` repository may use a working tree. Local edits never
-  publish; remote commit and draft-PR operations live in a separate Eve tool
-  that always requires explicit approval.
+  publishing workflow.
+- the `documentation` repository may use an editable workspace. Local edits
+  never publish; remote commit and draft-PR operations live in a separate Eve
+  tool that always requires explicit approval.

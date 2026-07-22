@@ -50,7 +50,7 @@ export default defineEval({
     t.notCalledTool("pull_request_read");
     t.notCalledTool("web_fetch");
     t.notCalledTool("web_search");
-    t.notCalledTool("documentation_workspace");
+    t.notCalledTool("documentation_edit");
     t.notCalledTool("documentation_publish");
   },
 });

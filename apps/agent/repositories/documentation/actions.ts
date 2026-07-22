@@ -22,23 +22,23 @@ import type {
   DocumentationRepository,
   RepositoryConfig,
 } from "@paige/repositories/types";
-import { DocumentationDraft } from "./draft";
-import { DocumentationGitHubRepository } from "./github";
+import { DocumentationEditor } from "./editor";
+import { GitHubPublisher } from "./github-publisher";
 import {
   DocumentationPublisher,
-  validateDocumentationWritebackInput,
-} from "./publisher";
-import type { DocumentationWritebackInput } from "./types";
+  validatePublishInput,
+} from "./publish";
+import type { PublishInput } from "./publish";
 import { DocumentationWorkspace } from "./workspace";
 
-interface DocumentationRepositoryServiceOptions {
+interface DocumentationActionsOptions {
   repositories?: RepositoryConfig[];
   getGitHubToken?: (
     repository: RepositoryConfig,
   ) => RepositoryResultAsync<string>;
 }
 
-export class DocumentationRepositoryService {
+export class DocumentationActions {
   readonly #ctx: ToolContext;
   readonly #repositories?: RepositoryConfig[];
   readonly #getGitHubToken: (
@@ -47,7 +47,7 @@ export class DocumentationRepositoryService {
 
   constructor(
     ctx: ToolContext,
-    options: DocumentationRepositoryServiceOptions = {},
+    options: DocumentationActionsOptions = {},
   ) {
     this.#ctx = ctx;
     this.#repositories = options.repositories;
@@ -55,7 +55,7 @@ export class DocumentationRepositoryService {
       options.getGitHubToken ?? resolveGitHubToken;
   }
 
-  prepareWorkspace() {
+  open() {
     return this.#documentationRepository().andThen((repository) =>
       this.#getGitHubToken(repository).andThen((token) =>
         this.#github(repository, token).resolveCommit().andThen((resolved) =>
@@ -68,7 +68,7 @@ export class DocumentationRepositoryService {
               new DocumentationWorkspace({
                 sandbox,
                 abortSignal: this.#ctx.abortSignal,
-              }).prepare(cache)
+              }).open(cache)
             )
           )
         )
@@ -81,8 +81,8 @@ export class DocumentationRepositoryService {
       input.pathPrefix,
       { allowRoot: true },
     ).asyncAndThen((pathPrefix) =>
-      this.#withReadyDraft((draft) =>
-        draft.listFiles({ pathPrefix, limit: input.limit })
+      this.#withOpenEditor((editor) =>
+        editor.listFiles({ pathPrefix, limit: input.limit })
       )
     );
   }
@@ -96,8 +96,8 @@ export class DocumentationRepositoryService {
       assertSearchQuery(input.query),
       assertRepositoryRelativePath(input.pathPrefix, { allowRoot: true }),
     ]).asyncAndThen(([query, pathPrefix]) =>
-      this.#withReadyDraft((draft) =>
-        draft.search({
+      this.#withOpenEditor((editor) =>
+        editor.search({
           query,
           pathPrefix,
           limit: input.limit,
@@ -116,8 +116,8 @@ export class DocumentationRepositoryService {
       input.path,
       { allowRoot: false },
     ).asyncAndThen((path) =>
-      this.#withReadyDraft((draft) =>
-        draft.read({
+      this.#withOpenEditor((editor) =>
+        editor.read({
           path,
           startLine: input.startLine,
           endLine: input.endLine,
@@ -132,8 +132,8 @@ export class DocumentationRepositoryService {
       input.path,
       { allowRoot: false },
     ).asyncAndThen((path) =>
-      this.#withReadyDraft((draft) =>
-        draft.write({ path, content: input.content })
+      this.#withOpenEditor((editor) =>
+        editor.write({ path, content: input.content })
       )
     );
   }
@@ -143,16 +143,16 @@ export class DocumentationRepositoryService {
       input.path,
       { allowRoot: false },
     ).asyncAndThen((path) =>
-      this.#withReadyDraft((draft) => draft.remove({ path }))
+      this.#withOpenEditor((editor) => editor.remove({ path }))
     );
   }
 
-  inspectDiff() {
-    return this.#withReadyDraft((draft) => draft.inspectDiff());
+  review() {
+    return this.#withOpenEditor((editor) => editor.review());
   }
 
-  writeback(input: DocumentationWritebackInput) {
-    const normalized = validateDocumentationWritebackInput(input);
+  publish(input: PublishInput) {
+    const normalized = validatePublishInput(input);
     if (normalized.isErr()) {
       return new ResultAsync(Promise.resolve(err(normalized.error)));
     }
@@ -163,16 +163,12 @@ export class DocumentationRepositoryService {
             sandbox,
             abortSignal: this.#ctx.abortSignal,
           });
-          return workspace.load(repository).andThen((state) =>
+          return workspace.reopen(repository).andThen((record) =>
             new ResultAsync(
               new DocumentationPublisher({
-                state,
-                workspace,
-                draft: new DocumentationDraft({
-                  sandbox,
-                  state,
-                  abortSignal: this.#ctx.abortSignal,
-                }),
+                sandbox,
+                record,
+                abortSignal: this.#ctx.abortSignal,
                 github: this.#github(repository, token),
               }).publish(normalized.value),
             )
@@ -182,8 +178,8 @@ export class DocumentationRepositoryService {
     );
   }
 
-  #withReadyDraft<T>(
-    operation: (draft: DocumentationDraft) => RepositoryResultAsync<T>,
+  #withOpenEditor<T>(
+    operation: (editor: DocumentationEditor) => RepositoryResultAsync<T>,
   ): RepositoryResultAsync<T> {
     return this.#documentationRepository().andThen((repository) =>
       this.#withSandbox((sandbox) => {
@@ -191,10 +187,10 @@ export class DocumentationRepositoryService {
           sandbox,
           abortSignal: this.#ctx.abortSignal,
         });
-        return workspace.load(repository).andThen((state) =>
-          operation(new DocumentationDraft({
+        return workspace.reopen(repository).andThen((record) =>
+          operation(new DocumentationEditor({
             sandbox,
-            state,
+            record,
             abortSignal: this.#ctx.abortSignal,
           }))
         );
@@ -223,8 +219,8 @@ export class DocumentationRepositoryService {
   #github(
     repository: DocumentationRepository,
     token: string,
-  ): DocumentationGitHubRepository {
-    return new DocumentationGitHubRepository(
+  ): GitHubPublisher {
+    return new GitHubPublisher(
       repository,
       createGitHubRequest({
         token,

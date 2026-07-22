@@ -8,9 +8,9 @@ import type { RepositoryResult } from "@paige/repositories/errors";
 import { RepositoryError } from "@paige/repositories/errors";
 
 // Adapts Eve's sandbox process API to the documentation repository's error
-// model. Drafts and worktrees use this instead of interpreting raw process
+// model. Editors and workspaces use this instead of interpreting raw process
 // results independently.
-export class DocumentationSandboxShell {
+export class SandboxShell {
   readonly #sandbox: SandboxSession;
   readonly #abortSignal: AbortSignal;
 
@@ -22,12 +22,12 @@ export class DocumentationSandboxShell {
     this.#abortSignal = input.abortSignal;
   }
 
-  async run(command: string): Promise<DocumentationSandboxCommand> {
+  async run(command: string): Promise<ShellResult> {
     const result = await this.#sandbox.run({
       command,
       abortSignal: this.#abortSignal,
     });
-    return new DocumentationSandboxCommand(result);
+    return new ShellResult(result);
   }
 
   async read(
@@ -60,7 +60,7 @@ export class DocumentationSandboxShell {
 // Keeps the raw exit code available for commands such as `git diff --no-index`,
 // where more than one exit code is expected, while centralizing normal failure
 // handling and output decoding.
-export class DocumentationSandboxCommand {
+export class ShellResult {
   readonly #result: SandboxCommandResult;
 
   constructor(result: SandboxCommandResult) {

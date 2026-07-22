@@ -26,7 +26,7 @@ export default defineEval({
     t.notCalledTool("web_fetch");
     t.notCalledTool("web_search");
     t.notCalledTool("bash");
-    t.notCalledTool("documentation_workspace");
+    t.notCalledTool("documentation_edit");
     t.notCalledTool("documentation_publish");
   },
 });

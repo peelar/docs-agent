@@ -11,14 +11,10 @@ import {
 } from "@paige/repositories/github";
 import type { GitHubRequest } from "@paige/repositories/github";
 import type { DocumentationRepository } from "@paige/repositories/types";
+import type { ChangedFile } from "./review";
 
-export interface GitHubFileChange {
-  path: string;
-  content: string | null;
-}
-
-/** GitHub writes that exist only for an approved documentation repository. */
-export class DocumentationGitHubRepository extends GitHubRepository<
+/** Publishes reviewed documentation changes through the trusted GitHub API. */
+export class GitHubPublisher extends GitHubRepository<
   DocumentationRepository
 > {
   constructor(repository: DocumentationRepository, request: GitHubRequest) {
@@ -55,7 +51,7 @@ export class DocumentationGitHubRepository extends GitHubRepository<
     branch: string;
     expectedHeadCommitSha: string;
     message: string;
-    files: GitHubFileChange[];
+    files: ChangedFile[];
   }): RepositoryResultAsync<string> {
     const additions = input.files
       .filter((file): file is { path: string; content: string } =>
@@ -98,7 +94,7 @@ export class DocumentationGitHubRepository extends GitHubRepository<
     );
   }
 
-  createOrReuseDraftPullRequest(input: {
+  createOrFindDraftPullRequest(input: {
     branch: string;
     baseBranch: string;
     title: string;
@@ -107,11 +103,11 @@ export class DocumentationGitHubRepository extends GitHubRepository<
     number: number;
     url: string;
     draft: true;
-    reused: boolean;
+    existing: boolean;
   }> {
     return this.findDraftPullRequest(input).andThen((existing) => {
       if (existing !== undefined) {
-        return ok({ ...existing, reused: true });
+        return ok({ ...existing, existing: true });
       }
       return this.requiredJson(`${this.path}/pulls`, {
         method: "POST",
@@ -137,7 +133,7 @@ export class DocumentationGitHubRepository extends GitHubRepository<
           ),
         ]).andThen(([number, url, draft]) =>
           draft
-            ? ok({ number, url, draft: true as const, reused: false })
+            ? ok({ number, url, draft: true as const, existing: false })
             : err(new RepositoryError(
                 "REPOSITORY_GITHUB_FAILED",
                 "GitHub created a pull request that was not a draft.",

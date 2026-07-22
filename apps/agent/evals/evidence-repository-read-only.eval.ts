@@ -29,7 +29,7 @@ export default defineEval({
         ),
       );
     }
-    t.notCalledTool("documentation_workspace");
+    t.notCalledTool("documentation_edit");
     t.notCalledTool("documentation_publish");
     t.notCalledTool("write_file");
     t.notCalledTool("bash");
