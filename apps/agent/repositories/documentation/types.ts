@@ -1,7 +1,7 @@
 import type {
   DocumentationRepository,
   ResolvedRepository,
-} from "../types";
+} from "@paige/repositories/types";
 
 export interface ApprovedDocumentationPublication {
   digest: string;

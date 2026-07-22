@@ -1,6 +1,6 @@
 import { sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import type { AgentSessionSource, AgentSessionStatus } from "./types";
+import type { AgentSessionSource, AgentSessionStatus } from "./types.js";
 
 export const agentSessions = sqliteTable("agent_sessions", {
   sessionId: text("session_id").primaryKey(),

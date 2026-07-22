@@ -5,26 +5,26 @@ import { err, ok, Result, ResultAsync } from "neverthrow";
 import {
   catalogRepositories,
   resolveConfiguredRepository,
-} from "./config";
-import { resolveRepositoryCatalog } from "./configuration/resolver";
+} from "@paige/repositories/config";
+import { resolveRepositoryCatalog } from "@paige/repositories/configuration/resolver";
 import { SandboxGit } from "./git";
 import {
   assertRepositoryRelativePath,
   assertSearchQuery,
   RepositoryFiles,
 } from "./files";
-import type { RepositoryResultAsync } from "./shared/errors";
+import type { RepositoryResultAsync } from "@paige/repositories/errors";
 import {
   GitHubRepository,
   resolveRepositoryGitHubAccess,
   resolveGitHubToken,
-} from "./shared/github";
+} from "@paige/repositories/github";
 import { serializeSandbox } from "./shared/serialization";
 import type {
   RepositoryConfig,
   RepositoryWorkspace,
   ResolvedRepository,
-} from "./types";
+} from "@paige/repositories/types";
 
 interface RepositoryServiceOptions {
   repositories?: RepositoryConfig[];

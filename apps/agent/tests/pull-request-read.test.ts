@@ -5,7 +5,7 @@ import { ResultAsync } from "neverthrow";
 import { afterEach, describe, test, vi } from "vitest";
 
 import { PullRequestReadService } from "../repositories/pull-requests/service";
-import type { RepositoryConfig } from "../repositories/types";
+import type { RepositoryConfig } from "@paige/repositories/types";
 
 const repository: RepositoryConfig = {
   id: "saleor-core",

@@ -4,14 +4,14 @@ import type {
 } from "eve/sandbox";
 import { err, ok, Result, ResultAsync } from "neverthrow";
 
-import type { RepositoryResult } from "../shared/errors";
-import { RepositoryError } from "../shared/errors";
+import type { RepositoryResult } from "@paige/repositories/errors";
+import { RepositoryError } from "@paige/repositories/errors";
 import type {
   DocumentationRepository,
   RepositoryConfig,
   RepositoryWorkspace,
   ResolvedRepository,
-} from "../types";
+} from "@paige/repositories/types";
 import {
   createDocumentationDiffDigest,
   DocumentationDraft,

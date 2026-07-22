@@ -1,4 +1,4 @@
-import { resolveAgentSessionService } from "../../../../../agent/sessions/database";
+import { resolveAgentSessionService } from "@paige/sessions/database";
 import {
   isOperatorAccessFailure,
   localOperatorAccess,

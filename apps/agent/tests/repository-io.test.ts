@@ -9,18 +9,18 @@ import { SandboxGit } from "../repositories/git";
 import { RepositoryFiles } from "../repositories/files";
 import { RepositoryService } from "../repositories/service";
 import { DocumentationGitHubRepository } from "../repositories/documentation/github";
-import { RepositoryError } from "../repositories/shared/errors";
+import { RepositoryError } from "@paige/repositories/errors";
 import {
   createGitHubRequest,
   GitHubRepository,
-} from "../repositories/shared/github";
+} from "@paige/repositories/github";
 import { serializeSandbox } from "../repositories/shared/serialization";
 import type {
   DocumentationRepository,
   RepositoryConfig,
   RepositoryWorkspace,
   ResolvedRepository,
-} from "../repositories/types";
+} from "@paige/repositories/types";
 
 const repository: RepositoryConfig = {
   id: "saleor-core",

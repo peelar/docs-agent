@@ -7,8 +7,8 @@ import { afterEach, describe, test, vi } from "vitest";
 import {
   GitHubRepositoryMetadataService,
 } from "../repositories/metadata/service";
-import { RepositoryError } from "../repositories/shared/errors";
-import type { RepositoryConfig } from "../repositories/types";
+import { RepositoryError } from "@paige/repositories/errors";
+import type { RepositoryConfig } from "@paige/repositories/types";
 
 const repository: RepositoryConfig = {
   id: "saleor-core",

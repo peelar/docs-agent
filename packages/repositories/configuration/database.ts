@@ -1,11 +1,11 @@
 import { createClient } from "@libsql/client";
 import { err, ok, Result } from "neverthrow";
 
-import type { RepositoryResult } from "../shared/errors";
-import { RepositoryError } from "../shared/errors";
+import type { RepositoryResult } from "../errors.js";
+import { RepositoryError } from "../errors.js";
 import {
   LibsqlRepositoryConfigurationStore,
-} from "./store";
+} from "./store.js";
 
 let store: LibsqlRepositoryConfigurationStore | undefined;
 

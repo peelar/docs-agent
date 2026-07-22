@@ -1,16 +1,16 @@
 import type { SandboxCommandResult, SandboxSession } from "eve/sandbox";
 import { err, ok, ResultAsync } from "neverthrow";
 
-import { RepositoryError } from "./shared/errors";
+import { RepositoryError } from "@paige/repositories/errors";
 import type {
   RepositoryResult,
   RepositoryResultAsync,
-} from "./shared/errors";
+} from "@paige/repositories/errors";
 import type {
   RepositoryComparison,
   RepositorySearchMatch,
   RepositoryWorkspace,
-} from "./types";
+} from "@paige/repositories/types";
 
 const MAX_READ_FILE_BYTES = 1_000_000;
 const MAX_READ_LINES = 400;

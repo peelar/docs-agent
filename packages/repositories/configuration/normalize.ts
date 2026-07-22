@@ -1,12 +1,12 @@
 import { err, ok, Result } from "neverthrow";
 
-import { RepositoryError } from "../shared/errors";
-import type { RepositoryResult } from "../shared/errors";
+import { RepositoryError } from "../errors.js";
+import type { RepositoryResult } from "../errors.js";
 import type {
   DocumentationRepository,
   RepositoryConfig,
-} from "../types";
-import type { RepositoryConfigurationData } from "./types";
+} from "../types.js";
+import type { RepositoryConfigurationData } from "./types.js";
 
 const GITHUB_HOST = "github.com";
 const REPOSITORY_SEGMENT_PATTERN = /^[A-Za-z0-9_.-]+$/;

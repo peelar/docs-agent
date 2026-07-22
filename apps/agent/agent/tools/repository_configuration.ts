@@ -1,7 +1,7 @@
 import { defineTool } from "eve/tools";
 import { z } from "zod";
 
-import { resolveRepositoryConfigurationStore } from "../../repositories/configuration/database";
+import { resolveRepositoryConfigurationStore } from "@paige/repositories/configuration/database";
 import {
   clearRepositoryConfigurationProposal,
   deferRepositoryConfiguration,
@@ -11,7 +11,7 @@ import {
 import {
   RepositoryConfigurationService,
   summarizeRepositoryConfiguration,
-} from "../../repositories/configuration/service";
+} from "@paige/repositories/configuration/service";
 
 const actionInputSchema = z.discriminatedUnion("action", [
   z.object({ action: z.literal("read") }),

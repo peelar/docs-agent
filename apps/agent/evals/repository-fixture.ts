@@ -1,4 +1,4 @@
-import { normalizeRepositoryConfiguration } from "../repositories/configuration/normalize";
+import { normalizeRepositoryConfiguration } from "@paige/repositories/configuration/normalize";
 
 const repositoryUrls = {
   documentation: "https://github.com/peelar/saleor-docs",

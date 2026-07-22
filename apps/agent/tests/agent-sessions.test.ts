@@ -1,6 +1,10 @@
 import assert from "node:assert/strict";
 
 import { createClient } from "@libsql/client";
+import type { AgentSessionError } from "@paige/sessions/errors";
+import { AgentSessionService } from "@paige/sessions/service";
+import { LibsqlAgentSessionStore } from "@paige/sessions/store";
+import { agentSessionTitle } from "@paige/sessions/title";
 import type { Result } from "neverthrow";
 import { describe, test } from "vitest";
 
@@ -8,11 +12,6 @@ import {
   sessionSourceForChannel,
   statusForLifecycleEvent,
 } from "../agent/hooks/session-index";
-import type { AgentSessionError } from "../sessions/errors";
-import { AgentSessionService } from "../sessions/service";
-import { LibsqlAgentSessionStore } from "../sessions/store";
-import { agentSessionTitle } from "../sessions/title";
-
 describe("agent session registry", () => {
   test("enriches an earlier lifecycle row without rolling status backward", async () => {
     const store = createStore();

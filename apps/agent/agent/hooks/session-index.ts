@@ -1,11 +1,11 @@
 import type { HandleMessageStreamEvent } from "eve/client";
 import { defineHook, type HookContext } from "eve/hooks";
 
-import { resolveAgentSessionService } from "../../sessions/database";
+import { resolveAgentSessionService } from "@paige/sessions/database";
 import type {
   AgentSessionSource,
   AgentSessionStatus,
-} from "../../sessions/types";
+} from "@paige/sessions/types";
 
 type LifecycleEventType =
   | "session.started"

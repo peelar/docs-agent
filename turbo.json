@@ -4,9 +4,10 @@
     "build": {
       "dependsOn": ["^build"],
       "inputs": ["$TURBO_DEFAULT$", ".env*"],
-      "outputs": [".eve/**", ".next/**", "!.next/cache/**", ".output/**"]
+      "outputs": [".eve/**", ".next/**", "!.next/cache/**", ".output/**", "dist/**"]
     },
     "paige#build": {
+      "dependsOn": ["^build"],
       "env": ["PAIGE_SLACK_CONNECTOR", "EVE_GATEWAY_MODEL"],
       "outputs": [".eve/**", ".vercel/output/**", ".output/**"]
     },

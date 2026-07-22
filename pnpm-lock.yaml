@@ -35,15 +35,18 @@ importers:
       '@libsql/client':
         specifier: ^0.17.4
         version: 0.17.4
+      '@paige/repositories':
+        specifier: workspace:*
+        version: link:../../packages/repositories
+      '@paige/sessions':
+        specifier: workspace:*
+        version: link:../../packages/sessions
       '@vercel/connect':
         specifier: 0.3.2
         version: 0.3.2(@chat-adapter/slack@4.34.0(ai@7.0.31(zod@4.4.3))(zod@4.4.3))(ai@7.0.31(zod@4.4.3))(better-auth@1.6.23(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(kysely@0.29.3))(next@16.2.10(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.10(@types/node@24.13.2)(vite@8.1.4(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))))(eve@0.23.0(@libsql/client@0.17.4)(ai@7.0.31(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(kysely@0.29.3))(jiti@2.7.0)(microsandbox@0.5.7)(vite@8.1.4(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)))
       chat:
         specifier: 4.34.0
         version: 4.34.0(ai@7.0.31(zod@4.4.3))(zod@4.4.3)
-      drizzle-orm:
-        specifier: ^0.45.2
-        version: 0.45.2(@libsql/client@0.17.4)(kysely@0.29.3)
       eve:
         specifier: ^0.23.0
         version: 0.23.0(@libsql/client@0.17.4)(ai@7.0.31(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(kysely@0.29.3))(jiti@2.7.0)(microsandbox@0.5.7)(vite@8.1.4(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))
@@ -78,6 +81,12 @@ importers:
       '@base-ui/react':
         specifier: ^1.6.0
         version: 1.6.0(@types/react@19.2.0)(react-dom@19.2.7(react@19.2.7))(react@19.2.7)
+      '@paige/repositories':
+        specifier: workspace:*
+        version: link:../../packages/repositories
+      '@paige/sessions':
+        specifier: workspace:*
+        version: link:../../packages/sessions
       '@radix-ui/react-use-controllable-state':
         specifier: ^1.2.3
         version: 1.2.3(@types/react@19.2.0)(react@19.2.7)
@@ -163,6 +172,47 @@ importers:
       typescript:
         specifier: npm:@typescript/typescript6@6.0.2
         version: '@typescript/typescript6@6.0.2'
+
+  packages/repositories:
+    dependencies:
+      '@libsql/client':
+        specifier: ^0.17.4
+        version: 0.17.4
+      '@vercel/connect':
+        specifier: 0.3.2
+        version: 0.3.2(@chat-adapter/slack@4.34.0(ai@7.0.31(zod@4.4.3))(zod@4.4.3))(ai@7.0.31(zod@4.4.3))(better-auth@1.6.23(drizzle-kit@0.31.10)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(kysely@0.29.3))(next@16.2.10(@playwright/test@1.61.1)(react-dom@19.2.7(react@19.2.7))(react@19.2.7))(react-dom@19.2.7(react@19.2.7))(react@19.2.7)(vitest@4.1.10(@types/node@24.13.2)(vite@8.1.4(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0))))(eve@0.23.0(@libsql/client@0.17.4)(ai@7.0.31(zod@4.4.3))(dotenv@17.4.2)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(kysely@0.29.3))(jiti@2.7.0)(microsandbox@0.5.7)(vite@8.1.4(@types/node@24.13.2)(esbuild@0.28.1)(jiti@2.7.0)(tsx@4.23.1)(yaml@2.9.0)))
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@libsql/client@0.17.4)(kysely@0.29.3)
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
+    devDependencies:
+      '@types/node':
+        specifier: 24.x
+        version: 24.13.2
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
+
+  packages/sessions:
+    dependencies:
+      '@libsql/client':
+        specifier: ^0.17.4
+        version: 0.17.4
+      drizzle-orm:
+        specifier: ^0.45.2
+        version: 0.45.2(@libsql/client@0.17.4)(kysely@0.29.3)
+      neverthrow:
+        specifier: ^8.2.0
+        version: 8.2.0
+    devDependencies:
+      '@types/node':
+        specifier: 24.x
+        version: 24.13.2
+      typescript:
+        specifier: 7.0.2
+        version: 7.0.2
 
 packages:
 
@@ -9332,7 +9382,7 @@ snapshots:
       rolldown: 1.1.4
       srvx: 0.11.21
       unenv: 2.0.0-rc.24
-      unstorage: 2.0.0-alpha.7(db0@0.3.4)(ofetch@2.0.0-alpha.3)
+      unstorage: 2.0.0-alpha.7(db0@0.3.4(@libsql/client@0.17.4)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(kysely@0.29.3)))(ofetch@2.0.0-alpha.3)
     optionalDependencies:
       dotenv: 17.4.2
       jiti: 2.7.0
@@ -10315,7 +10365,7 @@ snapshots:
 
   unpipe@1.0.0: {}
 
-  unstorage@2.0.0-alpha.7(db0@0.3.4)(ofetch@2.0.0-alpha.3):
+  unstorage@2.0.0-alpha.7(db0@0.3.4(@libsql/client@0.17.4)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(kysely@0.29.3)))(ofetch@2.0.0-alpha.3):
     optionalDependencies:
       db0: 0.3.4(@libsql/client@0.17.4)(drizzle-orm@0.45.2(@libsql/client@0.17.4)(kysely@0.29.3))
       ofetch: 2.0.0-alpha.3

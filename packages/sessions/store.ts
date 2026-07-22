@@ -3,15 +3,15 @@ import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { ResultAsync } from "neverthrow";
 
-import { AgentSessionError } from "./errors";
-import type { AgentSessionResultAsync } from "./errors";
-import { agentSessions } from "./schema";
+import { AgentSessionError } from "./errors.js";
+import type { AgentSessionResultAsync } from "./errors.js";
+import { agentSessions } from "./schema.js";
 import type {
   AgentSessionSource,
   IndexedAgentSession,
   ListAgentSessionsInput,
   UpdateAgentSessionLifecycleInput,
-} from "./types";
+} from "./types.js";
 
 interface StoreAgentSessionInput {
   sessionId: string;

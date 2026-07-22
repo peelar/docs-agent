@@ -1,20 +1,20 @@
 import { err, Result, ResultAsync } from "neverthrow";
 
-import { assertDocumentationRepository } from "../config";
-import { RepositoryError } from "../shared/errors";
-import type { RepositoryResultAsync } from "../shared/errors";
+import { assertDocumentationRepository } from "../config.js";
+import { RepositoryError } from "../errors.js";
+import type { RepositoryResultAsync } from "../errors.js";
 import {
   createGitHubRequest,
   GitHubRepository,
   resolveGitHubToken,
-} from "../shared/github";
-import type { RepositoryConfig } from "../types";
-import { normalizeRepositoryConfiguration } from "./normalize";
-import type { RepositoryConfigurationStore } from "./store";
+} from "../github.js";
+import type { RepositoryConfig } from "../types.js";
+import { normalizeRepositoryConfiguration } from "./normalize.js";
+import type { RepositoryConfigurationStore } from "./store.js";
 import type {
   ActiveRepositoryConfiguration,
   RepositoryConfigurationData,
-} from "./types";
+} from "./types.js";
 
 interface RepositoryConfigurationServiceOptions {
   validateRepository?: (

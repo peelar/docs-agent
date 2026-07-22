@@ -1,6 +1,6 @@
 import { integer, sqliteTable, text } from "drizzle-orm/sqlite-core";
 
-import type { RepositoryConfigurationData } from "./types";
+import type { RepositoryConfigurationData } from "./types.js";
 
 export const repositoryConfiguration = sqliteTable(
   "agent_repository_configuration",

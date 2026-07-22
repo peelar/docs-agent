@@ -1,12 +1,12 @@
-import type { AgentSessionResultAsync } from "./errors";
-import type { AgentSessionStore } from "./store";
-import { agentSessionTitle } from "./title";
+import type { AgentSessionResultAsync } from "./errors.js";
+import type { AgentSessionStore } from "./store.js";
+import { agentSessionTitle } from "./title.js";
 import type {
   IndexedAgentSession,
   ListAgentSessionsInput,
   RegisterAgentSessionInput,
   UpdateAgentSessionLifecycleInput,
-} from "./types";
+} from "./types.js";
 
 export class AgentSessionService {
   readonly #store: AgentSessionStore;

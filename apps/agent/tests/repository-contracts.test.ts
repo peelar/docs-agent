@@ -21,15 +21,15 @@ import {
   assertDocumentationRepository,
   catalogRepositories,
   resolveConfiguredRepository,
-} from "../repositories/config";
+} from "@paige/repositories/config";
 import {
   assertRepositoryRelativePath,
   assertSearchQuery,
   selectFileLines,
 } from "../repositories/files";
 import type { RepositoryMetadataService } from "../repositories/metadata/service";
-import { RepositoryError } from "../repositories/shared/errors";
-import type { RepositoryConfig } from "../repositories/types";
+import { RepositoryError } from "@paige/repositories/errors";
+import type { RepositoryConfig } from "@paige/repositories/types";
 
 const metadataServiceMethods = [
   "listReleases",

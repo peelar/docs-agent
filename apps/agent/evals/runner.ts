@@ -7,7 +7,7 @@ import { mkdtemp } from "node:fs/promises";
 
 import { createClient } from "@libsql/client";
 
-import { LibsqlRepositoryConfigurationStore } from "../repositories/configuration/store";
+import { LibsqlRepositoryConfigurationStore } from "@paige/repositories/configuration/store";
 import { repositoryEvalFixture } from "./repository-fixture";
 
 export type EvalSuiteName = "behavior" | "safety" | "integration" | "full";

@@ -1,4 +1,4 @@
-import type { AgentSessionSource } from "./types";
+import type { AgentSessionSource } from "./types.js";
 
 const maximumTitleLength = 80;
 const slackUserMention = /<?@U[A-Z0-9]+>?/;

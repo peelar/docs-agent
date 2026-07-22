@@ -1,12 +1,12 @@
 import { getToken } from "@vercel/connect";
 import { err, ok, Result, ResultAsync } from "neverthrow";
 
-import { RepositoryError } from "./errors";
-import type { RepositoryResult, RepositoryResultAsync } from "./errors";
+import { RepositoryError } from "./errors.js";
+import type { RepositoryResult, RepositoryResultAsync } from "./errors.js";
 import type {
   RepositoryConfig,
   ResolvedRepository,
-} from "../types";
+} from "./types.js";
 
 const DEFAULT_GITHUB_CONNECTOR = "github/docs-agent";
 const GITHUB_API_VERSION = "2026-03-10";

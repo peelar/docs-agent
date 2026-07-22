@@ -19,8 +19,8 @@ import {
   WrenchIcon,
 } from "lucide-react";
 
-import type { IndexedAgentSession } from "../../../../agent/sessions/types";
-import { agentSessionTitle } from "../../../../agent/sessions/title";
+import type { IndexedAgentSession } from "@paige/sessions/types";
+import { agentSessionTitle } from "@paige/sessions/title";
 import {
   OperatorPage,
   OperatorPageContent,

@@ -27,12 +27,12 @@ import type {
   DocumentationWritebackInput,
 } from "../repositories/documentation/types";
 import { DocumentationWorkspace } from "../repositories/documentation/workspace";
-import { createGitHubRequest } from "../repositories/shared/github";
+import { createGitHubRequest } from "@paige/repositories/github";
 import type {
   DocumentationRepository,
   RepositoryWorkspace,
   ResolvedRepository,
-} from "../repositories/types";
+} from "@paige/repositories/types";
 
 const temporaryDirectories: string[] = [];
 

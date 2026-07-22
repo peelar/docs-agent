@@ -10,8 +10,8 @@ loadEnvFile(fileURLToPath(new URL(".env.local", import.meta.url)));
 export default defineConfig({
   dialect: "turso",
   schema: [
-    "./repositories/configuration/schema.ts",
-    "./sessions/schema.ts",
+    "../../packages/repositories/configuration/schema.ts",
+    "../../packages/sessions/schema.ts",
   ],
   dbCredentials: {
     url: process.env.PAIGE_DATABASE_URL!,

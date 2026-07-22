@@ -1,6 +1,6 @@
 import { defineState } from "eve/context";
 
-import type { RepositoryConfigurationData } from "./types";
+import type { RepositoryConfigurationData } from "@paige/repositories/configuration/types";
 
 interface RepositoryConfigurationProposal {
   baseRevision: number | null;

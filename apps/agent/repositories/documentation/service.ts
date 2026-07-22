@@ -4,24 +4,24 @@ import { err, ok, Result, ResultAsync } from "neverthrow";
 
 import {
   assertDocumentationRepository,
-} from "../config";
-import { resolveRepositoryCatalog } from "../configuration/resolver";
+} from "@paige/repositories/config";
+import { resolveRepositoryCatalog } from "@paige/repositories/configuration/resolver";
 import {
   assertRepositoryRelativePath,
   assertSearchQuery,
 } from "../files";
 import { SandboxGit } from "../git";
-import type { RepositoryResultAsync } from "../shared/errors";
-import { RepositoryError } from "../shared/errors";
+import type { RepositoryResultAsync } from "@paige/repositories/errors";
+import { RepositoryError } from "@paige/repositories/errors";
 import {
   createGitHubRequest,
   resolveGitHubToken,
-} from "../shared/github";
+} from "@paige/repositories/github";
 import { serializeSandbox } from "../shared/serialization";
 import type {
   DocumentationRepository,
   RepositoryConfig,
-} from "../types";
+} from "@paige/repositories/types";
 import { DocumentationDraft } from "./draft";
 import { DocumentationGitHubRepository } from "./github";
 import {

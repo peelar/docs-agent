@@ -12,8 +12,8 @@ import {
 import type {
   AgentSessionSource,
   IndexedAgentSession,
-} from "../../../agent/sessions/types";
-import { agentSessionTitle } from "../../../agent/sessions/title";
+} from "@paige/sessions/types";
+import { agentSessionTitle } from "@paige/sessions/title";
 import {
   OperatorPage,
   OperatorPageContent,

@@ -1,10 +1,10 @@
 import { err, ok } from "neverthrow";
 
-import { RepositoryError } from "../shared/errors";
-import type { RepositoryResultAsync } from "../shared/errors";
-import type { RepositoryConfig } from "../types";
-import { resolveRepositoryConfigurationStore } from "./database";
-import type { RepositoryConfigurationStore } from "./store";
+import { RepositoryError } from "../errors.js";
+import type { RepositoryResultAsync } from "../errors.js";
+import type { RepositoryConfig } from "../types.js";
+import { resolveRepositoryConfigurationStore } from "./database.js";
+import type { RepositoryConfigurationStore } from "./store.js";
 
 export function resolveRepositoryCatalog(
   store?: RepositoryConfigurationStore,

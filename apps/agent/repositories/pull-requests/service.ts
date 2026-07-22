@@ -2,18 +2,18 @@ import type { ToolContext } from "eve/tools";
 import { err, ok, Result, ResultAsync } from "neverthrow";
 import { z } from "zod";
 
-import { resolveConfiguredRepository } from "../config";
+import { resolveConfiguredRepository } from "@paige/repositories/config";
 import { RepositoryService } from "../service";
 import type {
   RepositoryResult,
   RepositoryResultAsync,
-} from "../shared/errors";
-import { RepositoryError } from "../shared/errors";
+} from "@paige/repositories/errors";
+import { RepositoryError } from "@paige/repositories/errors";
 import {
   resolveRepositoryGitHubAccess,
   resolveGitHubToken,
-} from "../shared/github";
-import type { RepositoryConfig } from "../types";
+} from "@paige/repositories/github";
+import type { RepositoryConfig } from "@paige/repositories/types";
 import type {
   PullRequestComment,
   PullRequestCommentKind,

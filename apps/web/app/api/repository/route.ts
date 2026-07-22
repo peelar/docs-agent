@@ -1,10 +1,10 @@
-import { resolveRepositoryConfigurationStore } from "../../../../agent/repositories/configuration/database";
+import { resolveRepositoryConfigurationStore } from "@paige/repositories/configuration/database";
 import {
   RepositoryConfigurationService,
   summarizeRepositoryConfiguration,
-} from "../../../../agent/repositories/configuration/service";
-import type { ActiveRepositoryConfiguration } from "../../../../agent/repositories/configuration/types";
-import { RepositoryError } from "../../../../agent/repositories/shared/errors";
+} from "@paige/repositories/configuration/service";
+import type { ActiveRepositoryConfiguration } from "@paige/repositories/configuration/types";
+import { RepositoryError } from "@paige/repositories/errors";
 import {
   isOperatorAccessFailure,
   localOperatorAccess,

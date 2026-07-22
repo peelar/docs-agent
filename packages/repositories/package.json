@@ -1,0 +1,42 @@
+{
+  "name": "@paige/repositories",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "exports": {
+    "./config": {
+      "types": "./dist/config.d.ts",
+      "default": "./dist/config.js"
+    },
+    "./errors": {
+      "types": "./dist/errors.d.ts",
+      "default": "./dist/errors.js"
+    },
+    "./github": {
+      "types": "./dist/github.d.ts",
+      "default": "./dist/github.js"
+    },
+    "./types": {
+      "types": "./dist/types.d.ts",
+      "default": "./dist/types.js"
+    },
+    "./configuration/*": {
+      "types": "./dist/configuration/*.d.ts",
+      "default": "./dist/configuration/*.js"
+    }
+  },
+  "scripts": {
+    "build": "tsc",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@libsql/client": "^0.17.4",
+    "@vercel/connect": "0.3.2",
+    "drizzle-orm": "^0.45.2",
+    "neverthrow": "^8.2.0"
+  },
+  "devDependencies": {
+    "@types/node": "24.x",
+    "typescript": "7.0.2"
+  }
+}

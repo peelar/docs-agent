@@ -14,8 +14,8 @@ import {
 import type {
   RepositoryResult,
   RepositoryResultAsync,
-} from "../shared/errors";
-import { RepositoryError } from "../shared/errors";
+} from "@paige/repositories/errors";
+import { RepositoryError } from "@paige/repositories/errors";
 import { MAX_DIFF_FILES, MAX_FILE_BYTES } from "./policy";
 import {
   parseNullSeparated,

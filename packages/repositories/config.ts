@@ -1,11 +1,11 @@
 import { err, ok } from "neverthrow";
 
-import { RepositoryError } from "./shared/errors";
-import type { RepositoryResult } from "./shared/errors";
+import { RepositoryError } from "./errors.js";
+import type { RepositoryResult } from "./errors.js";
 import type {
   DocumentationRepository,
   RepositoryConfig,
-} from "./types";
+} from "./types.js";
 
 /** Returns the repositories Paige is explicitly allowed to inspect. */
 export function catalogRepositories(

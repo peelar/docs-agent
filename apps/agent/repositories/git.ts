@@ -4,16 +4,16 @@ import type {
 } from "eve/sandbox";
 import { err, ok, ResultAsync } from "neverthrow";
 
-import { RepositoryError } from "./shared/errors";
+import { RepositoryError } from "@paige/repositories/errors";
 import type {
   RepositoryResult,
   RepositoryResultAsync,
-} from "./shared/errors";
+} from "@paige/repositories/errors";
 import type {
   RepositoryConfig,
   RepositoryWorkspace,
   ResolvedRepository,
-} from "./types";
+} from "@paige/repositories/types";
 
 const REPOSITORY_PATH_PREFIX = "/workspace/repositories";
 

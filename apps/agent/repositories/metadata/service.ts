@@ -4,18 +4,18 @@ import { z } from "zod";
 
 import {
   resolveConfiguredRepository,
-} from "../config";
-import { resolveRepositoryCatalog } from "../configuration/resolver";
+} from "@paige/repositories/config";
+import { resolveRepositoryCatalog } from "@paige/repositories/configuration/resolver";
 import {
   resolveRepositoryGitHubAccess,
   resolveGitHubToken,
-} from "../shared/github";
-import { RepositoryError } from "../shared/errors";
+} from "@paige/repositories/github";
+import { RepositoryError } from "@paige/repositories/errors";
 import type {
   RepositoryResult,
   RepositoryResultAsync,
-} from "../shared/errors";
-import type { RepositoryConfig } from "../types";
+} from "@paige/repositories/errors";
+import type { RepositoryConfig } from "@paige/repositories/types";
 import type {
   RepositoryCommitSummary,
   RepositoryIssue,

@@ -1,6 +1,6 @@
 import { notFound } from "next/navigation";
 
-import { resolveAgentSessionService } from "../../../../agent/sessions/database";
+import { resolveAgentSessionService } from "@paige/sessions/database";
 import { assertLocalOperatorAccess } from "@/operator-access";
 
 import { AgentChat } from "../agent-chat";

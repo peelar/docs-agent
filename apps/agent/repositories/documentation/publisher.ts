@@ -1,8 +1,8 @@
 import { err, ok } from "neverthrow";
 
 import { assertRepositoryRelativePath } from "../files";
-import type { RepositoryResult } from "../shared/errors";
-import { RepositoryError } from "../shared/errors";
+import type { RepositoryResult } from "@paige/repositories/errors";
+import { RepositoryError } from "@paige/repositories/errors";
 import { createDocumentationDiffDigest, DocumentationDraft } from "./draft";
 import type { DocumentationGitHubRepository } from "./github";
 import {

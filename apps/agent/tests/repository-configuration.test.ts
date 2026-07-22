@@ -7,21 +7,21 @@ import { afterEach, describe, test, vi } from "vitest";
 import {
   normalizeGitHubRepository,
   normalizeRepositoryConfiguration,
-} from "../repositories/configuration/normalize";
+} from "@paige/repositories/configuration/normalize";
 import {
   deferRepositoryConfiguration,
   proposeRepositoryConfiguration,
 } from "../repositories/configuration/draft";
 import {
   resolveRepositoryConfigurationStore,
-} from "../repositories/configuration/database";
+} from "@paige/repositories/configuration/database";
 import {
   LibsqlRepositoryConfigurationStore,
-} from "../repositories/configuration/store";
+} from "@paige/repositories/configuration/store";
 import {
   resolveRepositoryCatalog,
-} from "../repositories/configuration/resolver";
-import { RepositoryConfigurationService } from "../repositories/configuration/service";
+} from "@paige/repositories/configuration/resolver";
+import { RepositoryConfigurationService } from "@paige/repositories/configuration/service";
 
 afterEach(() => {
   vi.unstubAllGlobals();

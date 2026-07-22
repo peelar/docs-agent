@@ -1,9 +1,9 @@
 import { createClient } from "@libsql/client";
 import { err, ok, Result } from "neverthrow";
 
-import { AgentSessionError } from "./errors";
-import { AgentSessionService } from "./service";
-import { LibsqlAgentSessionStore } from "./store";
+import { AgentSessionError } from "./errors.js";
+import { AgentSessionService } from "./service.js";
+import { LibsqlAgentSessionStore } from "./store.js";
 
 let service: AgentSessionService | undefined;
 

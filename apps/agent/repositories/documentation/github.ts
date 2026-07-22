@@ -1,16 +1,16 @@
 import { err, ok, Result } from "neverthrow";
 
-import { RepositoryError } from "../shared/errors";
-import type { RepositoryResultAsync } from "../shared/errors";
+import { RepositoryError } from "@paige/repositories/errors";
+import type { RepositoryResultAsync } from "@paige/repositories/errors";
 import {
   GitHubRepository,
   readBooleanProperty,
   readNestedStringProperty,
   readNumberProperty,
   readStringProperty,
-} from "../shared/github";
-import type { GitHubRequest } from "../shared/github";
-import type { DocumentationRepository } from "../types";
+} from "@paige/repositories/github";
+import type { GitHubRequest } from "@paige/repositories/github";
+import type { DocumentationRepository } from "@paige/repositories/types";
 
 export interface GitHubFileChange {
   path: string;

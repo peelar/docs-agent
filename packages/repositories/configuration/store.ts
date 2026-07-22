@@ -3,13 +3,13 @@ import { eq } from "drizzle-orm";
 import { drizzle } from "drizzle-orm/libsql";
 import { err, ok, ResultAsync } from "neverthrow";
 
-import { RepositoryError } from "../shared/errors";
-import type { RepositoryResultAsync } from "../shared/errors";
-import { repositoryConfiguration } from "./schema";
+import { RepositoryError } from "../errors.js";
+import type { RepositoryResultAsync } from "../errors.js";
+import { repositoryConfiguration } from "./schema.js";
 import type {
   ActiveRepositoryConfiguration,
   SaveRepositoryConfigurationInput,
-} from "./types";
+} from "./types.js";
 
 export interface RepositoryConfigurationStore {
   get(): RepositoryResultAsync<ActiveRepositoryConfiguration | undefined>;

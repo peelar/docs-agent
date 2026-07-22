@@ -1,12 +1,12 @@
 import { defineDynamic, defineInstructions } from "eve/instructions";
 
-import { resolveRepositoryConfigurationStore } from "../../repositories/configuration/database";
+import { resolveRepositoryConfigurationStore } from "@paige/repositories/configuration/database";
 import {
   repositoryConfigurationSessionState,
 } from "../../repositories/configuration/draft";
 import {
   summarizeRepositoryConfiguration,
-} from "../../repositories/configuration/service";
+} from "@paige/repositories/configuration/service";
 
 export default defineDynamic({
   events: {

@@ -1,6 +1,6 @@
 import { ResultAsync } from "neverthrow";
 
-import type { RepositoryResultAsync } from "./errors";
+import type { RepositoryResultAsync } from "@paige/repositories/errors";
 
 const sandboxQueues = new Map<string, Promise<void>>();
 

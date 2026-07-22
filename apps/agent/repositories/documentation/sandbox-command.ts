@@ -1,8 +1,8 @@
 import type { SandboxCommandResult } from "eve/sandbox";
 import { err, ok } from "neverthrow";
 
-import type { RepositoryResult } from "../shared/errors";
-import { RepositoryError } from "../shared/errors";
+import type { RepositoryResult } from "@paige/repositories/errors";
+import { RepositoryError } from "@paige/repositories/errors";
 
 export function successfulCommand(
   result: SandboxCommandResult,
