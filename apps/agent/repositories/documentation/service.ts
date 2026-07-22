@@ -15,7 +15,6 @@ import type { RepositoryResultAsync } from "../shared/errors";
 import { RepositoryError } from "../shared/errors";
 import {
   createGitHubRequest,
-  GitHubRepository,
   resolveGitHubToken,
 } from "../shared/github";
 import { serializeSandbox } from "../shared/serialization";
@@ -24,6 +23,7 @@ import type {
   RepositoryConfig,
 } from "../types";
 import { DocumentationDraft } from "./draft";
+import { DocumentationGitHubRepository } from "./github";
 import {
   DocumentationPublisher,
   validateDocumentationWritebackInput,
@@ -223,8 +223,8 @@ export class DocumentationRepositoryService {
   #github(
     repository: DocumentationRepository,
     token: string,
-  ): GitHubRepository<DocumentationRepository> {
-    return new GitHubRepository(
+  ): DocumentationGitHubRepository {
+    return new DocumentationGitHubRepository(
       repository,
       createGitHubRequest({
         token,

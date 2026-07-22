@@ -53,11 +53,6 @@ export interface GitHubCommitDetails {
   files: GitHubCommitFile[];
 }
 
-export interface GitHubFileChange {
-  path: string;
-  content: string | null;
-}
-
 interface GitHubRequestOptions {
   allowNotFound?: boolean;
   method?: "GET" | "POST";
@@ -116,14 +111,14 @@ export function resolveRepositoryGitHubAccess(
 export class GitHubRepository<
   TRepository extends RepositoryConfig = RepositoryConfig,
 > {
-  readonly #repository: TRepository;
-  readonly #request: GitHubRequest;
-  readonly #path: string;
+  protected readonly repository: TRepository;
+  protected readonly request: GitHubRequest;
+  protected readonly path: string;
 
   constructor(repository: TRepository, request: GitHubRequest) {
-    this.#repository = repository;
-    this.#request = request;
-    this.#path =
+    this.repository = repository;
+    this.request = request;
+    this.path =
       `/repos/${encodeURIComponent(repository.owner)}/${encodeURIComponent(repository.name)}`;
   }
 
@@ -131,7 +126,7 @@ export class GitHubRepository<
   resolveCommit(
     requestedRef?: string,
   ): RepositoryResultAsync<ResolvedRepository<TRepository>> {
-    return this.#requiredJson(this.#path)
+    return this.requiredJson(this.path)
       .andThen((details) =>
         Result.combine([
           requestedRef === undefined
@@ -149,12 +144,12 @@ export class GitHubRepository<
         ])
       )
       .andThen(([resolvedRef, isPrivate]) =>
-        this.#requiredJson(
-          `${this.#path}/commits/${encodeURIComponent(resolvedRef)}`,
+        this.requiredJson(
+          `${this.path}/commits/${encodeURIComponent(resolvedRef)}`,
         ).andThen((commit) =>
           readStringProperty(commit, "sha", "GitHub commit response").map(
             (commitSha) => ({
-              ...this.#repository,
+              ...this.repository,
               isPrivate,
               ref: resolvedRef,
               commitSha,
@@ -168,8 +163,8 @@ export class GitHubRepository<
   resolveBranchCommitSha(
     branch: string,
   ): RepositoryResultAsync<string | undefined> {
-    return this.#request.json(
-      `${this.#path}/git/ref/heads/${encodeURIComponent(branch)}`,
+    return this.request.json(
+      `${this.path}/git/ref/heads/${encodeURIComponent(branch)}`,
       { allowNotFound: true },
     ).andThen((value) =>
       value === undefined
@@ -182,87 +177,12 @@ export class GitHubRepository<
     );
   }
 
-  /** Creates a remote branch at one immutable commit. */
-  createBranch(input: {
-    branch: string;
-    commitSha: string;
-  }): RepositoryResultAsync<void> {
-    return this.#requiredJson(`${this.#path}/git/refs`, {
-      method: "POST",
-      body: {
-        ref: `refs/heads/${input.branch}`,
-        sha: input.commitSha,
-      },
-    }).andThen((created) =>
-      readNestedStringProperty(
-        created,
-        ["object", "sha"],
-        "GitHub branch creation response",
-      ).andThen((commitSha) =>
-        commitSha === input.commitSha
-          ? ok(undefined)
-          : err(new RepositoryError(
-              "REPOSITORY_GITHUB_FAILED",
-              `GitHub created branch ${input.branch} at an unexpected commit.`,
-            ))
-      )
-    );
-  }
-
-  /** Atomically appends text-file changes to an existing branch. */
-  createCommitOnBranch(input: {
-    branch: string;
-    expectedHeadCommitSha: string;
-    message: string;
-    files: GitHubFileChange[];
-  }): RepositoryResultAsync<string> {
-    const additions = input.files
-      .filter((file): file is { path: string; content: string } =>
-        file.content !== null
-      )
-      .map((file) => ({
-        path: file.path,
-        contents: Buffer.from(file.content, "utf8").toString("base64"),
-      }));
-    const deletions = input.files
-      .filter((file) => file.content === null)
-      .map((file) => ({ path: file.path }));
-    const query = `
-      mutation CreateDocumentationCommit($input: CreateCommitOnBranchInput!) {
-        createCommitOnBranch(input: $input) {
-          commit {
-            oid
-          }
-        }
-      }
-    `;
-
-    return this.#request.graphql(query, {
-      input: {
-        branch: {
-          repositoryNameWithOwner:
-            `${this.#repository.owner}/${this.#repository.name}`,
-          branchName: input.branch,
-        },
-        expectedHeadOid: input.expectedHeadCommitSha,
-        message: { headline: input.message },
-        fileChanges: { additions, deletions },
-      },
-    }).andThen((value) =>
-      readNestedStringProperty(
-        value,
-        ["data", "createCommitOnBranch", "commit", "oid"],
-        "GitHub commit creation response",
-      )
-    );
-  }
-
   /** Reads the parent, message, and changed paths for one remote commit. */
   readCommitDetails(
     commitSha: string,
   ): RepositoryResultAsync<GitHubCommitDetails> {
-    return this.#requiredJson(
-      `${this.#path}/commits/${encodeURIComponent(commitSha)}?per_page=100`,
+    return this.requiredJson(
+      `${this.path}/commits/${encodeURIComponent(commitSha)}?per_page=100`,
     ).andThen((value) => {
       if (typeof value !== "object" || value === null) {
         return err(new RepositoryError(
@@ -355,8 +275,8 @@ export class GitHubRepository<
   }): RepositoryResultAsync<string> {
     const encodedPath = input.path.split("/").map(encodeURIComponent).join("/");
     const query = new URLSearchParams({ ref: input.commitSha });
-    return this.#requiredJson(
-      `${this.#path}/contents/${encodedPath}?${query.toString()}`,
+    return this.requiredJson(
+      `${this.path}/contents/${encodedPath}?${query.toString()}`,
     ).andThen((value) => {
       if (typeof value !== "object" || value === null || Array.isArray(value)) {
         return err(new RepositoryError(
@@ -401,56 +321,6 @@ export class GitHubRepository<
     });
   }
 
-  /** Creates or reuses the open draft pull request for an approved branch. */
-  createOrReuseDraftPullRequest(input: {
-    branch: string;
-    baseBranch: string;
-    title: string;
-    body: string;
-  }): RepositoryResultAsync<{
-    number: number;
-    url: string;
-    draft: true;
-    reused: boolean;
-  }> {
-    return this.findDraftPullRequest(input).andThen((existing) => {
-      if (existing !== undefined) {
-        return ok({ ...existing, reused: true });
-      }
-      return this.#requiredJson(`${this.#path}/pulls`, {
-        method: "POST",
-        body: {
-          title: input.title,
-          head: input.branch,
-          base: input.baseBranch,
-          body: input.body,
-          draft: true,
-        },
-      }).andThen((created) =>
-        Result.combine([
-          readNumberProperty(created, "number", "GitHub pull request response"),
-          readStringProperty(
-            created,
-            "html_url",
-            "GitHub pull request response",
-          ),
-          readBooleanProperty(
-            created,
-            "draft",
-            "GitHub pull request response",
-          ),
-        ]).andThen(([number, url, draft]) =>
-          draft
-            ? ok({ number, url, draft: true as const, reused: false })
-            : err(new RepositoryError(
-                "REPOSITORY_GITHUB_FAILED",
-                "GitHub created a pull request that was not a draft.",
-              ))
-        )
-      );
-    });
-  }
-
   /** Finds the existing open draft pull request for one approved branch. */
   findDraftPullRequest(input: {
     branch: string;
@@ -464,13 +334,13 @@ export class GitHubRepository<
   } | undefined> {
     const query = new URLSearchParams({
       state: "open",
-      head: `${this.#repository.owner}:${input.branch}`,
+      head: `${this.repository.owner}:${input.branch}`,
       base: input.baseBranch,
       per_page: "10",
     });
 
-    return this.#requiredJson(
-      `${this.#path}/pulls?${query.toString()}`,
+    return this.requiredJson(
+      `${this.path}/pulls?${query.toString()}`,
     ).andThen((value) => {
       if (!Array.isArray(value)) {
         return err(new RepositoryError(
@@ -506,11 +376,11 @@ export class GitHubRepository<
     });
   }
 
-  #requiredJson(
+  protected requiredJson(
     path: string,
     options?: GitHubRequestOptions,
   ): RepositoryResultAsync<unknown> {
-    return this.#request.json(path, options).andThen((value) =>
+    return this.request.json(path, options).andThen((value) =>
       value === undefined
         ? err(new RepositoryError(
             "REPOSITORY_GITHUB_FAILED",
@@ -671,7 +541,7 @@ function gitHubRateLimitError(response: Response): RepositoryError {
   );
 }
 
-function readStringProperty(
+export function readStringProperty(
   value: unknown,
   property: string,
   label: string,
@@ -700,7 +570,7 @@ function readStringProperty(
   return ok(result);
 }
 
-function readNestedStringProperty(
+export function readNestedStringProperty(
   value: unknown,
   properties: string[],
   label: string,
@@ -749,7 +619,7 @@ function readNullableStringProperty(
       ));
 }
 
-function readNumberProperty(
+export function readNumberProperty(
   value: unknown,
   property: string,
   label: string,
@@ -769,7 +639,7 @@ function readNumberProperty(
       ));
 }
 
-function readBooleanProperty(
+export function readBooleanProperty(
   value: unknown,
   property: string,
   label: string,

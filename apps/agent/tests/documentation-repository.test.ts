@@ -19,6 +19,7 @@ import type {
 import { afterEach, describe, test, vi } from "vitest";
 
 import { DocumentationDraft } from "../repositories/documentation/draft";
+import { DocumentationGitHubRepository } from "../repositories/documentation/github";
 import { DocumentationPublisher } from "../repositories/documentation/publisher";
 import type {
   ApprovedDocumentationPublication,
@@ -26,10 +27,7 @@ import type {
   DocumentationWritebackInput,
 } from "../repositories/documentation/types";
 import { DocumentationWorkspace } from "../repositories/documentation/workspace";
-import {
-  createGitHubRequest,
-  GitHubRepository,
-} from "../repositories/shared/github";
+import { createGitHubRequest } from "../repositories/shared/github";
 import type {
   DocumentationRepository,
   RepositoryWorkspace,
@@ -970,7 +968,7 @@ async function readApprovedCommit(input: {
 async function writebackDocumentation(input: {
   sandbox: SandboxSession;
   repository: DocumentationRepository;
-  github: GitHubRepository<DocumentationRepository>;
+  github: DocumentationGitHubRepository;
   abortSignal: AbortSignal;
   input: DocumentationWritebackInput;
 }) {
@@ -1059,7 +1057,7 @@ async function createFixture() {
   };
   const local = createLocalSandbox(actualWorkspace);
   const abortSignal = new AbortController().signal;
-  const github = new GitHubRepository(
+  const github = new DocumentationGitHubRepository(
     repository,
     createGitHubRequest({
       token: "secret-token",

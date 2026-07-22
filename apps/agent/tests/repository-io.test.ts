@@ -8,6 +8,7 @@ import { afterEach, describe, test, vi } from "vitest";
 import { SandboxGit } from "../repositories/git";
 import { RepositoryFiles } from "../repositories/files";
 import { RepositoryService } from "../repositories/service";
+import { DocumentationGitHubRepository } from "../repositories/documentation/github";
 import { RepositoryError } from "../repositories/shared/errors";
 import {
   createGitHubRequest,
@@ -15,6 +16,7 @@ import {
 } from "../repositories/shared/github";
 import { serializeSandbox } from "../repositories/shared/serialization";
 import type {
+  DocumentationRepository,
   RepositoryConfig,
   RepositoryWorkspace,
   ResolvedRepository,
@@ -25,6 +27,10 @@ const repository: RepositoryConfig = {
   owner: "saleor",
   name: "saleor",
   role: "evidence",
+};
+const documentationRepository: DocumentationRepository = {
+  ...repository,
+  role: "documentation",
 };
 const resolvedRepository: ResolvedRepository = {
   ...repository,
@@ -486,8 +492,8 @@ describe("repository GitHub boundary", () => {
     ]));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await new GitHubRepository(
-      repository,
+    const result = await new DocumentationGitHubRepository(
+      documentationRepository,
       createGitHubRequest({
         token: "token",
         abortSignal: new AbortController().signal,
@@ -516,8 +522,8 @@ describe("repository GitHub boundary", () => {
       }));
     vi.stubGlobal("fetch", fetchMock);
 
-    const result = await new GitHubRepository(
-      repository,
+    const result = await new DocumentationGitHubRepository(
+      documentationRepository,
       createGitHubRequest({
         token: "token",
         abortSignal: new AbortController().signal,

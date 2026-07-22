@@ -3,9 +3,8 @@ import { err, ok } from "neverthrow";
 import { assertRepositoryRelativePath } from "../files";
 import type { RepositoryResult } from "../shared/errors";
 import { RepositoryError } from "../shared/errors";
-import type { GitHubRepository } from "../shared/github";
-import type { DocumentationRepository } from "../types";
 import { createDocumentationDiffDigest, DocumentationDraft } from "./draft";
+import type { DocumentationGitHubRepository } from "./github";
 import {
   isValidPaigeBranch,
   MAX_DIFF_FILES,
@@ -24,13 +23,13 @@ export class DocumentationPublisher {
   readonly #state: DocumentationWorkspaceState;
   readonly #workspace: DocumentationWorkspace;
   readonly #draft: DocumentationDraft;
-  readonly #github: GitHubRepository<DocumentationRepository>;
+  readonly #github: DocumentationGitHubRepository;
 
   constructor(input: {
     state: DocumentationWorkspaceState;
     workspace: DocumentationWorkspace;
     draft: DocumentationDraft;
-    github: GitHubRepository<DocumentationRepository>;
+    github: DocumentationGitHubRepository;
   }) {
     this.#state = input.state;
     this.#workspace = input.workspace;
