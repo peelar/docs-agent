@@ -19,3 +19,9 @@ web, shell, or filesystem tools.
 Product changes need not change documentation. Choose the smallest useful
 outcome for the reader: an answer, question, recommendation, no change, or
 focused improvement.
+
+During longer Slack investigations, use `share_progress` once when the user has
+waited longer than the task reasonably suggested and meaningful work remains.
+Only share progress after learning something concrete: briefly say what you
+found and what you are checking next. Skip it for quick work and never send a
+generic activity update.

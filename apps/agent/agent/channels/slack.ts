@@ -3,8 +3,14 @@ import { chatSdkChannel } from "eve/channels/chat-sdk";
 import { slackAdapter } from "../../slack/adapter";
 import { postSlackAuthorizationRequired } from "../../slack/authorization";
 import { registerSlackMessages } from "../../slack/messages";
-import { quietSlackProgressEvents } from "../../slack/progress";
-import { clearSlackWorkingReaction } from "../../slack/reactions";
+import {
+  beginSlackProgressTurn,
+  slackProgressTurnState,
+} from "../../slack/progress";
+import {
+  beginSlackReactionTurn,
+  clearSlackWorkingReaction,
+} from "../../slack/reactions";
 import { markdownReportFile, pendingSlackReport } from "../../slack/report";
 import { SlackChannelService } from "../../slack/service";
 import { createSlackState } from "../../slack/state";
@@ -16,17 +22,24 @@ export const { bot, channel, send } = chatSdkChannel({
     slack: slackAdapter,
   },
   events: {
-    ...quietSlackProgressEvents,
+    "session.waiting": async (_event, context) => {
+      await clearSlackWorkingReaction(context.thread?.adapter ?? null);
+    },
+    "turn.completed": async (_event, context) => {
+      await clearSlackWorkingReaction(context.thread?.adapter ?? null);
+    },
+    "turn.started": (event, context) => {
+      beginSlackReactionTurn(context.state.thread);
+      slackProgressTurnState.update(() =>
+        beginSlackProgressTurn(event.turnId)
+      );
+    },
     "authorization.required": async (event, context) => {
       await clearSlackWorkingReaction(context.thread?.adapter ?? null);
       await postSlackAuthorizationRequired(event, context.thread);
     },
     "message.completed": async (event, context, ctx) => {
-      if (event.finishReason === "tool-calls") {
-        context.state.pendingToolCallMessage = firstNonEmptyLine(event.message);
-        return;
-      }
-      context.state.pendingToolCallMessage = null;
+      if (event.finishReason === "tool-calls") return;
       if (!context.thread) return;
 
       const report = await pendingSlackReport.get();
@@ -56,15 +69,5 @@ registerSlackMessages(
   bot,
   new SlackChannelService(send),
 );
-
-function firstNonEmptyLine(message: string | null | undefined): string | null {
-  if (message === null || message === undefined) return null;
-
-  const lines = message.split(/\r?\n/gu);
-  const firstContentLine = lines.find((line) => line.trim().length > 0);
-  if (firstContentLine === undefined) return null;
-
-  return firstContentLine.trim();
-}
 
 export default channel;

@@ -1,30 +1,29 @@
-import type { Thread } from "chat";
+import type { Adapter } from "chat";
 import { defineState } from "eve/context";
+import { z } from "zod";
 
-import {
-  beginSlackReactionTurn,
-  clearSlackWorkingReaction,
-} from "./reactions";
-
-const FIRST_PROGRESS_UPDATE_DELAY_MS = 60_000;
-const LATER_PROGRESS_UPDATE_DELAY_MS = 120_000;
-const SLACK_PROGRESS_MESSAGES = [
-  "I’m still working on this — nothing’s stuck.",
-  "Still on it. This is taking a little longer, but I’m making progress.",
-] as const;
+import type { SlackReactionTarget } from "./reactions";
 
 export interface SlackProgressTurnState {
-  readonly nextUpdateAtMs: number | null;
+  readonly startedAtMs: number | null;
   readonly turnId: string | null;
-  readonly updatesSent: number;
+  readonly updateSent: boolean;
 }
 
-interface SlackProgressUpdate {
-  readonly message: string | null;
-  readonly state: SlackProgressTurnState;
-}
+export type SlackProgressClient = Pick<Adapter, "postMessage">;
 
-const slackProgressTurnState = defineState<SlackProgressTurnState>(
+export const slackProgressMessageSchema = z.string().trim().min(1).max(500)
+  .refine(
+    (value) => value.trim().split(/\s+/u).length <= 60,
+    "The progress update must contain no more than 60 words.",
+  ).refine(
+    (value) =>
+      !/^(?:(?:i(?:['’]m| am) )?(?:still )?working on (?:this|it)|still on it)(?:[\s.!—-].*)?$/iu
+        .test(value.trim()),
+    "Share a concrete interim finding and what remains, not a generic activity update.",
+  );
+
+export const slackProgressTurnState = defineState<SlackProgressTurnState>(
   "paige.slack-progress-turn",
   emptySlackProgressTurn,
 );
@@ -34,95 +33,62 @@ export function beginSlackProgressTurn(
   nowMs = Date.now(),
 ): SlackProgressTurnState {
   return {
-    nextUpdateAtMs: nowMs + FIRST_PROGRESS_UPDATE_DELAY_MS,
+    startedAtMs: nowMs,
     turnId,
-    updatesSent: 0,
+    updateSent: false,
   };
 }
 
-export function nextSlackProgressUpdate(
+export function elapsedSlackTurnDescription(
+  state: SlackProgressTurnState,
+  nowMs = Date.now(),
+): string {
+  if (state.startedAtMs === null) return "an unknown amount of time";
+
+  const elapsedSeconds = Math.max(
+    0,
+    Math.floor((nowMs - state.startedAtMs) / 1_000),
+  );
+  if (elapsedSeconds < 60) return `${elapsedSeconds} seconds`;
+
+  const elapsedMinutes = Math.floor(elapsedSeconds / 60);
+  const remainingSeconds = elapsedSeconds % 60;
+  if (remainingSeconds === 0) return `${elapsedMinutes} minutes`;
+  return `${elapsedMinutes} minutes ${remainingSeconds} seconds`;
+}
+
+export function claimSlackProgressUpdate(
   state: SlackProgressTurnState,
   turnId: string,
-  nowMs = Date.now(),
-): SlackProgressUpdate {
-  if (
-    state.turnId !== turnId || state.nextUpdateAtMs === null ||
-    nowMs < state.nextUpdateAtMs ||
-    state.updatesSent >= SLACK_PROGRESS_MESSAGES.length
-  ) {
-    return { message: null, state };
+): SlackProgressTurnState {
+  if (state.turnId !== turnId) {
+    throw new Error("The active Slack turn changed before progress was shared.");
   }
+  if (state.updateSent) {
+    throw new Error("Paige already shared progress for this Slack turn.");
+  }
+  return { ...state, updateSent: true };
+}
 
-  const message = SLACK_PROGRESS_MESSAGES[state.updatesSent] ?? null;
-  const updatesSent = state.updatesSent + 1;
-  return {
-    message,
-    state: {
-      nextUpdateAtMs: updatesSent < SLACK_PROGRESS_MESSAGES.length
-        ? nowMs + LATER_PROGRESS_UPDATE_DELAY_MS
-        : null,
-      turnId,
-      updatesSent,
-    },
-  };
+export function releaseSlackProgressUpdate(
+  state: SlackProgressTurnState,
+  turnId: string,
+): SlackProgressTurnState {
+  return state.turnId === turnId ? { ...state, updateSent: false } : state;
+}
+
+export async function postSlackProgressUpdate(
+  client: SlackProgressClient,
+  target: SlackReactionTarget,
+  message: string,
+): Promise<void> {
+  await client.postMessage(target.threadId, { markdown: message });
 }
 
 function emptySlackProgressTurn(): SlackProgressTurnState {
-  return { nextUpdateAtMs: null, turnId: null, updatesSent: 0 };
+  return {
+    startedAtMs: null,
+    turnId: null,
+    updateSent: false,
+  };
 }
-
-async function postSlackProgressUpdate(
-  turnId: string,
-  thread: Thread | null,
-): Promise<void> {
-  if (thread === null) return;
-
-  const update = nextSlackProgressUpdate(slackProgressTurnState.get(), turnId);
-  if (update.message === null) return;
-  slackProgressTurnState.update(() => update.state);
-
-  try {
-    // Check at Eve's durable action boundaries: this avoids exposing tool names
-    // while still reassuring users during genuinely long-running turns.
-    await thread.post({ markdown: update.message });
-  } catch (error) {
-    // Progress feedback is helpful but must not turn accepted work into a
-    // failed turn when Slack delivery is temporarily unavailable.
-    console.error("Could not post Paige's Slack progress update.", error);
-  }
-}
-
-async function handleSlackActionProgress(
-  event: { readonly turnId: string },
-  channel: { readonly thread: Thread | null },
-): Promise<void> {
-  await postSlackProgressUpdate(event.turnId, channel.thread);
-}
-
-export const quietSlackProgressEvents = {
-  "action.result": handleSlackActionProgress,
-  "actions.requested": handleSlackActionProgress,
-  "session.waiting": async (
-    _event: unknown,
-    channel: { thread: Thread | null },
-  ) => {
-    await clearSlackWorkingReaction(channel.thread?.adapter ?? null);
-  },
-  "turn.completed": async (
-    _event: unknown,
-    channel: { thread: Thread | null },
-  ) => {
-    await clearSlackWorkingReaction(channel.thread?.adapter ?? null);
-  },
-  "turn.started": (
-    event: { readonly turnId: string },
-    channel: {
-      state: { thread: Parameters<typeof beginSlackReactionTurn>[0] };
-    },
-  ) => {
-    // Make the active inbound message available to the scoped reaction tool
-    // and start a fresh, delayed progress cadence for this turn.
-    beginSlackReactionTurn(channel.state.thread);
-    slackProgressTurnState.update(() => beginSlackProgressTurn(event.turnId));
-  },
-};

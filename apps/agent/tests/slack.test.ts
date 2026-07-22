@@ -8,8 +8,10 @@ import { resolveSlackRuntimeConfiguration } from "../slack/configuration";
 import { registerSlackMessages } from "../slack/messages";
 import {
   beginSlackProgressTurn,
-  nextSlackProgressUpdate,
-  quietSlackProgressEvents,
+  claimSlackProgressUpdate,
+  elapsedSlackTurnDescription,
+  releaseSlackProgressUpdate,
+  slackProgressMessageSchema,
 } from "../slack/progress";
 import {
   agentSlackReactionNameSchema,
@@ -283,28 +285,47 @@ test("Slack dispatches accepted work when acknowledgement fails", async () => {
   errorLog.mockRestore();
 });
 
-test("Slack replaces tool traces with delayed, bounded progress updates", () => {
-  assert.equal(typeof quietSlackProgressEvents["actions.requested"], "function");
-  assert.equal(typeof quietSlackProgressEvents["action.result"], "function");
-  assert.equal(typeof quietSlackProgressEvents["turn.started"], "function");
-
+test("Slack progress is agent-authored, time-aware, and limited to one update", () => {
   const started = beginSlackProgressTurn("turn-1", 1_000);
-  assert.equal(nextSlackProgressUpdate(started, "turn-1", 60_999).message, null);
-
-  const first = nextSlackProgressUpdate(started, "turn-1", 61_000);
-  assert.equal(first.message, "I’m still working on this — nothing’s stuck.");
+  assert.equal(elapsedSlackTurnDescription(started, 46_000), "45 seconds");
   assert.equal(
-    nextSlackProgressUpdate(first.state, "turn-1", 180_999).message,
-    null,
+    elapsedSlackTurnDescription(started, 126_000),
+    "2 minutes 5 seconds",
   );
 
-  const second = nextSlackProgressUpdate(first.state, "turn-1", 181_000);
-  assert.match(second.message ?? "", /Still on it/);
-  assert.equal(
-    nextSlackProgressUpdate(second.state, "turn-1", 999_999).message,
-    null,
+  const claimed = claimSlackProgressUpdate(started, "turn-1");
+  assert.equal(claimed.updateSent, true);
+  assert.throws(
+    () => claimSlackProgressUpdate(claimed, "turn-1"),
+    /already shared progress/,
   );
-  assert.equal(nextSlackProgressUpdate(started, "turn-2", 999_999).message, null);
+  assert.throws(
+    () => claimSlackProgressUpdate(started, "turn-2"),
+    /active Slack turn changed/,
+  );
+  assert.equal(
+    releaseSlackProgressUpdate(claimed, "turn-1").updateSent,
+    false,
+  );
+
+  assert.equal(
+    slackProgressMessageSchema.safeParse(
+      "I found two upgrade-guide gaps; I’m checking whether either is covered elsewhere.",
+    ).success,
+    true,
+  );
+  assert.equal(
+    slackProgressMessageSchema.safeParse(
+      "I’m still working on this — nothing’s stuck.",
+    ).success,
+    false,
+  );
+  assert.equal(
+    slackProgressMessageSchema.safeParse(
+      "Still on it. This is taking longer, but I’m making progress.",
+    ).success,
+    false,
+  );
 });
 
 test("Slack harness and agent reactions use the same operation", async () => {
